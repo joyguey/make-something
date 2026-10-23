@@ -93,6 +93,15 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void NoEditorOnlyObjectsInSpatialExportedScene()
+        {
+            // EditorOnly objects are stripped from the player but still exported by SpatialAdapter, which
+            // shifted every later object by one on the emulator (wrong meshes, colours and positions).
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                Assert.IsFalse(t.CompareTag("EditorOnly"), $"{t.name} is EditorOnly; use EditorPreviewOnly instead");
+        }
+
+        [Test]
         public void SelectAndPlaceIsWired()
         {
             var selector = Object.FindFirstObjectByType<OrbSelector>();

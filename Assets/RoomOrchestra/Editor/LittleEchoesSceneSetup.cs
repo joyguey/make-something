@@ -37,6 +37,8 @@ namespace RoomOrchestra.EditorTools
 
         public static void Apply()
         {
+            KeepExportAlignedWithBuild();
+
             var parent = GameObject.Find("RoomOrchestra");
             var old = parent != null ? parent.transform.Find(RootName) : null;
             if (old != null) Object.DestroyImmediate(old.gameObject);
@@ -96,6 +98,22 @@ namespace RoomOrchestra.EditorTools
             var cso = new SerializedObject(controller);
             cso.FindProperty("selector").objectReferenceValue = selector;
             cso.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// The SpatialAdapter exporter writes EditorOnly objects that the player build strips, so every later
+        /// object renders with its neighbour's mesh/material/pose on device. Untag them; switch cameras off instead.
+        /// </summary>
+        static void KeepExportAlignedWithBuild()
+        {
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (!t.CompareTag("EditorOnly")) continue;
+                t.gameObject.tag = "Untagged";
+                if (t.TryGetComponent<Camera>(out _) && !t.TryGetComponent<EditorPreviewOnly>(out _))
+                    t.gameObject.AddComponent<EditorPreviewOnly>();
+                Debug.Log($"[RoomOrchestra] {t.name}: EditorOnly tag removed so the Spatial export matches the build");
+            }
         }
 
         static OrbToken CreateToken(OrbProfile profile, Transform tray, Vector3 localPosition,
