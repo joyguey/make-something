@@ -84,4 +84,5 @@ Results:
 ## Next action / minimal necessary approval
 - Prompt 03: deterministic note mapping (height/petal -> D E F# A B; udu articulations), replacing PingPong.
 - Before trusting the device: build + emulator run to confirm the Spatial renderer draws the tray/markers and that A/B/X/Y + stick reach InputDevices in Spatial mode.
-- Approval needed only for pushing the feature branch to GitHub.
+- Approved scope addition (2026-10-22): Room mapping phase after Prompt 05 (see DECISION_LOG).
+- Owner approved removing the old LoopStation (to be replaced by echo orbits).

@@ -44,3 +44,10 @@ Use entries of form:
 ## 2026-10-22 | Prompt 02 | Orb tray at 0.55 m in front of the chair
 - Evidence: the first placement at 0.8 m blocked the seated sight line to the chair seat (automated test failed). 0.55 m passes seated (1.15 m) and standing (1.6 m) occlusion tests and stays at least 1 m from the start position (earlier Spatial renderer issue).
 - Placement petal defaults to the middle petal (2) until petal UI exists (Prompt 03/05).
+
+## 2026-10-22 | Scope | Room mapping added as a phase after Prompt 05 (owner approved)
+- Owner request: instruments should map onto the player's real furniture; owner will test on a PICO headset.
+- Evidence (PICO SDK 6.1 docs): PICO Spatial mode supports AR Foundation Session, Anchors and Meshing on Project Swan / PICO OS 6 in Full Space. Scene capture with Table/Chair/Sofa semantic labels is documented for PICO XR / OpenXR modes only; UNVERIFIED in Spatial mode.
+- Decision: new phase "Room mapping" after the accessibility gate (Prompt 05): player-guided pinning (point at real table/chair/lamp -> anchor + mesh snap, persisted locally); optional label-based suggestions only if verified on device; virtual furniture stays as the fallback (seated play, rooms without furniture, emulator). Far real furniture must keep a within-reach option (no room-scale walking required).
+- Privacy: room mesh/anchors stay on device; never uploaded or committed (CLAUDE.md: no sensitive room-tracking data).
+- Requires headset testing; emulator only simulates scanning. Owner approval: YES (2026-10-22).
