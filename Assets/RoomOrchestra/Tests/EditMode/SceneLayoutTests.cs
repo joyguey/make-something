@@ -102,6 +102,13 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void RetiredLoopStationIsGone()
+        {
+            Assert.IsNull(Object.FindFirstObjectByType<LoopStation>(FindObjectsInactive.Include),
+                "the loop recorder is replaced by echo orbits");
+        }
+
+        [Test]
         public void SelectAndPlaceIsWired()
         {
             var selector = Object.FindFirstObjectByType<OrbSelector>();

@@ -97,6 +97,14 @@ Results:
 - Generated SpatialAdapter export files untracked + gitignored.
 - Still NOT verified: orb tray drawing (below the default emulator view), controller buttons, audio by ear, headset.
 
+## 2026-10-23 | Loop station removed, tray moved (live Editor via Unity CLI 1.0.0-beta.13 + com.unity.pipeline)
+- Workflow: Unity Editor open; driven with `unity command` (recompile, eval, run_tests, build). No batchmode, no MCP.
+- LoopStation scene object removed (scripts kept); orb tray + intensity button at (-0.55, 0.8, 1.1).
+- EditMode 55/55 PASS in live Editor (incl. new RetiredLoopStationIsGone, reach, occlusion, no-EditorOnly).
+- PlayMode via live Editor run_tests: FAILED TO START ("An unexpected error happened while running tests"); runtime code unchanged in this step, last PlayMode result 8/8 (batchmode). Investigate later or run PlayMode in batchmode with Unity closed.
+- Build from live Editor (`build` command): Succeeded, 0 errors. Exported GLB: no LoopStation, OrbTray at (-0.55, 0.8, 1.1).
+- Emulator: first attempt black (PICO system shell com.picoxr.worldspace ANR'd and was killed — emulator 8 GB + Unity 4 GB on host); after emulator restart, run 2 shows tray, tokens (shape+motif), intensity bars, dispenser ball, aim arc, focus marker: docs/evidence/phase2-emulator-tray.png. Run 1 screenshot itself timed out.
+- Note: Boom renders paler (yellowish) than amber under PICO lighting — revisit in art phase.
+
 ## Resume here (next session)
-1. Remove old LoopStation (owner approved) and move the orb tray + intensity button to its spot (front-left, ~0.8 m); rerun occlusion/reach tests; rebuild; confirm tray draws on emulator.
-2. Prompt 03: deterministic note mapping.
+1. Prompt 03: deterministic note mapping (height/petal -> D E F# A B; udu articulations), replacing PingPong.

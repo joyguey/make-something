@@ -21,8 +21,9 @@ namespace RoomOrchestra.EditorTools
         const float TokenDiameter = 0.1f;
         const int StartTarget = 1; // chair (middle)
 
-        // Low enough that seated and standing sight lines to the chair seat pass above the tray.
-        static readonly Vector3 TrayCenter = new Vector3(0f, 0.55f, 1.1f);
+        // Front-left, where the old loop station stood: inside the default view, and seated/standing
+        // sight lines to all three targets pass clear of it (checked by SceneLayoutTests).
+        static readonly Vector3 TrayCenter = new Vector3(-0.55f, 0.8f, 1.1f);
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]
         public static void ApplyAndSave()
@@ -38,6 +39,7 @@ namespace RoomOrchestra.EditorTools
         public static void Apply()
         {
             KeepExportAlignedWithBuild();
+            RemoveRetiredLoopStation();
 
             var parent = GameObject.Find("RoomOrchestra");
             var old = parent != null ? parent.transform.Find(RootName) : null;
@@ -113,6 +115,19 @@ namespace RoomOrchestra.EditorTools
                 if (t.TryGetComponent<Camera>(out _) && !t.TryGetComponent<EditorPreviewOnly>(out _))
                     t.gameObject.AddComponent<EditorPreviewOnly>();
                 Debug.Log($"[RoomOrchestra] {t.name}: EditorOnly tag removed so the Spatial export matches the build");
+            }
+        }
+
+        /// <summary>
+        /// The RoomOrchestra loop recorder is replaced by Little Echoes orbits (owner approved 2026-10-22).
+        /// Only the scene object goes; its scripts stay in the project.
+        /// </summary>
+        static void RemoveRetiredLoopStation()
+        {
+            foreach (var station in Object.FindObjectsByType<LoopStation>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                Debug.Log($"[RoomOrchestra] Removed retired loop station '{station.name}' from the scene");
+                Object.DestroyImmediate(station.gameObject);
             }
         }
 
