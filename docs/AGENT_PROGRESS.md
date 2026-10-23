@@ -1,10 +1,10 @@
 # AGENT_PROGRESS — living log
 Date/time and timezone: 2026-10-22 (local Mac time)
 Unity project root: /Users/joy/Desktop/PICO Project
-Git branch / current commit / remote privacy confirmed?: Phase 1 — repo initialized locally on `main`; remote `joyguey/make-something` (stated PRIVATE in docs/GITHUB_FIRST_BACKUP_VERIFIED_REPO.md; not yet verified from this Mac — no GitHub auth yet)
+Git branch / current commit / remote privacy confirmed?: `main` @ f4f51c2e0b349c97d2e5a9aa1c69c01a5eca733e; origin https://github.com/joyguey/make-something.git; PRIVATE confirmed via `gh repo view`
 PICO SDK / Unity exact installed versions: Unity 6000.3.25f1 (ProjectSettings/ProjectVersion.txt). PICO SDK not inspected in Phase 1 (backup only).
 Connected tools verified (Unity MCP / PICO CLI / Blender MCP): not exercised in Phase 1. Configured in .mcp.json: pico-dev-knowledge, unity-mcp.
-Current phase: Phase 1 — GitHub backup only (no gameplay/SDK changes)
+Current phase: Phase 1 — GitHub backup COMPLETE and verified (no gameplay/SDK changes)
 
 ## Changed files
 - `docs/AGENT_PROGRESS.md` (new, from template)
@@ -28,7 +28,10 @@ Current phase: Phase 1 — GitHub backup only (no gameplay/SDK changes)
 - Every Assets item has a .meta: PASS
 - Binary YAML check: only ProjectSettings/XRSettings.asset is non-YAML, and it is JSON text, so it is safe with `text eol=lf`
 - CRLF check in Assets/ProjectSettings: PASS — none
-- Push / remote verification: BLOCKED — GitHub authentication needed
+- `brew install gh` → gh 2.103.0; owner ran `gh auth login --web` → logged in as joyguey; `gh auth setup-git`
+- Pre-push: `gh repo view` → PRIVATE, isEmpty=true, viewerPermission=ADMIN
+- Owner approved push; `git remote add origin https://github.com/joyguey/make-something.git`; `git push -u origin main` (no force) → new branch main
+- Post-push verification: PASS — remote main SHA == local HEAD f4f51c2e0b349c97d2e5a9aa1c69c01a5eca733e; GitHub tree has 248 blobs (= local tracked), Assets 179 (103 .meta, 12 .cs), Packages 2, ProjectSettings 26, 0 files under Library/Temp/Logs/Builds/UserSettings; repo still PRIVATE
 
 ## Screenshots, video, audio, build artifact paths (verify existence)
 - None for Phase 1.
@@ -43,4 +46,5 @@ Current phase: Phase 1 — GitHub backup only (no gameplay/SDK changes)
 - GitHub only backs up committed files. Library/, Builds/ (including the shared APK) and Logs/ are not uploaded. Keep an offline copy too.
 
 ## Next action / minimal necessary approval
-- Owner: authenticate GitHub on this Mac, then approve the first push of the reviewed file list.
+- Phase 1 stopped after verification. This log update is a local uncommitted change; commit it at the start of Phase 2.
+- Phase 2 begins with Prompt 00 in docs/CLAUDE_PROMPTS_IN_ORDER.md, on a feature branch.
