@@ -106,5 +106,20 @@ Results:
 - Emulator: first attempt black (PICO system shell com.picoxr.worldspace ANR'd and was killed — emulator 8 GB + Unity 4 GB on host); after emulator restart, run 2 shows tray, tokens (shape+motif), intensity bars, dispenser ball, aim arc, focus marker: docs/evidence/phase2-emulator-tray.png. Run 1 screenshot itself timed out.
 - Note: Boom renders paler (yellowish) than amber under PICO lighting — revisit in art phase.
 
+## 2026-10-23 | Prompt 03 — deterministic musical grammar (live Editor via Unity CLI)
+Implemented (editor tests + emulator logs; NOT listened to):
+- NoteMapping: clamp(floor(h*5),0,4) / petal 0-4; mbira D4..B4, erhu D5..B5; udu = Open/Muted/Slap/Bend/Tap articulations. MusicalHitEvent.Note. Old PingPong/Random order removed.
+- VoiceDesign: per-orb voices rendered at Start from the samples (Flutter bright+short, Bop plain, Boom two-pole LP 900 Hz + longer fade); udu articulations incl. pitch-bend. Normalised to <= 0.9 peak, fade-out to silence.
+- Pitch petals: 5-step staircase in front of the tray (tap / stick click / editor P); placing uses the selected petal.
+- All sound labelled SOUND PROTOTYPE; docs/AUDIO_ASSET_LICENSES.md lists the 15 WAVs as NOT VERIFIED.
+Tests (live Editor `unity command run_tests`):
+- EditMode 82/82 PASS: exact 0/1 and band boundaries, petal/height equivalence, scale steps, udu = articulations not note names, same input same note, orb/tier never change note, rendering deterministic, headroom + no end click, Flutter >= 1.2x Bop >= 1.2x Boom brightness, pitch period unchanged, readable clips in the real scene, petal button reach.
+- PlayMode 12/12 PASS (ran this time in the focused live Editor): each petal plays its note with the orb's voice, same input -> same voice, udu tap from B2 sample and shorter than open, toss note follows contact height.
+- Fixed during testing: Flutter not bright enough (1.12x) -> high-shelf; Boom not dark enough (1.17x) -> two-pole LP; Boom sub-octave removed (shifted heard pitch an octave); flawed zero-crossing pitch test -> autocorrelation.
+- Build from live Editor: Succeeded, 0 errors (Builds/RoomOrchestra-phase3.apk).
+- Emulator: 2/2 launches log "Erhu/Mbira/Udu voice bank: 15 voices"; scene draws (docs/evidence/phase3-emulator.png). No hit occurred, so note choice on device is NOT verified there.
+- NOT TESTED: audio by ear, mix levels/clipping across 3 instruments, controller stick click on hardware.
+- Known: petal staircase is partly below the default emulator view (bottom edge) -> revisit in Prompt 05 layout.
+
 ## Resume here (next session)
-1. Prompt 03: deterministic note mapping (height/petal -> D E F# A B; udu articulations), replacing PingPong.
+1. Prompt 04: 88 BPM DSP clock + three 16-step echo orbits (replaces the retired loop recorder).

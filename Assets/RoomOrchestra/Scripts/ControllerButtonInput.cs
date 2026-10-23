@@ -36,13 +36,15 @@ namespace RoomOrchestra
             }
             device.TryGetFeatureValue(CommonUsages.primaryButton, out frame.Primary);
             device.TryGetFeatureValue(CommonUsages.secondaryButton, out frame.Secondary);
+            device.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out frame.StickClick);
             return frame;
         }
     }
 
     /// <summary>
     /// One-handed controller path: stick left/right picks the orb, up/down picks the target,
-    /// A/X places, B/Y changes intensity. Either controller alone is enough.
+    /// A/X places, B/Y changes intensity, clicking the stick changes the pitch petal.
+    /// Either controller alone is enough.
     /// </summary>
     public class ControllerButtonInput : MonoBehaviour
     {

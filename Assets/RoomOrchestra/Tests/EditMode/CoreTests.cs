@@ -263,7 +263,8 @@ namespace RoomOrchestra.Tests
                 }
                 var a = Idle; a.Primary = true; Step(a); Step(Idle);
                 var b = Idle; b.Secondary = true; Step(b); Step(Idle);
-                Assert.AreEqual(6, seen.Count, $"hand {hand}");
+                var click = Idle; click.StickClick = true; Step(click); Step(Idle);
+                Assert.AreEqual(7, seen.Count, $"hand {hand}");
             }
         }
 

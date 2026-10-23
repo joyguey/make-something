@@ -5,20 +5,15 @@ using UnityEngine;
 namespace RoomOrchestra
 {
     /// <summary>
-    /// A musical object: plays the next note of its instrument and flashes when activated.
-    /// Taps, keys, balls, and the <see cref="LoopStation"/> all trigger notes through this component.
+    /// A musical object (table/udu, chair/mbira, lamp/erhu). Plays exactly the note a
+    /// <see cref="MusicalHitEvent"/> asks for: note from height/petal, timbre from the orb, level from
+    /// the intensity tier. Voices per orb are rendered once at Start by <see cref="VoiceDesign"/>.
+    /// SOUND PROTOTYPE: built from placeholder samples of unverified provenance (docs/AUDIO_ASSET_LICENSES.md).
     /// </summary>
     [RequireComponent(typeof(AudioSource))]
     [RequireComponent(typeof(ColorFlash))]
     public class InstrumentTarget : MonoBehaviour
     {
-        public enum NoteOrder
-        {
-            PingPong,  // up the scale, then back down
-            Ascending, // up the scale, then wrap to the first note
-            Random     // any note except the one just played
-        }
-
         public enum HitSource
         {
             Tap,
@@ -32,7 +27,6 @@ namespace RoomOrchestra
         [SerializeField] InstrumentType instrument;
         [Tooltip("One clip per scale degree, lowest first (D, E, F#, A, B of D major pentatonic).")]
         [SerializeField] AudioClip[] notes;
-        [SerializeField] NoteOrder order = NoteOrder.PingPong;
         [Tooltip("Template voice; extra voices copy its settings so notes can overlap and be scheduled.")]
         [SerializeField] AudioSource audioSource;
         [SerializeField, Range(0f, 1f)] float volume = 0.7f;
@@ -43,7 +37,7 @@ namespace RoomOrchestra
         ColorFlash m_Flash;
         AudioSource[] m_Voices;
         int m_NextVoice;
-        int m_Step;
+        AudioClip[,] m_Bank; // [orb, note index] rendered voices
         readonly List<double> m_PendingFlashes = new();
 
         /// <summary>All enabled instrument targets in the scene.</summary>
@@ -96,6 +90,65 @@ namespace RoomOrchestra
             notes = clips;
         }
 
+        /// <summary>True once per-orb voices are rendered; until then hits fall back to the plain samples.</summary>
+        public bool HasVoiceBank => m_Bank != null;
+
+        // Rendered in Start, not Awake, and only audio data: nothing visible changes at startup.
+        void Start() => BuildVoiceBank();
+
+        public void BuildVoiceBank()
+        {
+            if (notes == null || notes.Length < NoteMapping.Count) return;
+            var bank = new AudioClip[OrbCatalog.Count, NoteMapping.Count];
+            for (int index = 0; index < NoteMapping.Count; index++)
+            {
+                bool udu = instrument == InstrumentType.Udu;
+                var articulation = (UduArticulation)index;
+                var source = notes[udu ? VoiceDesign.UduSourceIndex(articulation) : index];
+                float[] data = ReadMono(source);
+                if (data == null) continue;
+                var basis = udu ? VoiceDesign.ForUdu(articulation) : VoiceSpec.Plain;
+                foreach (var profile in OrbCatalog.All)
+                {
+                    float[] rendered = VoiceDesign.Render(data, source.frequency, VoiceDesign.ForOrb(profile.Type, basis));
+                    var clip = AudioClip.Create($"{instrument}_{index}_{profile.Type}", rendered.Length, 1, source.frequency, false);
+                    clip.SetData(rendered, 0);
+                    bank[(int)profile.Type, index] = clip;
+                }
+            }
+            m_Bank = bank;
+            int built = 0;
+            foreach (var clip in bank) if (clip != null) built++;
+            Debug.Log($"[RoomOrchestra] {instrument} voice bank: {built} voices (sound prototype)");
+        }
+
+        static float[] ReadMono(AudioClip clip)
+        {
+            if (clip == null) return null;
+            if (clip.loadState != AudioDataLoadState.Loaded) clip.LoadAudioData();
+            var raw = new float[clip.samples * clip.channels];
+            if (!clip.GetData(raw, 0)) return null;
+            if (clip.channels == 1) return raw;
+            var mono = new float[clip.samples];
+            for (int i = 0; i < mono.Length; i++)
+            {
+                float sum = 0f;
+                for (int c = 0; c < clip.channels; c++) sum += raw[i * clip.channels + c];
+                mono[i] = sum / clip.channels;
+            }
+            return mono;
+        }
+
+        /// <summary>The voice for an orb and note index (rendered if available, else the plain sample).</summary>
+        public AudioClip VoiceFor(OrbType orb, int index)
+        {
+            index = Mathf.Clamp(index, 0, NoteMapping.Count - 1);
+            if (m_Bank != null && m_Bank[(int)orb, index] != null) return m_Bank[(int)orb, index];
+            if (notes == null || notes.Length == 0) return null;
+            int source = instrument == InstrumentType.Udu ? VoiceDesign.UduSourceIndex((UduArticulation)index) : index;
+            return notes[Mathf.Min(source, notes.Length - 1)];
+        }
+
         void OnEnable() => s_Active.Add(this);
         void OnDisable() => s_Active.Remove(this);
 
@@ -113,15 +166,17 @@ namespace RoomOrchestra
             }
         }
 
-        /// <summary>Plays the next note according to <see cref="order"/>, as a tap.</summary>
+        /// <summary>Plays the middle note (no selected orb), as a tap.</summary>
         public void PlayInstrument() => Play(HitSource.Tap);
 
-        /// <summary>
-        /// Sounds a normalized musical hit. Dynamics come from the event's tier.
-        /// Note choice still follows <see cref="order"/> until the Phase 3 note mapping lands.
-        /// </summary>
-        public int PlayHit(MusicalHitEvent hit) =>
-            Play(hit.Path == InputPath.Toss ? HitSource.Ball : HitSource.Tap, IntensityMapping.Strength(hit.Tier));
+        /// <summary>Sounds a musical hit now: its note, its orb's timbre, its tier's level.</summary>
+        public int PlayHit(MusicalHitEvent hit)
+        {
+            int index = hit.Note.Index;
+            PlayClipAt(VoiceFor(hit.Orb, index), index, AudioSettings.dspTime, IntensityMapping.Strength(hit.Tier),
+                hit.Path == InputPath.Toss ? HitSource.Ball : HitSource.Tap);
+            return index;
+        }
 
         /// <summary>Normalized height (0 = bottom, 1 = top) of a world-space Y within this object's colliders.</summary>
         public PitchInput PitchAtHeight(float worldY)
@@ -142,9 +197,9 @@ namespace RoomOrchestra
                 Debug.LogWarning($"[RoomOrchestra] {name} has no notes assigned.", this);
                 return -1;
             }
-            int index = NextIndex();
-            PlayNoteAt(index, AudioSettings.dspTime, strength, source);
-            return index;
+            const int middle = 2;
+            PlayNoteAt(middle, AudioSettings.dspTime, strength, source);
+            return middle;
         }
 
         /// <summary>Plays a specific scale degree (0 = lowest) now.</summary>
@@ -153,12 +208,17 @@ namespace RoomOrchestra
         /// <summary>Plays a scale degree at an audio-clock time; future times are sample-accurate.</summary>
         public void PlayNoteAt(int index, double dspTime, float strength, HitSource source)
         {
-            if (notes == null || index < 0 || index >= notes.Length || notes[index] == null || m_Voices == null)
-                return;
+            if (notes == null || index < 0 || index >= notes.Length) return;
+            PlayClipAt(notes[index], index, dspTime, strength, source);
+        }
+
+        void PlayClipAt(AudioClip clip, int index, double dspTime, float strength, HitSource source)
+        {
+            if (clip == null || m_Voices == null) return;
 
             var voice = m_Voices[m_NextVoice];
             m_NextVoice = (m_NextVoice + 1) % m_Voices.Length; // oldest voice is reused when all are busy
-            voice.clip = notes[index];
+            voice.clip = clip;
             voice.volume = volume * Mathf.Clamp01(strength);
 
             if (dspTime <= AudioSettings.dspTime + 0.005)
@@ -175,26 +235,8 @@ namespace RoomOrchestra
             LastNoteIndex = index;
             PlayCount++;
             if (source != HitSource.Loop)
-                Debug.Log($"[RoomOrchestra] {source} hit {instrument} note={notes[index].name} strength={strength:F2}");
+                Debug.Log($"[RoomOrchestra] {source} hit {instrument} voice={clip.name} strength={strength:F2}");
             AnyPlayed?.Invoke(this, index, strength, source);
-        }
-
-        int NextIndex()
-        {
-            int n = notes.Length;
-            if (n == 1) return 0;
-            switch (order)
-            {
-                case NoteOrder.Ascending:
-                    return m_Step++ % n;
-                case NoteOrder.Random:
-                    int pick = UnityEngine.Random.Range(0, n - 1);
-                    return pick >= LastNoteIndex && LastNoteIndex >= 0 ? pick + 1 : pick;
-                default: // PingPong over 0..n-1..1
-                    int period = 2 * (n - 1);
-                    int s = m_Step++ % period;
-                    return s < n ? s : period - s;
-            }
         }
 
         public static InstrumentTarget Find(InstrumentType type)

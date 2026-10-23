@@ -20,6 +20,7 @@ namespace RoomOrchestra.EditorTools
         const string RootName = "LittleEchoes";
         const float TokenDiameter = 0.1f;
         const int StartTarget = 1; // chair (middle)
+        const int StartPetal = 2;  // middle note
 
         // Front-left, where the old loop station stood: inside the default view, and seated/standing
         // sight lines to all three targets pass clear of it (checked by SceneLayoutTests).
@@ -71,6 +72,7 @@ namespace RoomOrchestra.EditorTools
             }
 
             var tierButton = CreateTierButton(root.transform, slabMaterial, motifMaterial);
+            var petalButton = CreatePetalButton(root.transform, slabMaterial, motifMaterial);
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -90,6 +92,8 @@ namespace RoomOrchestra.EditorTools
             so.FindProperty("focusMarkerLift").floatValue = markerLift;
             SetArray(so.FindProperty("tokens"), tokens);
             so.FindProperty("tierButton").objectReferenceValue = tierButton;
+            so.FindProperty("petalButton").objectReferenceValue = petalButton;
+            so.FindProperty("startPetal").intValue = StartPetal;
             so.FindProperty("launcher").objectReferenceValue = launcher;
             so.FindProperty("startOrb").enumValueIndex = (int)OrbType.Flutter;
             so.FindProperty("startTarget").intValue = StartTarget;
@@ -199,6 +203,32 @@ namespace RoomOrchestra.EditorTools
             so.FindProperty("loweredScale").vector3Value = lowered;
             so.ApplyModifiedPropertiesWithoutUndo();
             return tier;
+        }
+
+        // Five rising steps in front of the tray: low to high note (or the five udu sounds).
+        static PetalButton CreatePetalButton(Transform root, Material slab, Material steps)
+        {
+            var go = new GameObject("PetalButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = TrayCenter + new Vector3(0f, 0f, -0.14f);
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.04f, 0f);
+            box.size = new Vector3(0.24f, 0.12f, 0.09f);
+            Box("PetalSlab", go.transform, Vector3.zero, new Vector3(0.24f, 0.03f, 0.08f), slab, keepCollider: false);
+
+            var petal = go.AddComponent<PetalButton>();
+            var stepTransforms = new Transform[NoteMapping.Count];
+            for (int i = 0; i < NoteMapping.Count; i++)
+            {
+                var step = Primitive(PrimitiveType.Cube, $"PetalStep{i}", go.transform, steps, keepCollider: false);
+                step.localPosition = new Vector3(-0.088f + 0.044f * i, 0.015f, 0f);
+                stepTransforms[i] = step;
+            }
+            var so = new SerializedObject(petal);
+            SetArray(so.FindProperty("steps"), stepTransforms);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            petal.Show(StartPetal); // authored in its start state, so nothing changes at runtime startup
+            return petal;
         }
 
         static void PreSkinBalls(Material flutter)

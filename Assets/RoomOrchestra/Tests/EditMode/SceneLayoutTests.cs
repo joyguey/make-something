@@ -45,6 +45,36 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void EveryTargetHasFiveReadableClips()
+        {
+            foreach (var t in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
+            {
+                Assert.GreaterOrEqual(t.Notes.Count, NoteMapping.Count, t.name);
+                for (int i = 0; i < NoteMapping.Count; i++)
+                {
+                    var clip = t.Notes[i];
+                    Assert.IsNotNull(clip, $"{t.name} clip {i}");
+                    clip.LoadAudioData();
+                    var data = new float[clip.samples * clip.channels];
+                    Assert.IsTrue(clip.GetData(data, 0), $"{clip.name} sample data must be readable (Decompress On Load)");
+                    Assert.Greater(data.Max(x => Mathf.Abs(x)), 0.01f, $"{clip.name} is silent");
+                }
+            }
+        }
+
+        [Test]
+        public void PetalButtonReachableSeatedAndAuthoredAtStartPetal()
+        {
+            var petal = Object.FindFirstObjectByType<PetalButton>();
+            Assert.IsNotNull(petal);
+            AssertSeated("PetalButton", petal.transform.position);
+            Assert.IsNotNull(petal.GetComponent<Collider>());
+            var steps = petal.GetComponentsInChildren<Transform>().Where(t => t.name.StartsWith("PetalStep")).ToArray();
+            Assert.AreEqual(NoteMapping.Count, steps.Length);
+            Assert.Greater(steps[2].localScale.y, petal.BaseScale(2).y, "middle petal authored selected");
+        }
+
+        [Test]
         public void TierButtonAndBallSpawnReachableSeated()
         {
             var tier = Object.FindFirstObjectByType<TierButton>();

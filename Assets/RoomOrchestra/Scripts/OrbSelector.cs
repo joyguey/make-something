@@ -17,14 +17,15 @@ namespace RoomOrchestra
         [SerializeField] float focusMarkerLift = 0.3f;
         [SerializeField] OrbToken[] tokens;
         [SerializeField] TierButton tierButton;
+        [SerializeField] PetalButton petalButton;
         [SerializeField] BallLauncher launcher;
 
         [Header("Initial state (authored in the scene to match, so nothing changes at startup)")]
         [SerializeField] OrbType startOrb = OrbType.Flutter;
         [SerializeField] int startTarget = 1;
         [SerializeField] IntensityTier startTier = IntensityTier.Medium;
-        [Tooltip("Pitch petal used when placing (0 = lowest, 4 = highest) until petals get their own UI.")]
-        [SerializeField, Range(0, PitchInput.PetalCount - 1)] int placePetal = 2;
+        [Tooltip("Pitch petal selected at start (0 = lowest note / first udu sound, 4 = highest).")]
+        [SerializeField, Range(0, PitchInput.PetalCount - 1)] int startPetal = 2;
 
         SelectionModel m_Model;
 
@@ -33,12 +34,13 @@ namespace RoomOrchestra
         public SelectionModel Model => m_Model ??= CreateModel();
         public OrbType SelectedOrb => Model.SelectedOrb;
         public IntensityTier Tier => Model.Tier;
+        public int Petal => Model.Petal;
         public InstrumentTarget FocusedTarget =>
             targets != null && targets.Length > 0 ? targets[Model.FocusedTarget] : null;
 
         SelectionModel CreateModel()
         {
-            var model = new SelectionModel(targets != null ? targets.Length : 1, startOrb, startTarget, startTier);
+            var model = new SelectionModel(targets != null ? targets.Length : 1, startOrb, startTarget, startTier, startPetal);
             model.Changed += Refresh;
             return model;
         }
@@ -68,6 +70,8 @@ namespace RoomOrchestra
         public void CycleTarget(int direction) => Model.CycleTarget(direction);
         public void CycleTier() => Model.CycleTier();
         public void SetTier(IntensityTier tier) => Model.SetTier(tier);
+        public void CyclePetal() => Model.CyclePetal();
+        public void SetPetal(int petal) => Model.SetPetal(petal);
 
         public void Focus(InstrumentTarget target)
         {
@@ -78,8 +82,8 @@ namespace RoomOrchestra
         /// <summary>Places the selected orb on the focused target.</summary>
         public MusicalHitEvent PlaceOnFocused() => PlaceOn(FocusedTarget);
 
-        /// <summary>Places the selected orb on <paramref name="target"/> at the default petal.</summary>
-        public MusicalHitEvent PlaceOn(InstrumentTarget target) => PlaceOn(target, PitchInput.FromPetal(placePetal));
+        /// <summary>Places the selected orb on <paramref name="target"/> at the selected petal.</summary>
+        public MusicalHitEvent PlaceOn(InstrumentTarget target) => PlaceOn(target, PitchInput.FromPetal(Model.Petal));
 
         public MusicalHitEvent PlaceOn(InstrumentTarget target, PitchInput pitch)
         {
@@ -99,6 +103,7 @@ namespace RoomOrchestra
                 case ControllerCommand.PreviousTarget: CycleTarget(-1); break;
                 case ControllerCommand.Place: PlaceOnFocused(); break;
                 case ControllerCommand.CycleIntensity: CycleTier(); break;
+                case ControllerCommand.CyclePetal: CyclePetal(); break;
             }
         }
 
@@ -116,6 +121,7 @@ namespace RoomOrchestra
             }
 
             if (tierButton != null) tierButton.Show(Model.Tier);
+            if (petalButton != null) petalButton.Show(Model.Petal);
             if (launcher != null) launcher.SetOrb(Model.SelectedOrb);
         }
     }

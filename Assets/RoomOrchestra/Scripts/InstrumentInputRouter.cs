@@ -14,7 +14,8 @@ namespace RoomOrchestra
     /// (a quick tap tosses it; aim assist snaps throws to the nearest instrument);
     /// tap a tray orb to select it, tap furniture to place the selected orb there, tap loop buttons.
     /// Unity Editor only (controller simulator): click like a tap, click elsewhere to throw toward
-    /// the cursor; Left/Right choose orb, Up/Down choose target, Enter places, Q changes intensity;
+    /// the cursor; Left/Right choose orb, Up/Down choose target, Enter places, Q changes intensity,
+    /// P changes the pitch petal;
     /// keys 1/2/3 place on table/chair/lamp, Space throws straight ahead, R toggles loop record, C clears.
     /// </summary>
     public class InstrumentInputRouter : MonoBehaviour
@@ -76,6 +77,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<InstrumentButton>();
             if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
             if (owner == null) owner = hit.GetComponentInParent<TierButton>();
+            if (owner == null) owner = hit.GetComponentInParent<PetalButton>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
 
@@ -105,6 +107,12 @@ namespace RoomOrchestra
             if (hit.GetComponentInParent<TierButton>() != null && selector != null)
             {
                 selector.CycleTier();
+                return true;
+            }
+
+            if (hit.GetComponentInParent<PetalButton>() != null && selector != null)
+            {
+                selector.CyclePetal();
                 return true;
             }
 
@@ -158,6 +166,7 @@ namespace RoomOrchestra
                     if (keyboard.downArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.PreviousTarget);
                     if (keyboard.enterKey.wasPressedThisFrame) selector.Execute(ControllerCommand.Place);
                     if (keyboard.qKey.wasPressedThisFrame) selector.Execute(ControllerCommand.CycleIntensity);
+                    if (keyboard.pKey.wasPressedThisFrame) selector.Execute(ControllerCommand.CyclePetal);
                 }
                 if (keyboard.rKey.wasPressedThisFrame) LoopStation.Instance?.ToggleRecording();
                 if (keyboard.cKey.wasPressedThisFrame) LoopStation.Instance?.Clear();

@@ -10,6 +10,7 @@ namespace RoomOrchestra
         public float StickY;
         public bool Primary;   // A (right) / X (left)
         public bool Secondary; // B (right) / Y (left)
+        public bool StickClick;
     }
 
     public enum ControllerCommand
@@ -19,7 +20,8 @@ namespace RoomOrchestra
         NextTarget,
         PreviousTarget,
         Place,
-        CycleIntensity
+        CycleIntensity,
+        CyclePetal
     }
 
     /// <summary>
@@ -34,7 +36,7 @@ namespace RoomOrchestra
 
         struct HandState
         {
-            public bool StickArmedX, StickArmedY, Primary, Secondary, Initialized;
+            public bool StickArmedX, StickArmedY, Primary, Secondary, StickClick, Initialized;
         }
 
         readonly HandState[] m_Hands = new HandState[2];
@@ -63,6 +65,7 @@ namespace RoomOrchestra
                 s.Initialized = true;
                 s.Primary = f.Primary;
                 s.Secondary = f.Secondary;
+                s.StickClick = f.StickClick;
                 s.StickArmedX = Abs(f.StickX) < ReleaseThreshold;
                 s.StickArmedY = Abs(f.StickY) < ReleaseThreshold;
                 return;
@@ -92,8 +95,10 @@ namespace RoomOrchestra
 
             if (f.Primary && !s.Primary) m_Buffer.Add(ControllerCommand.Place);
             if (f.Secondary && !s.Secondary) m_Buffer.Add(ControllerCommand.CycleIntensity);
+            if (f.StickClick && !s.StickClick) m_Buffer.Add(ControllerCommand.CyclePetal);
             s.Primary = f.Primary;
             s.Secondary = f.Secondary;
+            s.StickClick = f.StickClick;
         }
 
         public void Reset()

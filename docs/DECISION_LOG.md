@@ -51,3 +51,10 @@ Use entries of form:
 - Decision: new phase "Room mapping" after the accessibility gate (Prompt 05): player-guided pinning (point at real table/chair/lamp -> anchor + mesh snap, persisted locally); optional label-based suggestions only if verified on device; virtual furniture stays as the fallback (seated play, rooms without furniture, emulator). Far real furniture must keep a within-reach option (no room-scale walking required).
 - Privacy: room mesh/anchors stay on device; never uploaded or committed (CLAUDE.md: no sensitive room-tracking data).
 - Requires headset testing; emulator only simulates scanning. Owner approval: YES (2026-10-22).
+
+## 2026-10-23 | Prompt 03 | Deterministic note grammar and orb timbre
+- Note: noteIndex = clamp(floor(h*5),0,4) or petal 0-4. Mbira D4 E4 F#4 A4 B4, erhu D5 E5 F#5 A5 B5 (game arrangement, not a claim about traditional tuning). Udu index = articulation (Open, Muted, Slap, Bend, Tap), never note names. Old PingPong/Random note order removed.
+- Timbre per orb rendered offline in C# from the existing samples at Start (no runtime GameObjects, nothing visible changes): Flutter brighter/shorter, Bop plain, Boom darker/longer. Measured by tests: Flutter >= 1.2x Bop and Bop >= 1.2x Boom brightness; pitch (autocorrelation period) unchanged.
+- Rejected: AudioLowPassFilter components (one filter per GameObject; per-voice child objects would mean runtime GameObjects, risky under PICO Spatial). Rejected: Boom sub-octave layer (shifted the heard pitch an octave down).
+- Pitch petals: 5-step staircase in front of the tray (tap / controller stick click / editor P). Tossed notes come from contact height on the target's colliders; with aim assist, throws mostly land on top faces, so petals are the main pitch control for now.
+- All sounds are labeled SOUND PROTOTYPE (docs/AUDIO_ASSET_LICENSES.md). Owner approval: not required (no new assets, no licensing decision).

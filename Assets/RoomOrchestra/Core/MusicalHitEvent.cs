@@ -61,6 +61,8 @@ namespace RoomOrchestra
         public PitchInput Pitch { get; }
         public InputPath Path { get; }
         public double CreatedAtDspTime { get; }
+        /// <summary>The note (or udu articulation) this hit plays: fully determined by target + pitch.</summary>
+        public MusicalNote Note => NoteMapping.Resolve(Target, Pitch);
 
         public MusicalHitEvent(long stableId, long actionId, InstrumentType target, OrbType orb,
             IntensityTier tier, PitchInput pitch, InputPath path, double createdAtDspTime)
@@ -82,6 +84,6 @@ namespace RoomOrchestra
             System.Math.Abs(Pitch.Height - other.Pitch.Height) < 1e-6f;
 
         public override string ToString() =>
-            $"#{StableId} {Orb}->{Target} {Tier} {Pitch} via {Path} (action {ActionId})";
+            $"#{StableId} {Orb}->{Target} {Note} {Tier} ({Pitch}) via {Path} (action {ActionId})";
     }
 }
