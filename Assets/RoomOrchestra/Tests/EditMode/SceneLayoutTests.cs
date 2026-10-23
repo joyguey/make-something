@@ -72,10 +72,23 @@ namespace RoomOrchestra.Tests
                 var ray = new Ray(eye, toTarget.normalized);
                 foreach (var r in renderers)
                 {
-                    if (r.transform.localScale.sqrMagnitude < 1e-4f) continue; // hidden focus markers
                     if (r.bounds.IntersectRay(ray, out float distance) && distance < toTarget.magnitude)
                         Assert.Fail($"{r.name} blocks the view of {target.name} from eye height {eyeHeight} m");
                 }
+            }
+        }
+
+        [Test]
+        public void NothingAuthoredAtNearZeroScale()
+        {
+            // PICO Spatial exports authored poses; a 0.001-scaled marker was drawn full size in the wrong
+            // place on the emulator, alongside other misplaced objects. Hide things by parking, never by scale.
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                var s = t.lossyScale;
+                float min = Mathf.Min(Mathf.Abs(s.x), Mathf.Min(Mathf.Abs(s.y), Mathf.Abs(s.z)));
+                if (t.GetComponent<Renderer>() != null)
+                    Assert.Greater(min, 0.001f, $"{t.name} is authored at near-zero scale {s}");
             }
         }
 

@@ -68,18 +68,13 @@ namespace RoomOrchestra.EditorTools
 
             var tierButton = CreateTierButton(root.transform, slabMaterial, motifMaterial);
 
-            // Targets left to right, each with a focus marker floating above its aim point
+            // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
                 .OrderBy(t => t.AimPosition.x).ToArray();
-            var markers = new Transform[targets.Length];
-            var markerScale = new Vector3(0.14f, 0.006f, 0.14f);
-            for (int i = 0; i < targets.Length; i++)
-            {
-                var marker = Primitive(PrimitiveType.Cylinder, $"FocusMarker_{targets[i].Instrument}", root.transform, focusMaterial, keepCollider: false);
-                marker.position = targets[i].AimPosition + Vector3.up * 0.3f;
-                marker.localScale = i == StartTarget ? markerScale : markerScale * 0.001f;
-                markers[i] = marker;
-            }
+            const float markerLift = 0.3f;
+            var marker = Primitive(PrimitiveType.Cylinder, "FocusMarker", root.transform, focusMaterial, keepCollider: false);
+            marker.position = targets[StartTarget].AimPosition + Vector3.up * markerLift;
+            marker.localScale = new Vector3(0.14f, 0.006f, 0.14f);
 
             var launcher = Object.FindFirstObjectByType<BallLauncher>();
             PreSkinBalls(orbMaterials[(int)OrbType.Flutter]);
@@ -87,9 +82,9 @@ namespace RoomOrchestra.EditorTools
             var selector = root.AddComponent<OrbSelector>();
             var so = new SerializedObject(selector);
             SetArray(so.FindProperty("targets"), targets);
-            SetArray(so.FindProperty("focusMarkers"), markers);
+            so.FindProperty("focusMarker").objectReferenceValue = marker;
+            so.FindProperty("focusMarkerLift").floatValue = markerLift;
             SetArray(so.FindProperty("tokens"), tokens);
-            so.FindProperty("focusMarkerScale").vector3Value = markerScale;
             so.FindProperty("tierButton").objectReferenceValue = tierButton;
             so.FindProperty("launcher").objectReferenceValue = launcher;
             so.FindProperty("startOrb").enumValueIndex = (int)OrbType.Flutter;

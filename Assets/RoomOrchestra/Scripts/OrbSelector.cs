@@ -11,9 +11,10 @@ namespace RoomOrchestra
     {
         [Tooltip("Targets in left-to-right order; controller up/down steps through them.")]
         [SerializeField] InstrumentTarget[] targets;
-        [Tooltip("One marker per target (same order), shown above the focused target.")]
-        [SerializeField] Transform[] focusMarkers;
-        [SerializeField] Vector3 focusMarkerScale = new Vector3(0.14f, 0.006f, 0.14f);
+        [Tooltip("One marker that moves above the focused target. It is never hidden by scaling: PICO Spatial " +
+                 "exports scene poses, and near-zero scales there drew objects in the wrong place.")]
+        [SerializeField] Transform focusMarker;
+        [SerializeField] float focusMarkerLift = 0.3f;
         [SerializeField] OrbToken[] tokens;
         [SerializeField] TierButton tierButton;
         [SerializeField] BallLauncher launcher;
@@ -108,13 +109,11 @@ namespace RoomOrchestra
                 foreach (var token in tokens)
                     if (token != null) token.SetSelected(token.Orb == Model.SelectedOrb);
 
-            if (focusMarkers != null)
-                for (int i = 0; i < focusMarkers.Length; i++)
-                {
-                    if (focusMarkers[i] == null) continue;
-                    Vector3 scale = i == Model.FocusedTarget ? focusMarkerScale : focusMarkerScale * 0.001f;
-                    if (focusMarkers[i].localScale != scale) focusMarkers[i].localScale = scale;
-                }
+            if (focusMarker != null && FocusedTarget != null)
+            {
+                Vector3 position = FocusedTarget.AimPosition + Vector3.up * focusMarkerLift;
+                if (focusMarker.position != position) focusMarker.position = position;
+            }
 
             if (tierButton != null) tierButton.Show(Model.Tier);
             if (launcher != null) launcher.SetOrb(Model.SelectedOrb);
