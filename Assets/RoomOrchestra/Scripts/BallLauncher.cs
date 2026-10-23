@@ -48,10 +48,26 @@ namespace RoomOrchestra
         Vector3 m_Facing = Vector3.forward;
         Vector3 m_AimDirection = Vector3.forward;
         bool m_ArcHeld; // arc is showing the last throw and should stay put
+        OrbType m_Orb = OrbType.Flutter;
 
         public Ball ReadyBall => m_Ready;
+        public OrbType CurrentOrb => m_Orb;
+
+        /// <summary>Chooses which orb the ready ball (and every later ball) is.</summary>
+        public void SetOrb(OrbType orb)
+        {
+            m_Orb = orb;
+            if (m_Ready != null) m_Ready.ApplyOrb(orb);
+        }
         public int ThrowCount { get; private set; }
         public InstrumentTarget AimedTarget { get; private set; }
+
+        /// <summary>Wires references when built from code (tests); scenes set them in the inspector.</summary>
+        public void Configure(Transform spawn, Ball[] balls)
+        {
+            spawnPoint = spawn;
+            pool = balls;
+        }
 
         void Start()
         {
@@ -252,6 +268,7 @@ namespace RoomOrchestra
             }
 
             next.Hold();
+            next.ApplyOrb(m_Orb);
             Teleport(next, spawnPoint.position, spawnPoint.rotation);
             m_Ready = next;
         }

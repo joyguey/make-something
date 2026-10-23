@@ -89,6 +89,13 @@ namespace RoomOrchestra
             }
         }
 
+        /// <summary>Wires an instrument and its notes when built from code (tests).</summary>
+        public void Configure(InstrumentType type, AudioClip[] clips)
+        {
+            instrument = type;
+            notes = clips;
+        }
+
         void OnEnable() => s_Active.Add(this);
         void OnDisable() => s_Active.Remove(this);
 
@@ -108,6 +115,24 @@ namespace RoomOrchestra
 
         /// <summary>Plays the next note according to <see cref="order"/>, as a tap.</summary>
         public void PlayInstrument() => Play(HitSource.Tap);
+
+        /// <summary>
+        /// Sounds a normalized musical hit. Dynamics come from the event's tier.
+        /// Note choice still follows <see cref="order"/> until the Phase 3 note mapping lands.
+        /// </summary>
+        public int PlayHit(MusicalHitEvent hit) =>
+            Play(hit.Path == InputPath.Toss ? HitSource.Ball : HitSource.Tap, IntensityMapping.Strength(hit.Tier));
+
+        /// <summary>Normalized height (0 = bottom, 1 = top) of a world-space Y within this object's colliders.</summary>
+        public PitchInput PitchAtHeight(float worldY)
+        {
+            var colliders = GetComponentsInChildren<Collider>();
+            if (colliders.Length == 0) return PitchInput.FromHeight(0.5f);
+            var bounds = colliders[0].bounds;
+            for (int i = 1; i < colliders.Length; i++) bounds.Encapsulate(colliders[i].bounds);
+            float height = bounds.size.y;
+            return PitchInput.FromHeight(height > 1e-4f ? (worldY - bounds.min.y) / height : 0.5f);
+        }
 
         /// <summary>Plays the next note now and returns its index, or -1 if nothing played.</summary>
         public int Play(HitSource source, float strength = 1f)

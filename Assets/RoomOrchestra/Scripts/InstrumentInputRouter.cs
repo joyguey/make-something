@@ -12,9 +12,10 @@ namespace RoomOrchestra
     /// Single input path for the room.
     /// Device/emulator (PICO Spatial Input): pinch-drag-release the dispenser ball to throw it
     /// (a quick tap tosses it; aim assist snaps throws to the nearest instrument);
-    /// tap furniture or loop buttons to activate them.
-    /// Unity Editor only: click furniture/buttons, click elsewhere to throw toward the cursor,
-    /// keys 1/2/3 play instruments, Space throws straight ahead, R toggles loop record, C clears.
+    /// tap a tray orb to select it, tap furniture to place the selected orb there, tap loop buttons.
+    /// Unity Editor only (controller simulator): click like a tap, click elsewhere to throw toward
+    /// the cursor; Left/Right choose orb, Up/Down choose target, Enter places, Q changes intensity;
+    /// keys 1/2/3 place on table/chair/lamp, Space throws straight ahead, R toggles loop record, C clears.
     /// </summary>
     public class InstrumentInputRouter : MonoBehaviour
     {
@@ -27,7 +28,6 @@ namespace RoomOrchestra
         [SerializeField, Min(0f)] float tapDebounce = 0.2f;
 
         readonly HashSet<int> m_Grabbing = new();
-        readonly Dictionary<Component, float> m_LastTap = new();
 
         void OnEnable() => EnhancedTouchSupport.Enable();
         void OnDisable() => EnhancedTouchSupport.Disable();
@@ -74,24 +74,39 @@ namespace RoomOrchestra
             if (hit == null) return false;
             Component owner = hit.GetComponentInParent<LoopControlButton>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentButton>();
+            if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
+            if (owner == null) owner = hit.GetComponentInParent<TierButton>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
 
-            float now = Time.unscaledTime;
-            if (m_LastTap.TryGetValue(owner, out float last) && now - last < tapDebounce)
-            {
-                Debug.Log($"[RoomOrchestra] Ignored duplicate tap on {owner.name} ({(now - last) * 1000f:F0} ms after previous)");
-                return true;
-            }
-            m_LastTap[owner] = now;
-            return false;
+            if (MusicalHitPipeline.TryAcceptRepeat($"tap:{owner.GetInstanceID()}", tapDebounce))
+                return false;
+            Debug.Log($"[RoomOrchestra] Ignored duplicate tap on {owner.name}");
+            return true;
         }
 
-        /// <summary>Activates the loop button, button, or instrument that owns <paramref name="hit"/>.</summary>
+        /// <summary>
+        /// Activates what owns <paramref name="hit"/>: loop button, button, tray orb, intensity
+        /// button, or an instrument (placing the selected orb on it).
+        /// </summary>
         public static bool Activate(GameObject hit)
         {
             if (hit == null)
                 return false;
+
+            var selector = OrbSelector.Instance;
+            var token = hit.GetComponentInParent<OrbToken>();
+            if (token != null && selector != null)
+            {
+                selector.Select(token.Orb);
+                return true;
+            }
+
+            if (hit.GetComponentInParent<TierButton>() != null && selector != null)
+            {
+                selector.CycleTier();
+                return true;
+            }
 
             var control = hit.GetComponentInParent<LoopControlButton>();
             if (control != null)
@@ -110,10 +125,17 @@ namespace RoomOrchestra
             var target = hit.GetComponentInParent<InstrumentTarget>();
             if (target != null)
             {
-                target.PlayInstrument();
+                if (selector != null) selector.PlaceOn(target);
+                else target.PlayInstrument();
                 return true;
             }
             return false;
+        }
+
+        static void PlaceOn(InstrumentType instrument)
+        {
+            var target = InstrumentTarget.Find(instrument);
+            if (target != null && OrbSelector.Instance != null) OrbSelector.Instance.PlaceOn(target);
         }
 
 #if UNITY_EDITOR
@@ -123,9 +145,20 @@ namespace RoomOrchestra
             var keyboard = Keyboard.current;
             if (keyboard != null)
             {
-                if (keyboard.digit1Key.wasPressedThisFrame) InstrumentTarget.Find(InstrumentType.Udu)?.Play(InstrumentTarget.HitSource.Key);
-                if (keyboard.digit2Key.wasPressedThisFrame) InstrumentTarget.Find(InstrumentType.Mbira)?.Play(InstrumentTarget.HitSource.Key);
-                if (keyboard.digit3Key.wasPressedThisFrame) InstrumentTarget.Find(InstrumentType.Erhu)?.Play(InstrumentTarget.HitSource.Key);
+                if (keyboard.digit1Key.wasPressedThisFrame) PlaceOn(InstrumentType.Udu);
+                if (keyboard.digit2Key.wasPressedThisFrame) PlaceOn(InstrumentType.Mbira);
+                if (keyboard.digit3Key.wasPressedThisFrame) PlaceOn(InstrumentType.Erhu);
+                var selector = OrbSelector.Instance;
+                if (selector != null)
+                {
+                    // Same commands a controller produces, so editor play exercises the controller path.
+                    if (keyboard.rightArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.NextOrb);
+                    if (keyboard.leftArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.PreviousOrb);
+                    if (keyboard.upArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.NextTarget);
+                    if (keyboard.downArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.PreviousTarget);
+                    if (keyboard.enterKey.wasPressedThisFrame) selector.Execute(ControllerCommand.Place);
+                    if (keyboard.qKey.wasPressedThisFrame) selector.Execute(ControllerCommand.CycleIntensity);
+                }
                 if (keyboard.rKey.wasPressedThisFrame) LoopStation.Instance?.ToggleRecording();
                 if (keyboard.cKey.wasPressedThisFrame) LoopStation.Instance?.Clear();
                 if (keyboard.spaceKey.wasPressedThisFrame && cam != null && launcher != null)
