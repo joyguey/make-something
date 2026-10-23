@@ -86,3 +86,17 @@ Results:
 - Before trusting the device: build + emulator run to confirm the Spatial renderer draws the tray/markers and that A/B/X/Y + stick reach InputDevices in Spatial mode.
 - Approved scope addition (2026-10-22): Room mapping phase after Prompt 05 (see DECISION_LOG).
 - Owner approved removing the old LoopStation (to be replaced by echo orbits).
+
+## Emulator verification + Spatial export fix (2026-10-22/23)
+- First emulator run of the Prompt 02 build: front row misdrawn (red column, missing loop station/dispenser/ball). Old Oct 17 APK drew correctly on the same emulator.
+- Fix attempt 1 (single moving focus marker, no near-zero scales): no change. Bisect attempt: invalid (strip step did nothing).
+- Decisive test: rebuilding untouched `main` (f4f51c2) today was ALSO broken -> not caused by Little Echoes code.
+- Root cause (verified by diffing GLB node lists inside the APKs): SpatialAdapter exports the EditorOnly-tagged EditorPreviewCamera, which the player build strips -> every later node off by one at runtime. Fixed via EditorPreviewOnly component + untag; test NoEditorOnlyObjectsInSpatialExportedScene.
+- Result: 3/3 emulator launches draw the full scene (docs/evidence/phase2-emulator-fixed.png). EditMode 54/54, PlayMode 8/8.
+- Emulator injects phantom taps/throws after launch (also with the Oct 17 APK) — not an app bug.
+- Generated SpatialAdapter export files untracked + gitignored.
+- Still NOT verified: orb tray drawing (below the default emulator view), controller buttons, audio by ear, headset.
+
+## Resume here (next session)
+1. Remove old LoopStation (owner approved) and move the orb tray + intensity button to its spot (front-left, ~0.8 m); rerun occlusion/reach tests; rebuild; confirm tray draws on emulator.
+2. Prompt 03: deterministic note mapping.
