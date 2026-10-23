@@ -1,0 +1,115 @@
+{
+  "agentHosts": {
+    "claude-code": {
+      "platform": "unity",
+      "pluginName": "pico-unity-agentic-tools",
+      "pluginVersion": "0.1.0",
+      "plugins": [
+        {
+          "name": "pico-unity-agentic-tools",
+          "version": "0.1.0"
+        },
+        {
+          "name": "pico-general-agentic-tools",
+          "version": "0.1.0"
+        }
+      ],
+      "sourcePath": "/Users/joy/.pico-cli/cache/PICO-Intelligent-Plugins",
+      "resources": {
+        "skills": [
+          "develop-pico-unity-apps",
+          "knowledge-query",
+          "pico-unity-buildingblocks",
+          "pico-unity-init",
+          "pico-unity-package-manager",
+          "pico-unity-spatial",
+          "spatialadapter-camera-window-api",
+          "spatialadapter-components-api",
+          "spatialadapter-input-api",
+          "spatialadapter-runtime-core-api",
+          "spatialadapter-runtime-overview",
+          "spatialadapter-scene-setup",
+          "spatialadapter-spatial-camera-focus",
+          "spatialml",
+          "spatialml-debugging"
+        ],
+        "mcpServers": [
+          "pico-dev-knowledge",
+          "unity-mcp"
+        ],
+        "managedFiles": [
+          {
+            "kind": "hook-file",
+            "path": ".claude/hooks/pico-general-agentic-tools/catalog.json",
+            "sha256": "35aaf92b2b4feb14041d9e77c575b7cee94fb649ea654026e594c78609e1ade4"
+          },
+          {
+            "kind": "hook-file",
+            "path": ".claude/hooks/pico-general-agentic-tools/ingest.mjs",
+            "sha256": "db08e3b2faee39add9859f1e9f8809548e39a2c2bad70f37067cc334e9dec9fc"
+          },
+          {
+            "kind": "hook-file",
+            "path": ".claude/hooks/pico-general-agentic-tools/runtime.mjs",
+            "sha256": "f68c96b4dd6771ce3c536f6f14f31d1560e42753e6b9beda6c3629f2676748c9"
+          }
+        ],
+        "hookDocuments": [
+          {
+            "path": ".claude/settings.json",
+            "existedBefore": false,
+            "entries": [
+              {
+                "event": "PostToolUseFailure",
+                "pluginName": "pico-general-agentic-tools",
+                "sha256": "2c73ccf196880f48531c1dc039585a8e2d8767784c505273d43921164eea9fe9",
+                "value": {
+                  "matcher": "^mcp__pico-(?:dev-knowledge|spatial-editor)__",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": "node \"/Users/joy/Desktop/PICO Project/.claude/hooks/pico-general-agentic-tools/ingest.mjs\"",
+                      "timeout": 65
+                    }
+                  ]
+                }
+              },
+              {
+                "event": "PostToolUse",
+                "pluginName": "pico-general-agentic-tools",
+                "sha256": "ece36e91176d337a49a394e51e14d5e8cf7a637731127f82f4948ad8781026ee",
+                "value": {
+                  "matcher": "^(Skill|Read|mcp__pico-(?:dev-knowledge|spatial-editor)__)",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": "node \"/Users/joy/Desktop/PICO Project/.claude/hooks/pico-general-agentic-tools/ingest.mjs\"",
+                      "timeout": 65
+                    }
+                  ]
+                }
+              },
+              {
+                "event": "UserPromptExpansion",
+                "pluginName": "pico-general-agentic-tools",
+                "sha256": "4c4665eb8b627bc1cee7114c9eb1eefabe06ba5a9c311c275232193c83269716",
+                "value": {
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": "node \"/Users/joy/Desktop/PICO Project/.claude/hooks/pico-general-agentic-tools/ingest.mjs\"",
+                      "timeout": 65
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "agentVaultWorkspace": "6.1/agent-vault/unity",
+  "version": "6.1",
+  "platform": "unity"
+}

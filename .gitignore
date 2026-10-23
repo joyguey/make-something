@@ -1,0 +1,35 @@
+# Unity project root; based on GitHub's official Unity gitignore
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/[Aa]ssets/AssetStoreTools*
+*.csproj
+*.sln
+*.user
+*.suo
+*.tmp
+*.bak
+*.log
+*.blend1
+*.blend1.meta
+.DS_Store
+Thumbs.db
+.vs/
+.idea/
+.vscode/
+# protect local credentials even inside Assets
+.env
+.env.*
+!.env.example
+**/secrets.json
+**/credentials.json
+*.p12
+*.pfx
+*.keystore
+# .meta, prefabs, scenes, Packages and ProjectSettings MUST be tracked

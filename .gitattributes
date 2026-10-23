@@ -1,0 +1,8 @@
+# Unity YAML assets are text; do not automatically add LFS before installing/configuring it.
+*.unity text eol=lf
+*.prefab text eol=lf
+*.asset text eol=lf
+*.meta text eol=lf
+*.cs text eol=lf
+*.md text eol=lf
+# Add Git LFS rules for large binaries only AFTER running `git lfs install`
