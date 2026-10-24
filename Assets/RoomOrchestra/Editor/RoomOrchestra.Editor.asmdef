@@ -3,7 +3,8 @@
     "rootNamespace": "RoomOrchestra.EditorTools",
     "references": [
         "RoomOrchestra.Core",
-        "RoomOrchestra.Runtime"
+        "RoomOrchestra.Runtime",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

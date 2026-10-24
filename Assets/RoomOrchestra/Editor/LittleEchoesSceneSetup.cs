@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -354,26 +355,34 @@ namespace RoomOrchestra.EditorTools
         }
 
         /// <summary>
-        /// Clear text label (TextMesh, which PICO Spatial supports), facing the player, centred,
-        /// white on the dark slabs. <paramref name="height"/> is the capital-letter height in metres.
+        /// Clear text label facing the player, white, centred. TextMesh Pro, because PICO Spatial's
+        /// runtime syncs TMP text (plain TextMesh with a dynamic font rendered nothing on the emulator).
+        /// <paramref name="height"/> is the measured text height in metres.
         /// </summary>
         static Transform Label(string name, string text, Transform parent, Vector3 localPosition, float height)
         {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPosition;
-            go.transform.rotation = FacePlayer(go.transform.position);
-            var mesh = go.AddComponent<TextMesh>();
-            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            mesh.font = font;
-            go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
-            mesh.text = text;
-            mesh.fontSize = 64;
-            mesh.characterSize = height / 6.4f; // fontSize 64 -> ~6.4 units of cap height per characterSize
-            mesh.anchor = TextAnchor.MiddleCenter;
-            mesh.alignment = TextAlignment.Center;
-            mesh.color = Color.white;
-            return go.transform;
+            // A plain holder carries the pose; the TMP text sits at its origin. TMP turns its object into
+            // a RectTransform, which (with no UI parent) did not keep its saved height in the scene.
+            var holder = new GameObject(name).transform;
+            holder.SetParent(parent, false);
+            holder.localPosition = localPosition;
+            holder.rotation = FacePlayer(holder.position);
+            var go = new GameObject("Text");
+            go.transform.SetParent(holder, false);
+            var tmp = go.AddComponent<TextMeshPro>();
+            tmp.font = TMP_Settings.defaultFontAsset;
+            tmp.text = text;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.color = Color.white;
+            tmp.rectTransform.sizeDelta = new Vector2(1f, 0.25f);
+            // Measure, then scale the font so the rendered text is exactly the requested height.
+            tmp.fontSize = 1f;
+            tmp.ForceMeshUpdate(true, true);
+            float measured = tmp.textBounds.size.y;
+            if (measured > 1e-5f) tmp.fontSize = height / measured;
+            tmp.ForceMeshUpdate(true, true);
+            return holder;
         }
 
         static void PreSkinBalls(Material flutter)

@@ -1,5 +1,6 @@
 using System.Linq;
 using NUnit.Framework;
+using TMPro;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
@@ -82,7 +83,7 @@ namespace RoomOrchestra.Tests
                     if (i > 0) Assert.Greater(tile.transform.position.y, column.Tiles[i - 1].transform.position.y, "higher tile = higher note");
                     var note = new MusicalNote(column.Target.Instrument, i);
                     string expected = note.IsPercussion ? note.Articulation.ToString() : NoteMapping.NoteName(i);
-                    var label = column.transform.Find($"TileLabel{i}")?.GetComponent<TextMesh>();
+                    var label = column.transform.Find($"TileLabel{i}")?.GetComponentInChildren<TMP_Text>();
                     Assert.IsNotNull(label, $"{column.name} tile {i} has a label");
                     Assert.AreEqual(expected, label.text);
                     Assert.Less(Vector3.Distance(label.transform.position, tile.transform.position), 0.05f, "label sits on its tile");
@@ -93,16 +94,20 @@ namespace RoomOrchestra.Tests
         [Test]
         public void EveryControlHasAClearTextLabel()
         {
-            string[] Texts(Component c) => c.GetComponentsInChildren<TextMesh>().Select(t => t.text).ToArray();
+            string[] Texts(Component c) => c.GetComponentsInChildren<TMP_Text>().Select(t => t.text).ToArray();
             var tray = Object.FindFirstObjectByType<OrbToken>().transform.parent;
             CollectionAssert.IsSupersetOf(Texts(tray), new[] { "Flutter", "Bop", "Boom" });
             CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<TierButton>()), "Loudness");
             CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<UndoButton>()), "Undo");
             foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
                 Assert.IsTrue(Texts(column).Any(t => t == "udu" || t == "mbira" || t == "erhu"), $"{column.name} names its instrument");
-            foreach (var text in Object.FindObjectsByType<TextMesh>(FindObjectsSortMode.None))
+            foreach (var text in Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None))
             {
                 Assert.IsNotNull(text.font, text.name);
+                Assert.IsInstanceOf<TextMeshPro>(text, "world-space TMP (PICO Spatial syncs TMP, not TextMesh)");
+                text.ForceMeshUpdate(true, true);
+                Assert.Greater(text.textBounds.size.y, 0.015f, $"{text.transform.parent.name} is readable size");
+                Assert.Less(text.transform.localPosition.sqrMagnitude, 1e-8f, "text sits at its holder's origin");
                 Assert.IsFalse(string.IsNullOrWhiteSpace(text.text), text.name);
                 var toLabel = text.transform.position - new Vector3(0f, 1.15f, 0f);
                 Assert.Greater(Vector3.Dot(text.transform.forward, toLabel.normalized), 0.5f, $"{text.name} faces the player");
