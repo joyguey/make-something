@@ -137,5 +137,13 @@ Known / follow-ups:
 - Owner did not know what the tray-side buttons do (intensity bars, petal staircase, undo). Discoverability is a real cognitive-accessibility gap; address in Prompt 05 WITHOUT text labels by default (owner dislikes text labels): icon/shape cues, audio/visual preview on focus, optional labels.
 - Not testable on emulator: grip edit mode, nudge, remove, pause (controller buttons). Not verified: timing by ear vs marker crossing (owner did not report issues), headset.
 
+## 2026-10-23 | Prompt 05 (part 1) — labeled pitch columns + clear text labels
+- Owner could not tell what the tray-side controls did and did not understand the pitch staircase; asked for CLEAR LABELS (supersedes old no-labels preference).
+- Staircase removed. Each target has a pitch column beside it: 5 labeled tiles low->high (D E F# A B; udu Open/Muted/Slap/Bend/Tap); one tap plays that note with the chosen orb and plants an echo. Labels on orbs, Loudness, Undo, instrument names.
+- PICO Spatial did NOT render plain TextMesh (dynamic font); switched to TextMesh Pro (runtime syncs TMP_Text); imported TMP Essential Resources (Liberation Sans, OFL). TMP RectTransform lost its saved height without a UI parent -> plain holder transforms.
+- Tests: EditMode 116/116, PlayMode 19/19 (tile tap plays its note on its own target).
+- Emulator (owner hands-on): labels render; lamp column tapped B/A/F#/E/D -> exact notes, melody on the ring; chair F# tile; udu + mbira layered; lamp cap refusal logged. Owner: "wow, it sounds great".
+- Observed once: native crash INSIDE PICO SDK shutdown (PXR_Loader Stop -> SpatialInputProvider::Stop -> HMDTracking::stop SIGSEGV) right after the emulator reset/closed the app window ~6 s after launch. App code not on the stack. Watch for recurrence on app close; report to PICO if reproducible.
+
 ## Resume here (next session)
-1. Prompt 05: accessibility release gate (A11Y-01..09 in controller-only simulated mode), incl. control discoverability without default text labels, seated recenter, reduced motion/flash, pause UI, petal staircase placement.
+1. Prompt 05 (rest): accessibility release gate (A11Y-01..09 in controller-only simulated mode), incl. control discoverability without default text labels, seated recenter, reduced motion/flash, pause UI, petal staircase placement.
