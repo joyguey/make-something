@@ -18,12 +18,25 @@ namespace RoomOrchestra
     /// </summary>
     public sealed class XRControllerSource : IControllerSource
     {
+        /// <summary>
+        /// How often (s) to look again for a missing controller. Asking every frame made PICO try to
+        /// start controller tracking 48 times a second on the emulator (no controllers), flooding the
+        /// main thread; a hitch then skipped echo repeats. Connections are also picked up at once
+        /// through InputDevices.deviceConnected.
+        /// </summary>
+        public const float RetrySeconds = 2f;
+
         readonly InputDevice[] m_Devices = new InputDevice[2];
+        readonly float[] m_NextTry = new float[2];
+
+        public XRControllerSource() => InputDevices.deviceConnected += _ => m_NextTry[0] = m_NextTry[1] = 0f;
 
         public ControllerFrame Read(int hand)
         {
             if (!m_Devices[hand].isValid)
             {
+                if (Time.unscaledTime < m_NextTry[hand]) return default;
+                m_NextTry[hand] = Time.unscaledTime + RetrySeconds;
                 m_Devices[hand] = InputDevices.GetDeviceAtXRNode(hand == 0 ? XRNode.LeftHand : XRNode.RightHand);
                 if (!m_Devices[hand].isValid) return default;
             }
