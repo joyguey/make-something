@@ -37,6 +37,8 @@ namespace RoomOrchestra
             device.TryGetFeatureValue(CommonUsages.primaryButton, out frame.Primary);
             device.TryGetFeatureValue(CommonUsages.secondaryButton, out frame.Secondary);
             device.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out frame.StickClick);
+            // PICO exposes grip only as a float (no gripButton); treat past half way as pressed.
+            if (device.TryGetFeatureValue(CommonUsages.grip, out float grip)) frame.Grip = grip > 0.5f;
             return frame;
         }
     }
@@ -44,6 +46,7 @@ namespace RoomOrchestra
     /// <summary>
     /// One-handed controller path: stick left/right picks the orb, up/down picks the target,
     /// A/X places, B/Y changes intensity, clicking the stick changes the pitch petal.
+    /// Grip toggles echo edit mode (stick nudges/selects echoes, A/X removes, B/Y undoes).
     /// Either controller alone is enough.
     /// </summary>
     public class ControllerButtonInput : MonoBehaviour
@@ -64,7 +67,7 @@ namespace RoomOrchestra
             foreach (var command in m_Mapper.Update(Source.Read(0), Source.Read(1)))
             {
                 Debug.Log($"[RoomOrchestra] Controller {command}");
-                selector.Execute(command);
+                CommandRouter.Dispatch(command, selector);
             }
         }
     }

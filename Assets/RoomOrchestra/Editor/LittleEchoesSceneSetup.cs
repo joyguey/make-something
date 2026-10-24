@@ -85,6 +85,14 @@ namespace RoomOrchestra.EditorTools
             var launcher = Object.FindFirstObjectByType<BallLauncher>();
             PreSkinBalls(orbMaterials[(int)OrbType.Flutter]);
 
+            // Echo orbits: one clock-face ring per target, all driven by one conductor.
+            var tickMaterial = EnsureMaterial("OrbitTick", "Ball", new Color(0.85f, 0.87f, 0.9f));
+            var orbits = targets.Select(t => CreateOrbit(t, root.transform, orbMaterials, tickMaterial, focusMaterial, motifMaterial)).ToArray();
+            var conductor = root.AddComponent<EchoConductor>();
+            conductor.Configure(orbits);
+            EditorUtility.SetDirty(conductor);
+            CreateUndoButton(root.transform, slabMaterial, motifMaterial);
+
             var selector = root.AddComponent<OrbSelector>();
             var so = new SerializedObject(selector);
             SetArray(so.FindProperty("targets"), targets);
@@ -203,6 +211,83 @@ namespace RoomOrchestra.EditorTools
             so.FindProperty("loweredScale").vector3Value = lowered;
             so.ApplyModifiedPropertiesWithoutUndo();
             return tier;
+        }
+
+        static readonly Vector3 PlayerEye = new Vector3(0f, 1.15f, 0f); // seated eye height at the start position
+        const float OrbitRadius = 0.3f;
+        const float MiniDiameter = 0.05f;
+
+        // A clock face facing the player: lamp ring around the shade; chair/table rings float above.
+        static OrbitView CreateOrbit(InstrumentTarget target, Transform root, Material[] orbMaterials,
+            Material tick, Material marker, Material hub)
+        {
+            float lift = target.Instrument == InstrumentType.Erhu ? 0f : 0.4f;
+            var go = new GameObject($"Orbit_{target.Instrument}");
+            go.transform.SetParent(root, false);
+            go.transform.position = target.AimPosition + Vector3.up * lift;
+            go.transform.rotation = Quaternion.LookRotation(go.transform.position - PlayerEye, Vector3.up);
+
+            for (int i = 0; i < MusicClock.StepsPerBar; i++)
+            {
+                float a = i / (float)MusicClock.StepsPerBar * Mathf.PI * 2f;
+                var t = Primitive(PrimitiveType.Sphere, $"Tick{i:00}", go.transform, tick, keepCollider: false);
+                t.localPosition = new Vector3(Mathf.Sin(a), Mathf.Cos(a), 0f) * OrbitRadius;
+                t.localScale = Vector3.one * (i % MusicClock.StepsPerBeat == 0 ? 0.03f : 0.014f); // beats stand out
+            }
+
+            var mark = Primitive(PrimitiveType.Cube, "PlayMarker", go.transform, marker, keepCollider: false);
+            mark.localPosition = new Vector3(0f, OrbitRadius + 0.055f, 0f);
+            mark.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            mark.localScale = new Vector3(0.035f, 0.035f, 0.012f);
+
+            Transform park;
+            if (lift > 0f)
+            {
+                park = Primitive(PrimitiveType.Sphere, "Hub", go.transform, hub, keepCollider: false);
+                park.localScale = Vector3.one * 0.09f;
+            }
+            else
+            {
+                park = new GameObject("Park").transform; // inside the lamp shade, hidden
+                park.SetParent(go.transform, false);
+            }
+
+            var view = go.AddComponent<OrbitView>();
+            var pools = new Transform[OrbCatalog.Count][];
+            for (int o = 0; o < OrbCatalog.Count; o++)
+            {
+                var profile = OrbCatalog.All[o];
+                pools[o] = new Transform[EchoSequencer.MaxPerTarget];
+                for (int m = 0; m < pools[o].Length; m++)
+                {
+                    var mini = Primitive(PrimitiveType.Sphere, $"Echo_{profile.Type}_{m}", go.transform, orbMaterials[o], keepCollider: true);
+                    mini.position = park.position;
+                    mini.localScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * MiniDiameter;
+                    mini.gameObject.AddComponent<EchoMini>().Configure(view);
+                    EditorUtility.SetDirty(mini.GetComponent<EchoMini>());
+                    pools[o][m] = mini;
+                }
+            }
+            view.Configure(target, park, pools[0], pools[1], pools[2], OrbitRadius);
+            EditorUtility.SetDirty(view);
+            return view;
+        }
+
+        // Undo, beside the intensity button: a slab with a hooked arrow.
+        static void CreateUndoButton(Transform root, Material slab, Material mark)
+        {
+            var go = new GameObject("UndoButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = TrayCenter + new Vector3(0.36f, 0f, -0.1f);
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.03f, 0f);
+            box.size = new Vector3(0.12f, 0.08f, 0.08f);
+            Box("UndoSlab", go.transform, Vector3.zero, new Vector3(0.12f, 0.03f, 0.07f), slab, keepCollider: false);
+            Box("UndoArrowStem", go.transform, new Vector3(0.01f, 0.025f, 0f), new Vector3(0.06f, 0.012f, 0.012f), mark, keepCollider: false);
+            Box("UndoArrowHook", go.transform, new Vector3(0.04f, 0.04f, 0f), new Vector3(0.012f, 0.03f, 0.012f), mark, keepCollider: false);
+            var head = Box("UndoArrowHead", go.transform, new Vector3(-0.025f, 0.025f, 0f), new Vector3(0.022f, 0.022f, 0.012f), mark, keepCollider: false);
+            head.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            go.AddComponent<UndoButton>();
         }
 
         // Five rising steps in front of the tray: low to high note (or the five udu sounds).

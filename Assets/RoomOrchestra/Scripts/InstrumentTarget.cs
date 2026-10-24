@@ -36,7 +36,8 @@ namespace RoomOrchestra
 
         ColorFlash m_Flash;
         AudioSource[] m_Voices;
-        int m_NextVoice;
+        double[] m_VoiceStart; // dsp time each voice starts (future = scheduled, not yet sounding)
+        long[] m_VoiceTag;     // echo id that scheduled the voice (0 = live hit)
         AudioClip[,] m_Bank; // [orb, note index] rendered voices
         readonly List<double> m_PendingFlashes = new();
 
@@ -71,6 +72,8 @@ namespace RoomOrchestra
             m_Flash = GetComponent<ColorFlash>();
 
             m_Voices = new AudioSource[voiceCount];
+            m_VoiceStart = new double[voiceCount];
+            m_VoiceTag = new long[voiceCount];
             m_Voices[0] = audioSource;
             for (int i = 1; i < voiceCount; i++)
             {
@@ -114,6 +117,7 @@ namespace RoomOrchestra
                 foreach (var profile in OrbCatalog.All)
                 {
                     float[] rendered = VoiceDesign.Render(data, source.frequency, VoiceDesign.ForOrb(profile.Type, basis, fundamental, bowed));
+                    if (rendered.Length == 0) continue; // falls back to the plain sample in VoiceFor
                     var clip = AudioClip.Create($"{instrument}_{index}_{profile.Type}", rendered.Length, 1, source.frequency, false);
                     clip.SetData(rendered, 0);
                     bank[(int)profile.Type, index] = clip;
@@ -181,6 +185,58 @@ namespace RoomOrchestra
             return index;
         }
 
+        /// <summary>Schedules one echo repeat on the audio clock (sample-accurate, independent of frame rate).</summary>
+        public void PlayEcho(EchoEvent echo, double dspTime) =>
+            PlayClipAt(VoiceFor(echo.Orb, echo.NoteIndex), echo.NoteIndex, dspTime, IntensityMapping.Strength(echo.Tier),
+                HitSource.Loop, echo.StableId);
+
+        /// <summary>
+        /// Stops voices scheduled for the future: those of one echo (<paramref name="tag"/> &gt; 0) or all of
+        /// them (tag 0). Used by remove, nudge, undo and pause so no stale repeat sounds afterwards.
+        /// </summary>
+        public int CancelScheduled(long tag = 0)
+        {
+            if (m_Voices == null) return 0;
+            double now = AudioSettings.dspTime;
+            int cancelled = 0;
+            for (int i = 0; i < m_Voices.Length; i++)
+            {
+                if (m_VoiceStart[i] <= now || (tag != 0 && m_VoiceTag[i] != tag)) continue;
+                m_Voices[i].Stop();
+                m_PendingFlashes.Remove(m_VoiceStart[i]);
+                m_VoiceStart[i] = 0;
+                m_VoiceTag[i] = 0;
+                cancelled++;
+            }
+            return cancelled;
+        }
+
+        /// <summary>Number of voices waiting on the audio clock (scheduled, not yet sounding).</summary>
+        public int ScheduledCount
+        {
+            get
+            {
+                if (m_Voices == null) return 0;
+                double now = AudioSettings.dspTime;
+                int n = 0;
+                foreach (double start in m_VoiceStart) if (start > now) n++;
+                return n;
+            }
+        }
+
+        /// <summary>Stops every voice at once (mute / reset).</summary>
+        public void StopAll()
+        {
+            if (m_Voices == null) return;
+            for (int i = 0; i < m_Voices.Length; i++)
+            {
+                m_Voices[i].Stop();
+                m_VoiceStart[i] = 0;
+                m_VoiceTag[i] = 0;
+            }
+            m_PendingFlashes.Clear();
+        }
+
         /// <summary>Normalized height (0 = bottom, 1 = top) of a world-space Y within this object's colliders.</summary>
         public PitchInput PitchAtHeight(float worldY)
         {
@@ -215,24 +271,30 @@ namespace RoomOrchestra
             PlayClipAt(notes[index], index, dspTime, strength, source);
         }
 
-        void PlayClipAt(AudioClip clip, int index, double dspTime, float strength, HitSource source)
+        void PlayClipAt(AudioClip clip, int index, double dspTime, float strength, HitSource source, long tag = 0)
         {
             if (clip == null || m_Voices == null) return;
 
-            var voice = m_Voices[m_NextVoice];
-            m_NextVoice = (m_NextVoice + 1) % m_Voices.Length; // oldest voice is reused when all are busy
+            int slot = PickVoice();
+            var voice = m_Voices[slot];
             voice.clip = clip;
             voice.volume = volume * Mathf.Clamp01(strength);
+            bool now = dspTime <= AudioSettings.dspTime + 0.005;
+            m_VoiceStart[slot] = now ? AudioSettings.dspTime : dspTime;
+            m_VoiceTag[slot] = tag;
+            // Echo repeats don't flash the whole object: the orbiting mini is their visual cue, which keeps
+            // flashing calm when many echoes play (photosensitivity).
+            bool flash = source != HitSource.Loop;
 
-            if (dspTime <= AudioSettings.dspTime + 0.005)
+            if (now)
             {
                 voice.Play();
-                m_Flash.Flash();
+                if (flash) m_Flash.Flash();
             }
             else
             {
                 voice.PlayScheduled(dspTime);
-                m_PendingFlashes.Add(dspTime);
+                if (flash) m_PendingFlashes.Add(dspTime);
             }
 
             LastNoteIndex = index;
@@ -240,6 +302,24 @@ namespace RoomOrchestra
             if (source != HitSource.Loop)
                 Debug.Log($"[RoomOrchestra] {source} hit {instrument} voice={clip.name} strength={strength:F2}");
             AnyPlayed?.Invoke(this, index, strength, source);
+        }
+
+        // A free voice if any; otherwise the one that started longest ago. Never a voice still waiting
+        // on the audio clock, so a scheduled repeat is not silently stolen.
+        int PickVoice()
+        {
+            double now = AudioSettings.dspTime;
+            int oldest = -1;
+            for (int i = 0; i < m_Voices.Length; i++)
+            {
+                if (m_VoiceStart[i] > now) continue;
+                if (!m_Voices[i].isPlaying) return i;
+                if (oldest < 0 || m_VoiceStart[i] < m_VoiceStart[oldest]) oldest = i;
+            }
+            if (oldest >= 0) return oldest;
+            int earliest = 0; // all pending: drop the furthest-future one last, reuse the soonest
+            for (int i = 1; i < m_Voices.Length; i++) if (m_VoiceStart[i] < m_VoiceStart[earliest]) earliest = i;
+            return earliest;
         }
 
         public static InstrumentTarget Find(InstrumentType type)

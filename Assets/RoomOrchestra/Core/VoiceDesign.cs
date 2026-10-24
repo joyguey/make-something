@@ -128,7 +128,8 @@ namespace RoomOrchestra
         {
             if (source == null || source.Length == 0 || sampleRate <= 0) return Array.Empty<float>();
 
-            int skip = Math.Min(source.Length - 1, (int)(spec.StartSeconds * sampleRate));
+            // Never skip more than half the source: a short sample must still produce a voice.
+            int skip = Math.Min(source.Length / 2, (int)(spec.StartSeconds * sampleRate));
             var trimmed = new float[source.Length - skip];
             Array.Copy(source, skip, trimmed, 0, trimmed.Length);
             Normalize(trimmed, 1f); // drive behaves the same whatever the sample's recorded level

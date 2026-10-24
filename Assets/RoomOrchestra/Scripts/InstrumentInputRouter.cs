@@ -15,8 +15,9 @@ namespace RoomOrchestra
     /// tap a tray orb to select it, tap furniture to place the selected orb there, tap loop buttons.
     /// Unity Editor only (controller simulator): click like a tap, click elsewhere to throw toward
     /// the cursor; Left/Right choose orb, Up/Down choose target, Enter places, Q changes intensity,
-    /// P changes the pitch petal;
-    /// keys 1/2/3 place on table/chair/lamp, Space throws straight ahead, R toggles loop record, C clears.
+    /// P changes the pitch petal, E toggles echo edit mode (then arrows nudge/select, Enter removes,
+    /// Q undoes); keys 1/2/3 place on table/chair/lamp, Space throws straight ahead, C clears echoes,
+    /// Z undoes, K pauses/resumes the music.
     /// </summary>
     public class InstrumentInputRouter : MonoBehaviour
     {
@@ -78,6 +79,8 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
             if (owner == null) owner = hit.GetComponentInParent<TierButton>();
             if (owner == null) owner = hit.GetComponentInParent<PetalButton>();
+            if (owner == null) owner = hit.GetComponentInParent<UndoButton>();
+            if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
 
@@ -107,6 +110,17 @@ namespace RoomOrchestra
             if (hit.GetComponentInParent<TierButton>() != null && selector != null)
             {
                 selector.CycleTier();
+                return true;
+            }
+
+            var mini = hit.GetComponentInParent<EchoMini>();
+            if (mini != null)
+                return EchoConductor.Instance != null && EchoConductor.Instance.SelectMini(mini);
+
+            var undo = hit.GetComponentInParent<UndoButton>();
+            if (undo != null)
+            {
+                undo.Press();
                 return true;
             }
 
@@ -159,17 +173,23 @@ namespace RoomOrchestra
                 var selector = OrbSelector.Instance;
                 if (selector != null)
                 {
-                    // Same commands a controller produces, so editor play exercises the controller path.
-                    if (keyboard.rightArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.NextOrb);
-                    if (keyboard.leftArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.PreviousOrb);
-                    if (keyboard.upArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.NextTarget);
-                    if (keyboard.downArrowKey.wasPressedThisFrame) selector.Execute(ControllerCommand.PreviousTarget);
-                    if (keyboard.enterKey.wasPressedThisFrame) selector.Execute(ControllerCommand.Place);
-                    if (keyboard.qKey.wasPressedThisFrame) selector.Execute(ControllerCommand.CycleIntensity);
-                    if (keyboard.pKey.wasPressedThisFrame) selector.Execute(ControllerCommand.CyclePetal);
+                    // Same commands a controller produces (and the same routing, incl. echo edit mode).
+                    if (keyboard.rightArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.NextOrb, selector);
+                    if (keyboard.leftArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.PreviousOrb, selector);
+                    if (keyboard.upArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.NextTarget, selector);
+                    if (keyboard.downArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.PreviousTarget, selector);
+                    if (keyboard.enterKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.Place, selector);
+                    if (keyboard.qKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.CycleIntensity, selector);
+                    if (keyboard.pKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.CyclePetal, selector);
+                    if (keyboard.eKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.ToggleEchoEdit, selector);
                 }
-                if (keyboard.rKey.wasPressedThisFrame) LoopStation.Instance?.ToggleRecording();
-                if (keyboard.cKey.wasPressedThisFrame) LoopStation.Instance?.Clear();
+                var conductor = EchoConductor.Instance;
+                if (conductor != null)
+                {
+                    if (keyboard.cKey.wasPressedThisFrame) conductor.Clear();
+                    if (keyboard.zKey.wasPressedThisFrame) conductor.Undo();
+                    if (keyboard.kKey.wasPressedThisFrame) conductor.TogglePause();
+                }
                 if (keyboard.spaceKey.wasPressedThisFrame && cam != null && launcher != null)
                     launcher.ThrowAssisted(cam.transform.position + cam.transform.forward * 0.3f, cam.transform.forward, cam.transform.forward * editorThrowSpeed + Vector3.up);
             }

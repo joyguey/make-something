@@ -119,6 +119,14 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void ShortSamplesStillRenderEveryOrbVoice()
+        {
+            var shortTone = TestTone(0.2f); // shorter than Flutter's 0.4 s bowed start offset
+            foreach (var orb in OrbCatalog.All)
+                Assert.Greater(VoiceDesign.Render(shortTone, Rate, VoiceDesign.ForOrb(orb.Type, VoiceSpec.Plain, 220f, bowed: true)).Length, 0, orb.DisplayName);
+        }
+
+        [Test]
         public void OvertoneMeasureSeesHarmonics()
         {
             var pure = new float[Rate];

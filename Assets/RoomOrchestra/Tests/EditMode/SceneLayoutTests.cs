@@ -100,8 +100,11 @@ namespace RoomOrchestra.Tests
             {
                 var toTarget = target.AimPosition - eye;
                 var ray = new Ray(eye, toTarget.normalized);
+                var targetColliders = target.GetComponentsInChildren<Collider>();
                 foreach (var r in renderers)
                 {
+                    // Things parked inside the target itself (unused echo minis in the lamp shade) are hidden.
+                    if (targetColliders.Any(c => c.bounds.Contains(r.bounds.center))) continue;
                     if (r.bounds.IntersectRay(ray, out float distance) && distance < toTarget.magnitude)
                         Assert.Fail($"{r.name} blocks the view of {target.name} from eye height {eyeHeight} m");
                 }
@@ -136,6 +139,50 @@ namespace RoomOrchestra.Tests
         {
             Assert.IsNull(Object.FindFirstObjectByType<LoopStation>(FindObjectsInactive.Include),
                 "the loop recorder is replaced by echo orbits");
+        }
+
+        [Test]
+        public void OneOrbitPerTargetWithSixteenTicksMarkerAndSixMinisPerOrb()
+        {
+            var conductor = Object.FindFirstObjectByType<EchoConductor>();
+            Assert.IsNotNull(conductor, "EchoConductor in scene");
+            Assert.AreEqual(3, conductor.Orbits.Count);
+            CollectionAssert.AreEquivalent(
+                Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None).Select(t => t.Instrument),
+                conductor.Orbits.Select(o => o.Target.Instrument));
+            foreach (var orbit in conductor.Orbits)
+            {
+                var children = orbit.GetComponentsInChildren<Transform>();
+                Assert.AreEqual(16, children.Count(c => c.name.StartsWith("Tick")), orbit.name);
+                Assert.AreEqual(1, children.Count(c => c.name == "PlayMarker"), orbit.name);
+                var minis = orbit.GetComponentsInChildren<EchoMini>();
+                Assert.AreEqual(OrbCatalog.Count * EchoSequencer.MaxPerTarget, minis.Length, orbit.name);
+                Assert.IsTrue(minis.All(m => m.Orbit == orbit && m.GetComponent<Collider>() != null), "minis are tappable and wired");
+                var park = minis[0].transform.position;
+                Assert.IsTrue(minis.All(m => (m.transform.position - park).sqrMagnitude < 1e-8f), "all minis authored parked");
+            }
+        }
+
+        [Test]
+        public void OrbitMarkerIsAtTheTopAndEchoesReachItOnTheirStep()
+        {
+            foreach (var orbit in Object.FindFirstObjectByType<EchoConductor>().Orbits)
+            {
+                Assert.Greater(orbit.MarkerPosition.y, orbit.transform.position.y, "marker at 12 o'clock");
+                for (int step = 0; step < 16; step++)
+                    Assert.Less((orbit.PositionAt(step / 16.0, step) - orbit.MarkerPosition).magnitude, 1e-4f, $"{orbit.name} step {step}");
+                // a quarter bar earlier, a step-0 echo is a quarter turn before the marker (left side as seen)
+                var before = orbit.PositionAt(-0.25, 0) - orbit.transform.position;
+                Assert.Less(Vector3.Dot(before, orbit.transform.right), -0.2f, "travels clockwise toward the marker");
+            }
+        }
+
+        [Test]
+        public void UndoButtonReachableSeated()
+        {
+            var undo = Object.FindFirstObjectByType<UndoButton>();
+            Assert.IsNotNull(undo);
+            AssertSeated("UndoButton", undo.transform.position);
         }
 
         [Test]
