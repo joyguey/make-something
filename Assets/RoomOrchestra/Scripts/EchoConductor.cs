@@ -75,6 +75,7 @@ namespace RoomOrchestra
         void Update()
         {
             double now = AudioSettings.dspTime;
+            LogBar(now); // close the previous bar's tally before scheduling into the new one
             foreach (var due in m_Sequencer.Collect(now))
             {
                 var target = TargetFor(due.Echo.Target);
@@ -82,7 +83,6 @@ namespace RoomOrchestra
                 m_ScheduledThisBar++;
                 Scheduled?.Invoke(due);
             }
-            LogBar(now);
             SyncVisuals(now);
         }
 
@@ -125,7 +125,8 @@ namespace RoomOrchestra
         void Resync()
         {
             double now = AudioSettings.dspTime;
-            foreach (var target in InstrumentTarget.Active) target.CancelScheduled();
+            foreach (var target in InstrumentTarget.Active)
+                m_ScheduledThisBar -= target.CancelScheduled(); // they are re-queued and counted again
             m_Sequencer.Rewind(now);
         }
 

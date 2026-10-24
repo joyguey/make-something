@@ -121,5 +121,21 @@ Tests (live Editor `unity command run_tests`):
 - NOT TESTED: audio by ear, mix levels/clipping across 3 instruments, controller stick click on hardware.
 - Known: petal staircase is partly below the default emulator view (bottom edge) -> revisit in Prompt 05 layout.
 
+## 2026-10-23 | Prompt 03 follow-up — orb timbre fix after owner listening test
+- Owner: Flutter and Bop sounded the same on the lamp. Cause: placeholder samples are near-pure tones; overtone filters had little to act on; tests had used a synthetic tone. Redesigned (time shape: Flutter short blip, Boom soft attack + echo tail + darker); tests now on the real WAVs. Owner listening re-test on emulator: APPROVED.
+
+## 2026-10-23 | Prompt 04 — DSP clock + echo orbits (live Editor via Unity CLI)
+Implemented:
+- MusicClock (4/4, 88 BPM, AudioSettings.dspTime, times from bar/step indices, pause/resume keeps phase); EchoSequencer (nearest-16th quantize, repeat each bar via PlayScheduled with 0.3 s lookahead, first repeat never doubles the live hit, 6 per target with 7th refused, collisions -> nearest free step, remove/nudge/clear + undo, skip-not-burst after hitches).
+- Orbit ring per target facing the player: 16 ticks (beats larger), fixed diamond marker at 12 o'clock, pooled orb-shaped minis travel clockwise and pass the marker as they sound; tap a mini to select it.
+- Echo edit mode (grip / editor E): stick nudge/select, A remove, B undo; undo button; editor C clear, Z undo, K pause.
+- Scheduled voices tracked + cancellable; scheduled voices never stolen; echoes don't flash the target (photosensitivity).
+Tests (live Editor): EditMode 114/114, PlayMode 18/18 — incl. 1000-bar irregular-frame no-drift, two echoes same BPM, cap, collisions, three-target layer, pause/resume phase, remove cancels scheduled repeat, undo, mini at marker on its step. Fixed during testing: short samples rendered empty Flutter voices (crash).
+Emulator (owner hands-on, 2026-10-23): rings render in PICO Spatial; 15 hits -> echoes on lamp/chair/table; repeats/bar grew 1 -> 11 at constant 88 BPM; each echo's first repeat one bar after its hit; lamp 6-cap refused hits #11-#14 ("orbit is full; played live only"); undo stepped back 11 -> 7 echoes. Owner: "this is great ... great progress".
+Known / follow-ups:
+- Diagnostic bar log over-counted after edits and at bar boundaries (audio unaffected) — fixed after the test (LogBar before Collect; cancelled re-queues subtracted).
+- Owner did not know what the tray-side buttons do (intensity bars, petal staircase, undo). Discoverability is a real cognitive-accessibility gap; address in Prompt 05 WITHOUT text labels by default (owner dislikes text labels): icon/shape cues, audio/visual preview on focus, optional labels.
+- Not testable on emulator: grip edit mode, nudge, remove, pause (controller buttons). Not verified: timing by ear vs marker crossing (owner did not report issues), headset.
+
 ## Resume here (next session)
-1. Prompt 04: 88 BPM DSP clock + three 16-step echo orbits (replaces the retired loop recorder).
+1. Prompt 05: accessibility release gate (A11Y-01..09 in controller-only simulated mode), incl. control discoverability without default text labels, seated recenter, reduced motion/flash, pause UI, petal staircase placement.
