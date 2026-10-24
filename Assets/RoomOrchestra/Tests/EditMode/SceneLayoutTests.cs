@@ -63,15 +63,62 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
-        public void PetalButtonReachableSeatedAndAuthoredAtStartPetal()
+        public void EveryTargetHasAPitchColumnOfFiveLabeledTilesLowToHigh()
         {
-            var petal = Object.FindFirstObjectByType<PetalButton>();
-            Assert.IsNotNull(petal);
-            AssertSeated("PetalButton", petal.transform.position);
-            Assert.IsNotNull(petal.GetComponent<Collider>());
-            var steps = petal.GetComponentsInChildren<Transform>().Where(t => t.name.StartsWith("PetalStep")).ToArray();
-            Assert.AreEqual(NoteMapping.Count, steps.Length);
-            Assert.Greater(steps[2].localScale.y, petal.BaseScale(2).y, "middle petal authored selected");
+            var columns = Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None);
+            CollectionAssert.AreEquivalent(
+                Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None).Select(t => t.Instrument),
+                columns.Select(c => c.Target.Instrument));
+            foreach (var column in columns)
+            {
+                Assert.AreEqual(NoteMapping.Count, column.Tiles.Length, column.name);
+                for (int i = 0; i < column.Tiles.Length; i++)
+                {
+                    var tile = column.Tiles[i];
+                    Assert.AreEqual(i, tile.Petal);
+                    Assert.AreEqual(column.Target, tile.Target);
+                    Assert.IsNotNull(tile.GetComponent<Collider>(), "tappable");
+                    AssertSeated(tile.name + " of " + column.name, tile.transform.position);
+                    if (i > 0) Assert.Greater(tile.transform.position.y, column.Tiles[i - 1].transform.position.y, "higher tile = higher note");
+                    var note = new MusicalNote(column.Target.Instrument, i);
+                    string expected = note.IsPercussion ? note.Articulation.ToString() : NoteMapping.NoteName(i);
+                    var label = column.transform.Find($"TileLabel{i}")?.GetComponent<TextMesh>();
+                    Assert.IsNotNull(label, $"{column.name} tile {i} has a label");
+                    Assert.AreEqual(expected, label.text);
+                    Assert.Less(Vector3.Distance(label.transform.position, tile.transform.position), 0.05f, "label sits on its tile");
+                }
+            }
+        }
+
+        [Test]
+        public void EveryControlHasAClearTextLabel()
+        {
+            string[] Texts(Component c) => c.GetComponentsInChildren<TextMesh>().Select(t => t.text).ToArray();
+            var tray = Object.FindFirstObjectByType<OrbToken>().transform.parent;
+            CollectionAssert.IsSupersetOf(Texts(tray), new[] { "Flutter", "Bop", "Boom" });
+            CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<TierButton>()), "Loudness");
+            CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<UndoButton>()), "Undo");
+            foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
+                Assert.IsTrue(Texts(column).Any(t => t == "udu" || t == "mbira" || t == "erhu"), $"{column.name} names its instrument");
+            foreach (var text in Object.FindObjectsByType<TextMesh>(FindObjectsSortMode.None))
+            {
+                Assert.IsNotNull(text.font, text.name);
+                Assert.IsFalse(string.IsNullOrWhiteSpace(text.text), text.name);
+                var toLabel = text.transform.position - new Vector3(0f, 1.15f, 0f);
+                Assert.Greater(Vector3.Dot(text.transform.forward, toLabel.normalized), 0.5f, $"{text.name} faces the player");
+            }
+        }
+
+        [Test]
+        public void StartPitchTileAuthoredSelectedOnTheFocusedTargetOnly()
+        {
+            foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
+                for (int i = 0; i < column.Tiles.Length; i++)
+                {
+                    bool selected = column.Target.Instrument == InstrumentType.Mbira && i == 2;
+                    var expected = column.TileScale * (selected ? 1.2f : 1f);
+                    Assert.Less((column.Tiles[i].transform.localScale - expected).magnitude, 1e-4f, $"{column.name} tile {i}");
+                }
         }
 
         [Test]

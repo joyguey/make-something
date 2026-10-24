@@ -121,6 +121,27 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator TappingAPitchTilePlaysThatNoteOnItsTarget()
+        {
+            var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);
+            var lamp = MakeTarget(InstrumentType.Erhu, new Vector3(2f, 0f, 0f));
+            var selector = MakeSelector(chair, lamp);
+            var tileGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            m_Spawned.Add(tileGo);
+            var tile = tileGo.AddComponent<PitchTile>();
+            tile.Configure(lamp, 3);
+            yield return null;
+
+            selector.Select(OrbType.Bop);
+            Assert.IsTrue(InstrumentInputRouter.Activate(tileGo), "a tap on the tile is handled");
+            Assert.AreEqual(1, m_Events.Count);
+            Assert.AreEqual(InstrumentType.Erhu, m_Events[0].Target, "the tile's own target, whatever is focused");
+            Assert.AreEqual("A5", m_Events[0].Note.Label);
+            Assert.AreEqual(OrbType.Bop, m_Events[0].Orb);
+            Assert.AreEqual(3, selector.Petal, "the tapped pitch becomes the controller's pitch too");
+        }
+
+        [UnityTest]
         public IEnumerator TossNoteFollowsContactHeight()
         {
             var target = MakeTarget(InstrumentType.Mbira, Vector3.zero);

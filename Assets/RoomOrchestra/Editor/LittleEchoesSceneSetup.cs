@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -69,10 +70,10 @@ namespace RoomOrchestra.EditorTools
                 var profile = OrbCatalog.All[i];
                 tokens[i] = CreateToken(profile, tray, new Vector3(-0.19f + 0.19f * i, 0.09f, 0f),
                     orbMaterials[i], motifMaterial, selected: profile.Type == OrbType.Flutter);
+                Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.19f + 0.19f * i, 0.025f, -0.095f), 0.022f);
             }
 
             var tierButton = CreateTierButton(root.transform, slabMaterial, motifMaterial);
-            var petalButton = CreatePetalButton(root.transform, slabMaterial, motifMaterial);
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -81,6 +82,9 @@ namespace RoomOrchestra.EditorTools
             var marker = Primitive(PrimitiveType.Cylinder, "FocusMarker", root.transform, focusMaterial, keepCollider: false);
             marker.position = targets[StartTarget].AimPosition + Vector3.up * markerLift;
             marker.localScale = new Vector3(0.14f, 0.006f, 0.14f);
+
+            // Pitch columns: five labeled tiles beside each target, low to high.
+            var columns = targets.Select((t, i) => CreatePitchColumn(t, root.transform, slabMaterial, i == StartTarget)).ToArray();
 
             var launcher = Object.FindFirstObjectByType<BallLauncher>();
             PreSkinBalls(orbMaterials[(int)OrbType.Flutter]);
@@ -100,7 +104,7 @@ namespace RoomOrchestra.EditorTools
             so.FindProperty("focusMarkerLift").floatValue = markerLift;
             SetArray(so.FindProperty("tokens"), tokens);
             so.FindProperty("tierButton").objectReferenceValue = tierButton;
-            so.FindProperty("petalButton").objectReferenceValue = petalButton;
+            SetArray(so.FindProperty("pitchColumns"), columns);
             so.FindProperty("startPetal").intValue = StartPetal;
             so.FindProperty("launcher").objectReferenceValue = launcher;
             so.FindProperty("startOrb").enumValueIndex = (int)OrbType.Flutter;
@@ -204,6 +208,7 @@ namespace RoomOrchestra.EditorTools
                 barTransforms[i] = bar;
             }
 
+            Label("TierLabel", "Loudness", go.transform, new Vector3(0f, 0.025f, -0.065f), 0.02f);
             var tier = go.AddComponent<TierButton>();
             var so = new SerializedObject(tier);
             SetArray(so.FindProperty("bars"), barTransforms);
@@ -287,33 +292,88 @@ namespace RoomOrchestra.EditorTools
             Box("UndoArrowHook", go.transform, new Vector3(0.04f, 0.04f, 0f), new Vector3(0.012f, 0.03f, 0.012f), mark, keepCollider: false);
             var head = Box("UndoArrowHead", go.transform, new Vector3(-0.025f, 0.025f, 0f), new Vector3(0.022f, 0.022f, 0.012f), mark, keepCollider: false);
             head.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Label("UndoLabel", "Undo", go.transform, new Vector3(0f, 0.02f, -0.05f), 0.02f);
             go.AddComponent<UndoButton>();
         }
 
-        // Five rising steps in front of the tray: low to high note (or the five udu sounds).
-        static PetalButton CreatePetalButton(Transform root, Material slab, Material steps)
+        // Beside each target, to its right as the player sees it: D E F# A B (or the five udu sounds)
+        // from the lowest tile to the highest, so height still means pitch.
+        static readonly Dictionary<InstrumentType, float> ColumnX = new()
         {
-            var go = new GameObject("PetalButton");
-            go.transform.SetParent(root, false);
-            go.transform.position = TrayCenter + new Vector3(0f, 0f, -0.14f);
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.04f, 0f);
-            box.size = new Vector3(0.24f, 0.12f, 0.09f);
-            Box("PetalSlab", go.transform, Vector3.zero, new Vector3(0.24f, 0.03f, 0.08f), slab, keepCollider: false);
+            { InstrumentType.Udu, -0.45f },   // in the gap right of the table
+            { InstrumentType.Mbira, 0.47f },  // right of the chair, clear of its orbit ring
+            { InstrumentType.Erhu, 1.53f },   // right of the lamp, clear of its orbit ring
+        };
+        const float ColumnBottom = 0.55f, ColumnStep = 0.15f;
+        static readonly Vector3 TileScale = new Vector3(0.14f, 0.11f, 0.03f);
 
-            var petal = go.AddComponent<PetalButton>();
-            var stepTransforms = new Transform[NoteMapping.Count];
-            for (int i = 0; i < NoteMapping.Count; i++)
+        static PitchColumn CreatePitchColumn(InstrumentTarget target, Transform root, Material slab, bool focused)
+        {
+            var go = new GameObject($"PitchColumn_{target.Instrument}");
+            go.transform.SetParent(root, false);
+            go.transform.position = new Vector3(ColumnX[target.Instrument], 0f, target.AimPosition.z);
+            var tiles = new PitchTile[NoteMapping.Count];
+            for (int i = 0; i < tiles.Length; i++)
             {
-                var step = Primitive(PrimitiveType.Cube, $"PetalStep{i}", go.transform, steps, keepCollider: false);
-                step.localPosition = new Vector3(-0.088f + 0.044f * i, 0.015f, 0f);
-                stepTransforms[i] = step;
+                var tile = Primitive(PrimitiveType.Cube, $"PitchTile{i}", go.transform, slab, keepCollider: true);
+                tile.position = new Vector3(go.transform.position.x, ColumnBottom + ColumnStep * i, go.transform.position.z);
+                tile.rotation = FacePlayer(tile.position);
+                tile.localScale = focused && i == StartPetal ? TileScale * 1.2f : TileScale;
+                var note = new MusicalNote(target.Instrument, i);
+                string text = note.IsPercussion ? note.Articulation.ToString() : NoteMapping.NoteName(i);
+                // Label on the tile's player-facing side, sized in world units (not stretched by the tile).
+                var label = Label($"TileLabel{i}", text, go.transform, Vector3.zero, note.IsPercussion ? 0.034f : 0.045f);
+                label.position = tile.position - tile.forward * 0.02f;
+                label.rotation = tile.rotation;
+                tiles[i] = tile.gameObject.AddComponent<PitchTile>();
+                tiles[i].Configure(target, i);
+                EditorUtility.SetDirty(tiles[i]);
             }
-            var so = new SerializedObject(petal);
-            SetArray(so.FindProperty("steps"), stepTransforms);
-            so.ApplyModifiedPropertiesWithoutUndo();
-            petal.Show(StartPetal); // authored in its start state, so nothing changes at runtime startup
-            return petal;
+            var caption = Label("InstrumentLabel", InstrumentCaption(target.Instrument), go.transform, Vector3.zero, 0.035f);
+            caption.position = new Vector3(go.transform.position.x, ColumnBottom - 0.12f, go.transform.position.z);
+            caption.rotation = FacePlayer(caption.position);
+
+            var column = go.AddComponent<PitchColumn>();
+            column.Configure(target, tiles, TileScale);
+            EditorUtility.SetDirty(column);
+            return column;
+        }
+
+        static string InstrumentCaption(InstrumentType type) => type switch
+        {
+            InstrumentType.Udu => "udu",
+            InstrumentType.Mbira => "mbira",
+            _ => "erhu",
+        };
+
+        static Quaternion FacePlayer(Vector3 position)
+        {
+            var away = position - PlayerEye;
+            away.y = 0f;
+            return Quaternion.LookRotation(away.sqrMagnitude > 1e-6f ? away : Vector3.forward, Vector3.up);
+        }
+
+        /// <summary>
+        /// Clear text label (TextMesh, which PICO Spatial supports), facing the player, centred,
+        /// white on the dark slabs. <paramref name="height"/> is the capital-letter height in metres.
+        /// </summary>
+        static Transform Label(string name, string text, Transform parent, Vector3 localPosition, float height)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
+            go.transform.rotation = FacePlayer(go.transform.position);
+            var mesh = go.AddComponent<TextMesh>();
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            mesh.font = font;
+            go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+            mesh.text = text;
+            mesh.fontSize = 64;
+            mesh.characterSize = height / 6.4f; // fontSize 64 -> ~6.4 units of cap height per characterSize
+            mesh.anchor = TextAnchor.MiddleCenter;
+            mesh.alignment = TextAlignment.Center;
+            mesh.color = Color.white;
+            return go.transform;
         }
 
         static void PreSkinBalls(Material flutter)

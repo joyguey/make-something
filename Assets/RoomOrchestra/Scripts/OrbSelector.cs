@@ -17,7 +17,8 @@ namespace RoomOrchestra
         [SerializeField] float focusMarkerLift = 0.3f;
         [SerializeField] OrbToken[] tokens;
         [SerializeField] TierButton tierButton;
-        [SerializeField] PetalButton petalButton;
+        [Tooltip("Pitch columns (one per target); the focused target's column shows the selected pitch.")]
+        [SerializeField] PitchColumn[] pitchColumns;
         [SerializeField] BallLauncher launcher;
 
         [Header("Initial state (authored in the scene to match, so nothing changes at startup)")]
@@ -79,6 +80,14 @@ namespace RoomOrchestra
             if (index >= 0) Model.FocusTarget(index);
         }
 
+        /// <summary>Plays the tile's note on its target with the selected orb (and remembers that pitch).</summary>
+        public MusicalHitEvent PlaceOnTile(PitchTile tile)
+        {
+            if (tile == null || tile.Target == null) return null;
+            Model.SetPetal(tile.Petal);
+            return PlaceOn(tile.Target, PitchInput.FromPetal(tile.Petal));
+        }
+
         /// <summary>Places the selected orb on the focused target.</summary>
         public MusicalHitEvent PlaceOnFocused() => PlaceOn(FocusedTarget);
 
@@ -121,7 +130,9 @@ namespace RoomOrchestra
             }
 
             if (tierButton != null) tierButton.Show(Model.Tier);
-            if (petalButton != null) petalButton.Show(Model.Petal);
+            if (pitchColumns != null)
+                foreach (var column in pitchColumns)
+                    if (column != null) column.Show(column.Target == FocusedTarget ? Model.Petal : -1);
             if (launcher != null) launcher.SetOrb(Model.SelectedOrb);
         }
     }

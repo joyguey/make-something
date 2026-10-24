@@ -78,7 +78,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<InstrumentButton>();
             if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
             if (owner == null) owner = hit.GetComponentInParent<TierButton>();
-            if (owner == null) owner = hit.GetComponentInParent<PetalButton>();
+            if (owner == null) owner = hit.GetComponentInParent<PitchTile>();
             if (owner == null) owner = hit.GetComponentInParent<UndoButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
@@ -124,9 +124,10 @@ namespace RoomOrchestra
                 return true;
             }
 
-            if (hit.GetComponentInParent<PetalButton>() != null && selector != null)
+            var tile = hit.GetComponentInParent<PitchTile>();
+            if (tile != null && selector != null)
             {
-                selector.CyclePetal();
+                selector.PlaceOnTile(tile);
                 return true;
             }
 
