@@ -55,6 +55,23 @@ namespace RoomOrchestra
         public static MusicalNote Resolve(InstrumentType instrument, PitchInput pitch) =>
             new MusicalNote(instrument, IndexFor(pitch));
 
+        static readonly float[] s_Degrees4 = { 293.66f, 329.63f, 369.99f, 440f, 493.88f }; // D4 E4 F#4 A4 B4
+
+        /// <summary>
+        /// Pitch of the source sample for instrument + sample index: mbira D4-B4, erhu one octave up,
+        /// udu two octaves down (D2-B2). Used to place timbre filters relative to the note.
+        /// </summary>
+        public static float FrequencyHz(InstrumentType instrument, int sampleIndex)
+        {
+            float f = s_Degrees4[sampleIndex < 0 ? 0 : sampleIndex >= Count ? Count - 1 : sampleIndex];
+            return instrument switch
+            {
+                InstrumentType.Erhu => f * 2f,
+                InstrumentType.Udu => f / 4f,
+                _ => f,
+            };
+        }
+
         public static string NoteName(int index) => s_Names[index < 0 ? 0 : index >= Count ? Count - 1 : index];
     }
 }

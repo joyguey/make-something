@@ -104,13 +104,16 @@ namespace RoomOrchestra
             {
                 bool udu = instrument == InstrumentType.Udu;
                 var articulation = (UduArticulation)index;
-                var source = notes[udu ? VoiceDesign.UduSourceIndex(articulation) : index];
+                int sourceIndex = udu ? VoiceDesign.UduSourceIndex(articulation) : index;
+                var source = notes[sourceIndex];
+                float fundamental = NoteMapping.FrequencyHz(instrument, sourceIndex);
+                bool bowed = instrument == InstrumentType.Erhu;
                 float[] data = ReadMono(source);
                 if (data == null) continue;
                 var basis = udu ? VoiceDesign.ForUdu(articulation) : VoiceSpec.Plain;
                 foreach (var profile in OrbCatalog.All)
                 {
-                    float[] rendered = VoiceDesign.Render(data, source.frequency, VoiceDesign.ForOrb(profile.Type, basis));
+                    float[] rendered = VoiceDesign.Render(data, source.frequency, VoiceDesign.ForOrb(profile.Type, basis, fundamental, bowed));
                     var clip = AudioClip.Create($"{instrument}_{index}_{profile.Type}", rendered.Length, 1, source.frequency, false);
                     clip.SetData(rendered, 0);
                     bank[(int)profile.Type, index] = clip;

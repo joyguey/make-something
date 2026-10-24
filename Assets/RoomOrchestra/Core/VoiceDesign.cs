@@ -12,42 +12,68 @@ namespace RoomOrchestra
         /// <summary>Playback rate at the start and end of the bend (1 = original pitch).</summary>
         public float RateStart, RateEnd;
         public float BendSeconds;
-        /// <summary>Output length in seconds (0 = natural length of the source).</summary>
+        /// <summary>Skip this much of the source first (e.g. a bowed note's slow swell).</summary>
+        public float StartSeconds;
+        /// <summary>Output length in seconds before any echo tail (0 = natural length).</summary>
         public float LengthSeconds;
-        /// <summary>Linear fade to silence at the end, so cut voices never click.</summary>
+        /// <summary>Linear fade-in: a soft edge instead of a hard attack.</summary>
+        public float AttackSeconds;
+        /// <summary>Exponential decay time constant (0 = keep the sample's own decay).</summary>
+        public float DecaySeconds;
+        /// <summary>Linear fade to silence at the very end, so voices never click.</summary>
         public float FadeSeconds;
-        /// <summary>One-pole low-pass cutoff in Hz (0 = off): darker, rounder.</summary>
+        /// <summary>Soft saturation (tanh) drive; adds overtones even to near-pure tones (0 = off).</summary>
+        public float Drive;
+        /// <summary>Two-pole low-pass cutoff in Hz (0 = off): darker, rounder.</summary>
         public float LowPassHz;
-        /// <summary>0-1: adds the signal's own high-frequency edge: brighter, airier.</summary>
-        public float Brightness;
+        /// <summary>High-shelf corner in Hz and amount 0-1: content above it is raised up to (1 + 3 x amount).</summary>
+        public float ShelfHz, Brightness;
+        /// <summary>0-1: level of three fading echoes (0.15 / 0.30 / 0.45 s) that lengthen the voice.</summary>
+        public float EchoMix;
         /// <summary>Peak level after normalising (keeps headroom; never above 0.9).</summary>
         public float PeakLevel;
 
         public static VoiceSpec Plain => new VoiceSpec { RateStart = 1f, RateEnd = 1f, PeakLevel = 0.8f, FadeSeconds = 0.05f };
     }
 
-    /// <summary>Timbre rules: orb weight and udu articulation become <see cref="VoiceSpec"/>s.</summary>
+    /// <summary>
+    /// Timbre rules: orb weight and udu articulation become <see cref="VoiceSpec"/>s.
+    /// The placeholder samples are close to pure tones, so orb identity rests mainly on shape in
+    /// time (which survives any sample) and only secondarily on tone colour:
+    /// Flutter = short light blip, Bop = the plain plucked note, Boom = dark, soft-edged, echoing.
+    /// </summary>
     public static class VoiceDesign
     {
         public const float MaxPeak = 0.9f;
+        static readonly float[] s_EchoTimes = { 0.15f, 0.30f, 0.45f };
+        static readonly float[] s_EchoGains = { 1f, 0.7f, 0.5f };
 
-        /// <summary>
-        /// Flutter: airy, bright, shorter. Bop: centred, plucked, the plain sample.
-        /// Boom: rounder, darker, longer. (No sub-octave layer: it shifted Boom's heard pitch an
-        /// octave down, and pitch must come only from height/petal.)
-        /// </summary>
-        public static VoiceSpec ForOrb(OrbType orb, VoiceSpec basis)
+        /// <param name="fundamentalHz">Pitch of the source sample: filters are placed relative to it.</param>
+        /// <param name="bowed">Bowed voices (erhu) swell slowly; Flutter starts from the swell instead.</param>
+        public static VoiceSpec ForOrb(OrbType orb, VoiceSpec basis, float fundamentalHz, bool bowed)
         {
             var spec = basis;
+            float f0 = fundamentalHz > 0f ? fundamentalHz : 440f;
             switch (orb)
             {
                 case OrbType.Flutter:
+                    spec.Drive = Math.Max(spec.Drive, 3f);
+                    spec.ShelfHz = Math.Max(2f * f0, 600f);
                     spec.Brightness = Math.Min(1f, spec.Brightness + 0.6f);
-                    spec.LengthSeconds = spec.LengthSeconds > 0f ? spec.LengthSeconds * 0.7f : 0.7f;
+                    spec.DecaySeconds = 0.12f;
+                    spec.LengthSeconds = spec.LengthSeconds > 0f ? Math.Min(spec.LengthSeconds, 0.5f) : 0.5f;
+                    if (bowed)
+                    {
+                        spec.StartSeconds = 0.4f;
+                        spec.AttackSeconds = Math.Max(spec.AttackSeconds, 0.01f);
+                    }
                     spec.PeakLevel *= 0.9f;
                     break;
                 case OrbType.Boom:
-                    spec.LowPassHz = spec.LowPassHz > 0f ? Math.Min(spec.LowPassHz, 900f) : 900f;
+                    float cutoff = Math.Max(1.5f * f0, 150f);
+                    spec.LowPassHz = spec.LowPassHz > 0f ? Math.Min(spec.LowPassHz, cutoff) : cutoff;
+                    spec.AttackSeconds = Math.Max(spec.AttackSeconds, 0.04f);
+                    spec.EchoMix = 0.5f;
                     spec.FadeSeconds = Math.Max(spec.FadeSeconds, 0.15f);
                     break;
             }
@@ -63,11 +89,13 @@ namespace RoomOrchestra
                 case UduArticulation.Muted:
                     spec.LengthSeconds = 0.18f;
                     spec.FadeSeconds = 0.08f;
-                    spec.LowPassHz = 600f;
+                    spec.LowPassHz = 300f;
                     break;
                 case UduArticulation.Slap:
                     spec.LengthSeconds = 0.25f;
                     spec.FadeSeconds = 0.1f;
+                    spec.Drive = 2f;
+                    spec.ShelfHz = 600f;
                     spec.Brightness = 0.7f;
                     break;
                 case UduArticulation.Bend:
@@ -78,6 +106,8 @@ namespace RoomOrchestra
                 case UduArticulation.Tap:
                     spec.LengthSeconds = 0.1f;
                     spec.FadeSeconds = 0.05f;
+                    spec.Drive = 2f;
+                    spec.ShelfHz = 600f;
                     spec.Brightness = 0.8f;
                     spec.PeakLevel = 0.55f;
                     break;
@@ -98,15 +128,22 @@ namespace RoomOrchestra
         {
             if (source == null || source.Length == 0 || sampleRate <= 0) return Array.Empty<float>();
 
-            float[] main = Resample(source, sampleRate, spec);
+            int skip = Math.Min(source.Length - 1, (int)(spec.StartSeconds * sampleRate));
+            var trimmed = new float[source.Length - skip];
+            Array.Copy(source, skip, trimmed, 0, trimmed.Length);
+            Normalize(trimmed, 1f); // drive behaves the same whatever the sample's recorded level
 
+            float[] main = Resample(trimmed, sampleRate, spec);
+            if (spec.Drive > 0f) Saturate(main, spec.Drive);
             if (spec.LowPassHz > 0f) LowPass(main, sampleRate, spec.LowPassHz);
-            if (spec.Brightness > 0f) Brighten(main, sampleRate, spec.Brightness);
+            if (spec.Brightness > 0f) Shelf(main, sampleRate, spec.ShelfHz > 0f ? spec.ShelfHz : 1000f, spec.Brightness);
 
             int length = spec.LengthSeconds > 0f ? Math.Min(main.Length, (int)(spec.LengthSeconds * sampleRate)) : main.Length;
-            var output = new float[length];
-            Array.Copy(main, output, length);
+            var shaped = new float[length];
+            Array.Copy(main, shaped, length);
+            Envelope(shaped, sampleRate, spec.AttackSeconds, spec.DecaySeconds);
 
+            float[] output = spec.EchoMix > 0f ? Echo(shaped, sampleRate, spec.EchoMix) : shaped;
             FadeOut(output, Math.Max(1, (int)(spec.FadeSeconds * sampleRate)));
             Normalize(output, Math.Min(MaxPeak, spec.PeakLevel > 0f ? spec.PeakLevel : 0.8f));
             return output;
@@ -133,14 +170,17 @@ namespace RoomOrchestra
             return output.ToArray();
         }
 
-        // Two cascaded one-pole stages (12 dB/octave): a one-pole filter barely darkened Boom
-        // (only 1.17x darker than Bop in tests); two poles at 900 Hz give about 1.4-1.6x across the
-        // udu, mbira and erhu registers while staying above the erhu's top notes.
+        static void Saturate(float[] samples, float drive)
+        {
+            float norm = (float)Math.Tanh(drive);
+            for (int i = 0; i < samples.Length; i++)
+                samples[i] = (float)Math.Tanh(drive * samples[i]) / norm;
+        }
+
+        // Two cascaded one-pole stages (12 dB/octave).
         static void LowPass(float[] samples, int sampleRate, float cutoffHz)
         {
-            double rc = 1.0 / (2.0 * Math.PI * cutoffHz);
-            double dt = 1.0 / sampleRate;
-            float alpha = (float)(dt / (rc + dt));
+            float alpha = OnePoleAlpha(sampleRate, cutoffHz);
             for (int pass = 0; pass < 2; pass++)
             {
                 float y = 0f;
@@ -152,19 +192,49 @@ namespace RoomOrchestra
             }
         }
 
-        // High-shelf boost: content above ~1 kHz is raised by up to (1 + 3 * amount), i.e. about +9 dB at
-        // amount 0.6, emphasising the attack and upper partials without touching the fundamental's pitch.
-        static void Brighten(float[] samples, int sampleRate, float amount)
+        static void Shelf(float[] samples, int sampleRate, float cornerHz, float amount)
         {
-            const float shelfHz = 1000f;
-            double rc = 1.0 / (2.0 * Math.PI * shelfHz);
-            float alpha = (float)((1.0 / sampleRate) / (rc + 1.0 / sampleRate));
+            float alpha = OnePoleAlpha(sampleRate, cornerHz);
             float low = 0f;
             for (int i = 0; i < samples.Length; i++)
             {
                 low += alpha * (samples[i] - low);
                 samples[i] += (samples[i] - low) * amount * 3f;
             }
+        }
+
+        static float OnePoleAlpha(int sampleRate, float cutoffHz)
+        {
+            double rc = 1.0 / (2.0 * Math.PI * cutoffHz);
+            double dt = 1.0 / sampleRate;
+            return (float)(dt / (rc + dt));
+        }
+
+        static void Envelope(float[] samples, int sampleRate, float attackSeconds, float decaySeconds)
+        {
+            int attack = (int)(attackSeconds * sampleRate);
+            double decayPerSample = decaySeconds > 0f ? Math.Exp(-1.0 / (decaySeconds * sampleRate)) : 1.0;
+            double gain = 1.0;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float a = attack > 0 && i < attack ? i / (float)attack : 1f;
+                samples[i] *= (float)(a * gain);
+                gain *= decayPerSample;
+            }
+        }
+
+        static float[] Echo(float[] samples, int sampleRate, float mix)
+        {
+            int longest = (int)(s_EchoTimes[s_EchoTimes.Length - 1] * sampleRate);
+            var output = new float[samples.Length + longest];
+            Array.Copy(samples, output, samples.Length);
+            for (int e = 0; e < s_EchoTimes.Length; e++)
+            {
+                int offset = (int)(s_EchoTimes[e] * sampleRate);
+                float gain = mix * s_EchoGains[e];
+                for (int i = 0; i < samples.Length; i++) output[i + offset] += samples[i] * gain;
+            }
+            return output;
         }
 
         static void FadeOut(float[] samples, int fadeSamples)
@@ -184,18 +254,43 @@ namespace RoomOrchestra
             for (int i = 0; i < samples.Length; i++) samples[i] *= gain;
         }
 
-        /// <summary>Mean absolute first difference relative to RMS: a simple, deterministic brightness measure.</summary>
-        public static float BrightnessMeasure(float[] samples)
+        /// <summary>
+        /// Share of energy in harmonics 2-10 versus harmonics 1-10, measured with a Hann-windowed
+        /// Goertzel analysis on the loudest 100 ms. A real brightness measure for harmonic sounds.
+        /// </summary>
+        public static float OvertoneFraction(float[] samples, int sampleRate, float fundamentalHz)
         {
-            if (samples == null || samples.Length < 2) return 0f;
-            double diff = 0, energy = 0;
-            for (int i = 1; i < samples.Length; i++)
+            int window = sampleRate / 10;
+            if (samples == null || samples.Length < window || fundamentalHz <= 0f) return 0f;
+            int best = 0;
+            double bestEnergy = -1;
+            for (int start = 0; start + window <= samples.Length; start += window / 2)
             {
-                diff += Math.Abs(samples[i] - samples[i - 1]);
-                energy += samples[i] * samples[i];
+                double energy = 0;
+                for (int i = start; i < start + window; i += 4) energy += samples[i] * samples[i];
+                if (energy > bestEnergy) { bestEnergy = energy; best = start; }
             }
-            double rms = Math.Sqrt(energy / samples.Length);
-            return rms < 1e-9 ? 0f : (float)(diff / samples.Length / rms);
+            double fundamental = 0, overtones = 0;
+            for (int k = 1; k <= 10 && fundamentalHz * k < sampleRate / 2f; k++)
+            {
+                double power = Goertzel(samples, best, window, sampleRate, fundamentalHz * k);
+                if (k == 1) fundamental = power; else overtones += power;
+            }
+            double total = fundamental + overtones;
+            return total <= 0 ? 0f : (float)(overtones / total);
+        }
+
+        static double Goertzel(float[] samples, int start, int length, int sampleRate, double frequency)
+        {
+            double w = 2 * Math.PI * frequency / sampleRate, c = 2 * Math.Cos(w), s1 = 0, s2 = 0;
+            for (int i = 0; i < length; i++)
+            {
+                double hann = 0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (length - 1));
+                double s0 = samples[start + i] * hann + c * s1 - s2;
+                s2 = s1;
+                s1 = s0;
+            }
+            return Math.Max(0, s1 * s1 + s2 * s2 - c * s1 * s2);
         }
     }
 }

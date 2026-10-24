@@ -80,7 +80,7 @@ namespace RoomOrchestra.Tests
     {
         const int Rate = 44100;
 
-        // A decaying 220 Hz tone with harmonics: a stand-in for a plucked sample.
+        // A decaying 220 Hz tone with harmonics: used for the pure-math properties.
         static float[] TestTone(float seconds = 1f)
         {
             var data = new float[(int)(seconds * Rate)];
@@ -93,7 +93,8 @@ namespace RoomOrchestra.Tests
             return data;
         }
 
-        static float[] Voice(OrbType orb, VoiceSpec basis) => VoiceDesign.Render(TestTone(), Rate, VoiceDesign.ForOrb(orb, basis));
+        static float[] Voice(OrbType orb, VoiceSpec basis) =>
+            VoiceDesign.Render(TestTone(), Rate, VoiceDesign.ForOrb(orb, basis, 220f, bowed: false));
 
         [Test]
         public void RenderingIsDeterministic()
@@ -118,19 +119,12 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
-        public void FlutterIsBrighterThanBopWhichIsBrighterThanBoom()
+        public void OvertoneMeasureSeesHarmonics()
         {
-            float flutter = VoiceDesign.BrightnessMeasure(Voice(OrbType.Flutter, VoiceSpec.Plain));
-            float bop = VoiceDesign.BrightnessMeasure(Voice(OrbType.Bop, VoiceSpec.Plain));
-            float boom = VoiceDesign.BrightnessMeasure(Voice(OrbType.Boom, VoiceSpec.Plain));
-            Assert.Greater(flutter, bop * 1.2f, "Flutter audibly brighter");
-            Assert.Greater(bop, boom * 1.2f, "Boom audibly darker");
-        }
-
-        [Test]
-        public void FlutterIsShorterThanBoom()
-        {
-            Assert.Less(Voice(OrbType.Flutter, VoiceSpec.Plain).Length, Voice(OrbType.Boom, VoiceSpec.Plain).Length);
+            var pure = new float[Rate];
+            for (int i = 0; i < pure.Length; i++) pure[i] = (float)Math.Sin(2 * Math.PI * 220 * i / Rate);
+            Assert.Less(VoiceDesign.OvertoneFraction(pure, Rate, 220f), 0.01f, "pure tone has no overtones");
+            Assert.Greater(VoiceDesign.OvertoneFraction(TestTone(), Rate, 220f), 0.15f, "test tone has overtones");
         }
 
         [Test]
@@ -150,11 +144,11 @@ namespace RoomOrchestra.Tests
         [Test]
         public void PitchedVoicesKeepTheirPitch()
         {
-            // Pitch = the waveform's repeat period (autocorrelation peak), which brightening the
-            // overtones does not change. The 220 Hz test tone repeats every 200.45 samples.
+            // Pitch = the waveform's repeat period (autocorrelation peak), which overtones do not change.
+            // The 220 Hz test tone repeats every 200.45 samples.
             int Period(float[] d)
             {
-                int n = Math.Min(d.Length, Rate / 5), best = 0;
+                int n = Math.Min(d.Length, Rate / 10), best = 0;
                 double bestScore = double.MinValue;
                 for (int lag = 100; lag <= 400; lag++)
                 {
@@ -168,11 +162,60 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(200, reference, 1);
             foreach (var orb in OrbCatalog.All)
             {
-                var spec = VoiceDesign.ForOrb(orb.Type, VoiceSpec.Plain);
+                var spec = VoiceDesign.ForOrb(orb.Type, VoiceSpec.Plain, 220f, false);
                 Assert.AreEqual(1f, spec.RateStart, orb.DisplayName);
                 Assert.AreEqual(1f, spec.RateEnd, orb.DisplayName);
                 Assert.AreEqual(reference, Period(Voice(orb.Type, VoiceSpec.Plain)), 1, orb.DisplayName);
             }
+        }
+    }
+
+    /// <summary>
+    /// Orb timbre measured on the project's REAL placeholder samples (not a synthetic tone): an earlier
+    /// version passed synthetic tests but Flutter and Bop sounded the same on the lamp to the owner.
+    /// </summary>
+    public class RealSampleTimbreTests
+    {
+        static float[] Load(string path, out int rate)
+        {
+            var clip = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.AudioClip>(path);
+            Assert.IsNotNull(clip, path);
+            clip.LoadAudioData();
+            var data = new float[clip.samples * clip.channels];
+            Assert.IsTrue(clip.GetData(data, 0), path);
+            rate = clip.frequency;
+            return data;
+        }
+
+        static readonly string[] s_Files = { "Udu/Udu_0_D2", "Mbira/Mbira_0_D4", "Mbira/Mbira_2_Fs4", "Mbira/Mbira_4_B4", "Erhu/Erhu_0_D5", "Erhu/Erhu_2_Fs5", "Erhu/Erhu_4_B5" };
+
+        static (InstrumentType, int) Parse(string file)
+        {
+            var instrument = (InstrumentType)Enum.Parse(typeof(InstrumentType), file.Split('/')[0]);
+            int index = int.Parse(file.Split('_')[1]);
+            return (instrument, index);
+        }
+
+        [TestCaseSource(nameof(s_Files))]
+        public void FlutterShortBopPlainBoomLongAndDarker(string file)
+        {
+            var (instrument, index) = Parse(file);
+            float[] source = Load($"Assets/RoomOrchestra/Audio/{file}.wav", out int rate);
+            float f0 = NoteMapping.FrequencyHz(instrument, index);
+            bool bowed = instrument == InstrumentType.Erhu;
+            float[] Voice(OrbType orb) => VoiceDesign.Render(source, rate, VoiceDesign.ForOrb(orb, VoiceSpec.Plain, f0, bowed));
+
+            float[] flutter = Voice(OrbType.Flutter), bop = Voice(OrbType.Bop), boom = Voice(OrbType.Boom);
+            float flutterS = flutter.Length / (float)rate, bopS = bop.Length / (float)rate, boomS = boom.Length / (float)rate;
+            float bopOver = VoiceDesign.OvertoneFraction(bop, rate, f0), boomOver = VoiceDesign.OvertoneFraction(boom, rate, f0);
+            float flutterOver = VoiceDesign.OvertoneFraction(flutter, rate, f0);
+            TestContext.WriteLine($"{file}: length F {flutterS:F2}s Bop {bopS:F2}s Boom {boomS:F2}s | overtones F {flutterOver:P0} Bop {bopOver:P0} Boom {boomOver:P0}");
+
+            Assert.Less(flutterS, bopS * 0.6f, "Flutter is a short blip");
+            Assert.GreaterOrEqual(boomS, bopS + 0.4f, "Boom rings longer (echo tail)");
+            if (bopOver > 0.02f) Assert.Less(boomOver, bopOver * 0.6f, "Boom is clearly darker");
+            foreach (var v in new[] { flutter, bop, boom })
+                Assert.LessOrEqual(v.Max(x => Math.Abs(x)), VoiceDesign.MaxPeak + 1e-4f);
         }
     }
 

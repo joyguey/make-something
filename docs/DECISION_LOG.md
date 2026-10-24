@@ -58,3 +58,8 @@ Use entries of form:
 - Rejected: AudioLowPassFilter components (one filter per GameObject; per-voice child objects would mean runtime GameObjects, risky under PICO Spatial). Rejected: Boom sub-octave layer (shifted the heard pitch an octave down).
 - Pitch petals: 5-step staircase in front of the tray (tap / controller stick click / editor P). Tossed notes come from contact height on the target's colliders; with aim assist, throws mostly land on top faces, so petals are the main pitch control for now.
 - All sounds are labeled SOUND PROTOTYPE (docs/AUDIO_ASSET_LICENSES.md). Owner approval: not required (no new assets, no licensing decision).
+
+## 2026-10-23 | Prompt 03 | Orb timbre redesigned after owner listening test
+- Owner on emulator: two orbs "seemed to produce the same sound on the lamp". Measured on the real WAVs: the placeholder samples are near-pure tones (udu ~0% overtones, mbira ~13%, erhu B5 ~7%), so overtone filters had little to act on; earlier tests used a synthetic overtone-rich tone and passed anyway. Also my slope-based "brightness" metric mis-scored saturation; replaced by a Goertzel harmonic-energy measure.
+- Decision: orb identity rests on time shape, which works on any sample — Flutter = short light blip (0.5 s, fast decay, saturation adds overtones; bowed erhu starts from its swell), Bop = plain note, Boom = darker (two-pole LP at 1.5x f0), soft 40 ms attack and a fading echo tail (+0.45 s). Filters placed relative to each note's pitch.
+- Evidence: EditMode RealSampleTimbreTests on 7 real WAVs (udu, mbira, erhu): Flutter < 0.6x Bop length, Boom >= Bop + 0.4 s, Boom overtones < 0.6x Bop where measurable. Not claimed: Flutter always brighter (on erhu D5 it is not). Final judgement is by ear (owner).
