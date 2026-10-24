@@ -97,6 +97,8 @@ namespace RoomOrchestra.EditorTools
             conductor.Configure(orbits);
             EditorUtility.SetDirty(conductor);
             CreateUndoButton(root.transform, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.13f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.28f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
 
             var selector = root.AddComponent<OrbSelector>();
             var so = new SerializedObject(selector);
@@ -295,6 +297,35 @@ namespace RoomOrchestra.EditorTools
             head.localRotation = Quaternion.Euler(0f, 0f, 45f);
             Label("UndoLabel", "Undo", go.transform, new Vector3(0f, 0.02f, -0.05f), 0.02f);
             go.AddComponent<UndoButton>();
+        }
+
+        // Pause/Play and Clear in the front control row, right of Undo (clear of the chair sight line): a slab, an icon (pause bars / an X) and a label.
+        static void CreateMusicButton(MusicControlButton.Kind kind, Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = new GameObject($"{kind}Button");
+            go.transform.SetParent(root, false);
+            go.transform.position = position;
+            go.transform.rotation = FacePlayer(position);
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.03f, 0f);
+            box.size = new Vector3(0.13f, 0.08f, 0.1f);
+            Box($"{kind}Slab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            if (kind == MusicControlButton.Kind.Pause)
+            {
+                Box("PauseBarLeft", go.transform, new Vector3(-0.012f, 0.03f, 0f), new Vector3(0.012f, 0.035f, 0.012f), mark, keepCollider: false);
+                Box("PauseBarRight", go.transform, new Vector3(0.012f, 0.03f, 0f), new Vector3(0.012f, 0.035f, 0.012f), mark, keepCollider: false);
+            }
+            else
+            {
+                var a = Box("ClearCrossA", go.transform, new Vector3(0f, 0.03f, 0f), new Vector3(0.045f, 0.01f, 0.01f), mark, keepCollider: false);
+                a.localRotation = Quaternion.Euler(0f, 0f, 45f);
+                var c = Box("ClearCrossB", go.transform, new Vector3(0f, 0.03f, 0f), new Vector3(0.045f, 0.01f, 0.01f), mark, keepCollider: false);
+                c.localRotation = Quaternion.Euler(0f, 0f, -45f);
+            }
+            var label = Label($"{kind}Label", kind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f);
+            var button = go.AddComponent<MusicControlButton>();
+            button.Configure(kind, label.GetComponentInChildren<TMP_Text>());
+            EditorUtility.SetDirty(button);
         }
 
         // Beside each target, to its right as the player sees it: D E F# A B (or the five udu sounds)

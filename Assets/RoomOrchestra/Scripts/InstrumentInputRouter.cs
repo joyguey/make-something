@@ -80,6 +80,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<TierButton>();
             if (owner == null) owner = hit.GetComponentInParent<PitchTile>();
             if (owner == null) owner = hit.GetComponentInParent<UndoButton>();
+            if (owner == null) owner = hit.GetComponentInParent<MusicControlButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -116,6 +117,13 @@ namespace RoomOrchestra
             var mini = hit.GetComponentInParent<EchoMini>();
             if (mini != null)
                 return EchoConductor.Instance != null && EchoConductor.Instance.SelectMini(mini);
+
+            var music = hit.GetComponentInParent<MusicControlButton>();
+            if (music != null)
+            {
+                music.Press();
+                return true;
+            }
 
             var undo = hit.GetComponentInParent<UndoButton>();
             if (undo != null)

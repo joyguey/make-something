@@ -230,6 +230,20 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void PauseAndClearButtonsLabeledAndReachableSeated()
+        {
+            var buttons = Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None);
+            CollectionAssert.AreEquivalent(new[] { MusicControlButton.Kind.Pause, MusicControlButton.Kind.Clear }, buttons.Select(b => b.ButtonKind));
+            foreach (var b in buttons)
+            {
+                AssertSeated(b.name, b.transform.position);
+                Assert.IsNotNull(b.GetComponent<Collider>(), "tappable");
+                Assert.IsNotNull(b.Label, "has a label");
+                Assert.AreEqual(b.ButtonKind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", b.Label.text);
+            }
+        }
+
+        [Test]
         public void UndoButtonReachableSeated()
         {
             var undo = Object.FindFirstObjectByType<UndoButton>();

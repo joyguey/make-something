@@ -208,6 +208,8 @@ namespace RoomOrchestra
                 m_Clock.Pause(now);
                 foreach (var target in InstrumentTarget.Active) target.StopAll(); // silence at once
             }
+            foreach (var button in FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None))
+                button.Refresh(m_Clock.IsPaused); // label shows what the next tap does, however pause was toggled
             Debug.Log($"[RoomOrchestra] Music {(m_Clock.IsPaused ? "paused" : "resumed")}");
         }
 

@@ -152,6 +152,40 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator PauseButtonPausesAndRelabelsClearButtonClearsAndUndoRestores()
+        {
+            var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);
+            var selector = MakeRig(chair);
+            var pauseGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var labelGo = new GameObject("PauseText");
+            m_Spawned.Add(pauseGo);
+            m_Spawned.Add(labelGo);
+            var label = labelGo.AddComponent<TMPro.TextMeshPro>();
+            label.text = "Pause";
+            var pause = pauseGo.AddComponent<MusicControlButton>();
+            pause.Configure(MusicControlButton.Kind.Pause, label);
+            var clearGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            m_Spawned.Add(clearGo);
+            clearGo.AddComponent<MusicControlButton>().Configure(MusicControlButton.Kind.Clear, null);
+            yield return null;
+
+            selector.PlaceOn(chair);
+            selector.PlaceOn(chair);
+            Assert.IsTrue(InstrumentInputRouter.Activate(pauseGo), "tap on Pause handled");
+            Assert.IsTrue(m_Conductor.IsPaused);
+            Assert.AreEqual("Play", label.text, "label says what the next tap does");
+            Assert.IsFalse(chair.IsSounding, "silent at once");
+            InstrumentInputRouter.Activate(pauseGo);
+            Assert.IsFalse(m_Conductor.IsPaused);
+            Assert.AreEqual("Pause", label.text);
+
+            Assert.IsTrue(InstrumentInputRouter.Activate(clearGo), "tap on Clear handled");
+            Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count);
+            Assert.IsTrue(m_Conductor.Undo());
+            Assert.AreEqual(2, m_Conductor.Sequencer.Echoes.Count, "undo brings cleared echoes back");
+        }
+
+        [UnityTest]
         public IEnumerator EchoMiniSitsOnTheMarkerAtItsStep()
         {
             var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);
