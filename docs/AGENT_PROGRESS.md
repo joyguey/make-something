@@ -145,5 +145,12 @@ Known / follow-ups:
 - Emulator (owner hands-on): labels render; lamp column tapped B/A/F#/E/D -> exact notes, melody on the ring; chair F# tile; udu + mbira layered; lamp cap refusal logged. Owner: "wow, it sounds great".
 - Observed once: native crash INSIDE PICO SDK shutdown (PXR_Loader Stop -> SpatialInputProvider::Stop -> HMDTracking::stop SIGSEGV) right after the emulator reset/closed the app window ~6 s after launch. App code not on the stack. Watch for recurrence on app close; report to PICO if reproducible.
 
+## 2026-10-25 | Prompt 05 (part 2) — Pause/Play, Clear, Recenter
+- Pause/Play + Clear buttons (A11Y-09), front control row right of Undo, tap only, seated reach. Pause silences at once; label AND icon say what the next tap does: two bars + "Pause" while playing, a right-pointing triangle + "Play" while paused (owner request after emulator test). Clear empties every orbit; Undo restores. The hidden icon is parked inside the slab (PICO Spatial draws inactive objects); triangle is a saved prism mesh (Assets/RoomOrchestra/Meshes/PlayTriangle.asset).
+- Emulator (owner hands-on, 2026-10-25, phase5b APK): Pause/Clear work ("everything works"). Phase5c (triangle) / phase5d (recenter): built; triangle seen only in Unity render (scratchpad close-ups), not yet on PICO.
+- Recenter (A11Y-07): Recenter button (ring-and-dot icon, label), left controller Menu button, editor R. Moves the whole stage root (StageAnchor on `RoomOrchestra`) so the start point is under the head and the stage faces the gaze; height unchanged (furniture stays on the floor); works when looking straight down/up. Head pose: SpatialAdapterRuntime.GetHMDPose (scene camera config RoomOrchestraFullSpace = Unconstrained, so supported). Never runs at startup.
+- Tests: EditMode 123/123, PlayMode 21/21 (recenter math, menu once per press, layout/reach/label, stage + interpolated rigidbody move together).
+- NOT verified: recenter on emulator/headset (GetHMDPose return code meaning undocumented; logged); right-controller recenter (PICO right controller has no app menu button: right-hand users use the tappable button or the system Home recenter); seated comfort on hardware.
+
 ## Resume here (next session)
-1. Prompt 05 (rest): accessibility release gate (A11Y-01..09 in controller-only simulated mode), incl. control discoverability without default text labels, seated recenter, reduced motion/flash, pause UI, petal staircase placement.
+1. Prompt 05 (rest): per-instrument volume/mute, reduced motion/flash setting, height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. Emulator-check phase5d (triangle icon + Recenter).

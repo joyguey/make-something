@@ -64,3 +64,8 @@ Use entries of form:
 - Decision: orb identity rests on time shape, which works on any sample — Flutter = short light blip (0.5 s, fast decay, saturation adds overtones; bowed erhu starts from its swell), Bop = plain note, Boom = darker (two-pole LP at 1.5x f0), soft 40 ms attack and a fading echo tail (+0.45 s). Filters placed relative to each note's pitch.
 - OWNER LISTENING TEST 2026-10-23 (emulator, all 3 orbs x 3 objects, hits #1-#11): approved ("Perfect yes, let's go with this"). Further sound refinement deferred to Prompt 07.
 - Evidence: EditMode RealSampleTimbreTests on 7 real WAVs (udu, mbira, erhu): Flutter < 0.6x Bop length, Boom >= Bop + 0.4 s, Boom overtones < 0.6x Bop where measurable. Not claimed: Flutter always brighter (on erhu D5 it is not). Final judgement is by ear (owner).
+
+## 2026-10-25 | Prompt 05 | Pause icon swap and Recenter
+- Pause button shows bars while playing and a play triangle while paused (owner request). Swap by moving icons (hidden one parked inside the slab), not SetActive or runtime objects — both are unreliable under PICO Spatial.
+- Recenter moves the stage, not the player: stage origin under the head, yaw from gaze (head-up vector when looking straight down/up), height untouched so furniture stays on the floor. Height calibration is a separate later step. Only on request (tap, left Menu, editor R); never at startup (PICO Spatial startup pose race).
+- Controller: Menu = Recenter. PICO's right controller has no app menu button, so the mapper is hand-agnostic but on hardware only the left Menu triggers it; right-hand users have the tappable button and system Home recenter. Not verified on hardware.
