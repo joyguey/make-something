@@ -244,6 +244,53 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void PauseButtonShowsBarsWithPlayTriangleParkedInsideSlab()
+        {
+            var pause = Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None)
+                .Single(b => b.ButtonKind == MusicControlButton.Kind.Pause);
+            Assert.IsNotNull(pause.PauseIcon, "pause bars wired");
+            Assert.IsNotNull(pause.PlayIcon, "play triangle wired");
+            Assert.AreEqual(pause.IconShown, pause.PauseIcon.localPosition, "bars visible while playing");
+            Assert.AreEqual(pause.IconParked, pause.PlayIcon.localPosition, "triangle starts parked");
+
+            var slab = pause.transform.Find("PauseSlab").GetComponent<Renderer>().bounds;
+            foreach (var r in pause.PlayIcon.GetComponentsInChildren<Renderer>())
+            {
+                Assert.IsTrue(slab.Contains(r.bounds.min) && slab.Contains(r.bounds.max), $"{r.name} hidden inside the slab");
+                Assert.IsTrue(r.gameObject.activeInHierarchy, "parked, not deactivated (PICO draws inactive objects)");
+            }
+            foreach (var r in pause.PauseIcon.GetComponentsInChildren<Renderer>())
+                Assert.Greater(r.bounds.max.y, slab.max.y + 0.01f, $"{r.name} stands above the slab");
+
+            // Simulate a pause: the icons swap places, so the triangle shows and the bars hide.
+            pause.PauseIcon.localPosition = pause.IconParked;
+            pause.PlayIcon.localPosition = pause.IconShown;
+            foreach (var r in pause.PauseIcon.GetComponentsInChildren<Renderer>())
+                Assert.IsTrue(slab.Contains(r.bounds.min) && slab.Contains(r.bounds.max), $"{r.name} hidden when parked");
+            foreach (var r in pause.PlayIcon.GetComponentsInChildren<Renderer>())
+                Assert.Greater(r.bounds.max.y, slab.max.y + 0.01f, $"{r.name} shown when paused");
+        }
+
+        [Test]
+        public void PlayTriangleFacesOutward()
+        {
+            var mesh = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/RoomOrchestra/Meshes/PlayTriangle.asset");
+            Assert.IsNotNull(mesh);
+            var center = new Vector3(-1f / 6f, 0f, 0f); // centroid of the triangle prism
+            var v = mesh.vertices;
+            var t = mesh.triangles;
+            Assert.AreEqual(8 * 3, t.Length, "2 caps + 3 quad sides = 8 triangles");
+            for (int i = 0; i < t.Length; i += 3)
+            {
+                var normal = Vector3.Cross(v[t[i + 1]] - v[t[i]], v[t[i + 2]] - v[t[i]]);
+                var mid = (v[t[i]] + v[t[i + 1]] + v[t[i + 2]]) / 3f;
+                Assert.Greater(Vector3.Dot(normal, mid - center), 0f, $"triangle {i / 3} faces outward");
+            }
+            Assert.AreEqual(new Vector3(-0.5f, -0.5f, -0.5f), mesh.bounds.min);
+            Assert.AreEqual(new Vector3(0.5f, 0.5f, 0.5f), mesh.bounds.max);
+        }
+
+        [Test]
         public void UndoButtonReachableSeated()
         {
             var undo = Object.FindFirstObjectByType<UndoButton>();

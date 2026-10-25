@@ -310,10 +310,19 @@ namespace RoomOrchestra.EditorTools
             box.center = new Vector3(0f, 0.03f, 0f);
             box.size = new Vector3(0.13f, 0.08f, 0.1f);
             Box($"{kind}Slab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            Transform pauseIcon = null, playIcon = null;
             if (kind == MusicControlButton.Kind.Pause)
             {
-                Box("PauseBarLeft", go.transform, new Vector3(-0.012f, 0.03f, 0f), new Vector3(0.012f, 0.035f, 0.012f), mark, keepCollider: false);
-                Box("PauseBarRight", go.transform, new Vector3(0.012f, 0.03f, 0f), new Vector3(0.012f, 0.035f, 0.012f), mark, keepCollider: false);
+                // Icons are 0.028 m tall so the parked one fits wholly inside the 0.03 m slab.
+                pauseIcon = Holder("PauseIcon", go.transform, MusicControlButton.DefaultIconShown);
+                Box("PauseBarLeft", pauseIcon, new Vector3(-0.012f, 0f, 0f), new Vector3(0.012f, 0.028f, 0.012f), mark, keepCollider: false);
+                Box("PauseBarRight", pauseIcon, new Vector3(0.012f, 0f, 0f), new Vector3(0.012f, 0.028f, 0.012f), mark, keepCollider: false);
+                playIcon = Holder("PlayIcon", go.transform, MusicControlButton.DefaultIconParked);
+                var triangle = new GameObject("PlayTriangle");
+                triangle.transform.SetParent(playIcon, false);
+                triangle.transform.localScale = new Vector3(0.026f, 0.028f, 0.012f);
+                triangle.AddComponent<MeshFilter>().sharedMesh = EnsurePlayTriangleMesh();
+                triangle.AddComponent<MeshRenderer>().sharedMaterial = mark;
             }
             else
             {
@@ -324,7 +333,7 @@ namespace RoomOrchestra.EditorTools
             }
             var label = Label($"{kind}Label", kind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f);
             var button = go.AddComponent<MusicControlButton>();
-            button.Configure(kind, label.GetComponentInChildren<TMP_Text>());
+            button.Configure(kind, label.GetComponentInChildren<TMP_Text>(), pauseIcon, playIcon);
             EditorUtility.SetDirty(button);
         }
 
@@ -447,6 +456,51 @@ namespace RoomOrchestra.EditorTools
             if (material.HasProperty("_Color")) material.SetColor("_Color", color);
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        static Transform Holder(string name, Transform parent, Vector3 localPosition)
+        {
+            var t = new GameObject(name).transform;
+            t.SetParent(parent, false);
+            t.localPosition = localPosition;
+            return t;
+        }
+
+        const string PlayTrianglePath = "Assets/RoomOrchestra/Meshes/PlayTriangle.asset";
+
+        /// <summary>Unit triangular prism pointing +x (a play symbol), flat-shaded, saved as an asset.</summary>
+        static Mesh EnsurePlayTriangleMesh()
+        {
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(PlayTrianglePath);
+            if (mesh == null)
+            {
+                if (!AssetDatabase.IsValidFolder("Assets/RoomOrchestra/Meshes"))
+                    AssetDatabase.CreateFolder("Assets/RoomOrchestra", "Meshes");
+                mesh = new Mesh { name = "PlayTriangle" };
+                AssetDatabase.CreateAsset(mesh, PlayTrianglePath);
+            }
+            Vector3 a = new(-0.5f, -0.5f, 0f), b = new(-0.5f, 0.5f, 0f), c = new(0.5f, 0f, 0f), d = new(0f, 0f, 0.5f);
+            Vector3 front = -d, back = d;
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            void Face(params Vector3[] corners) // corners wound clockwise as seen from outside
+            {
+                int start = vertices.Count;
+                vertices.AddRange(corners);
+                for (int i = 1; i < corners.Length - 1; i++) triangles.AddRange(new[] { start, start + i, start + i + 1 });
+            }
+            Face(a + front, b + front, c + front);
+            Face(a + back, c + back, b + back);
+            Face(a + front, a + back, b + back, b + front); // flat left side
+            Face(b + front, b + back, c + back, c + front);
+            Face(c + front, c + back, a + back, a + front);
+            mesh.Clear();
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            EditorUtility.SetDirty(mesh);
+            return mesh;
         }
 
         static Transform Box(string name, Transform parent, Vector3 localPosition, Vector3 scale, Material material, bool keepCollider)

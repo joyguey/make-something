@@ -162,8 +162,14 @@ namespace RoomOrchestra.Tests
             m_Spawned.Add(labelGo);
             var label = labelGo.AddComponent<TMPro.TextMeshPro>();
             label.text = "Pause";
+            var bars = new GameObject("Bars").transform;
+            var triangle = new GameObject("Triangle").transform;
+            bars.SetParent(pauseGo.transform, false);
+            triangle.SetParent(pauseGo.transform, false);
+            bars.localPosition = MusicControlButton.DefaultIconShown;
+            triangle.localPosition = MusicControlButton.DefaultIconParked;
             var pause = pauseGo.AddComponent<MusicControlButton>();
-            pause.Configure(MusicControlButton.Kind.Pause, label);
+            pause.Configure(MusicControlButton.Kind.Pause, label, bars, triangle);
             var clearGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
             m_Spawned.Add(clearGo);
             clearGo.AddComponent<MusicControlButton>().Configure(MusicControlButton.Kind.Clear, null);
@@ -174,10 +180,14 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(InstrumentInputRouter.Activate(pauseGo), "tap on Pause handled");
             Assert.IsTrue(m_Conductor.IsPaused);
             Assert.AreEqual("Play", label.text, "label says what the next tap does");
+            Assert.AreEqual(MusicControlButton.DefaultIconShown, triangle.localPosition, "play triangle shown while paused");
+            Assert.AreEqual(MusicControlButton.DefaultIconParked, bars.localPosition, "pause bars parked");
             Assert.IsFalse(chair.IsSounding, "silent at once");
             InstrumentInputRouter.Activate(pauseGo);
             Assert.IsFalse(m_Conductor.IsPaused);
             Assert.AreEqual("Pause", label.text);
+            Assert.AreEqual(MusicControlButton.DefaultIconShown, bars.localPosition, "bars back once playing");
+            Assert.AreEqual(MusicControlButton.DefaultIconParked, triangle.localPosition);
 
             Assert.IsTrue(InstrumentInputRouter.Activate(clearGo), "tap on Clear handled");
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count);
