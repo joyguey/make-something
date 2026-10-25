@@ -8,6 +8,11 @@ namespace RoomOrchestra
     {
         public static void Dispatch(ControllerCommand command, OrbSelector selector)
         {
+            if (command == ControllerCommand.Recenter) // works in any mode
+            {
+                if (StageAnchor.Instance != null) StageAnchor.Instance.RecenterToHead();
+                return;
+            }
             var conductor = EchoConductor.Instance;
             if (command == ControllerCommand.ToggleEchoEdit)
             {

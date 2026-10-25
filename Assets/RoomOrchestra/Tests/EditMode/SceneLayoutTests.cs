@@ -291,6 +291,24 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void RecenterButtonLabeledReachableAndStageAnchored()
+        {
+            var button = Object.FindFirstObjectByType<RecenterButton>();
+            Assert.IsNotNull(button, "Recenter button in the scene");
+            AssertSeated(button.name, button.transform.position);
+            Assert.IsNotNull(button.GetComponent<Collider>(), "tappable");
+            Assert.AreEqual("Recenter", button.GetComponentInChildren<TMP_Text>().text);
+
+            var anchor = Object.FindFirstObjectByType<StageAnchor>();
+            Assert.IsNotNull(anchor, "stage root can be recentered");
+            Assert.IsNull(anchor.transform.parent, "anchor is a scene root, so it moves the whole stage");
+            foreach (var mustMove in new Component[] { button, Object.FindFirstObjectByType<OrbSelector>(), Object.FindFirstObjectByType<EchoConductor>() })
+                Assert.IsTrue(mustMove.transform.IsChildOf(anchor.transform), $"{mustMove.name} moves with the stage");
+            foreach (var target in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
+                Assert.IsTrue(target.transform.IsChildOf(anchor.transform), $"{target.name} moves with the stage");
+        }
+
+        [Test]
         public void UndoButtonReachableSeated()
         {
             var undo = Object.FindFirstObjectByType<UndoButton>();

@@ -52,6 +52,7 @@ namespace RoomOrchestra
             device.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out frame.StickClick);
             // PICO exposes grip only as a float (no gripButton); treat past half way as pressed.
             if (device.TryGetFeatureValue(CommonUsages.grip, out float grip)) frame.Grip = grip > 0.5f;
+            device.TryGetFeatureValue(CommonUsages.menuButton, out frame.Menu);
             return frame;
         }
     }
@@ -60,6 +61,7 @@ namespace RoomOrchestra
     /// One-handed controller path: stick left/right picks the orb, up/down picks the target,
     /// A/X places, B/Y changes intensity, clicking the stick changes the pitch petal.
     /// Grip toggles echo edit mode (stick nudges/selects echoes, A/X removes, B/Y undoes).
+    /// Menu (left controller) recenters the stage in front of the player.
     /// Either controller alone is enough.
     /// </summary>
     public class ControllerButtonInput : MonoBehaviour

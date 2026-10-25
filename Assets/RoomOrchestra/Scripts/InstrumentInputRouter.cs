@@ -81,6 +81,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<PitchTile>();
             if (owner == null) owner = hit.GetComponentInParent<UndoButton>();
             if (owner == null) owner = hit.GetComponentInParent<MusicControlButton>();
+            if (owner == null) owner = hit.GetComponentInParent<RecenterButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -122,6 +123,13 @@ namespace RoomOrchestra
             if (music != null)
             {
                 music.Press();
+                return true;
+            }
+
+            var recenter = hit.GetComponentInParent<RecenterButton>();
+            if (recenter != null)
+            {
+                recenter.Press();
                 return true;
             }
 
@@ -191,6 +199,7 @@ namespace RoomOrchestra
                     if (keyboard.qKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.CycleIntensity, selector);
                     if (keyboard.pKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.CyclePetal, selector);
                     if (keyboard.eKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.ToggleEchoEdit, selector);
+                    if (keyboard.rKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.Recenter, selector);
                 }
                 var conductor = EchoConductor.Instance;
                 if (conductor != null)

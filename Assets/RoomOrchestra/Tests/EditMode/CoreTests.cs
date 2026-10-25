@@ -1,5 +1,6 @@
 using System.Linq;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace RoomOrchestra.Tests
 {
@@ -339,6 +340,54 @@ namespace RoomOrchestra.Tests
             var standing = ReachEnvelope.Standing;
             Assert.GreaterOrEqual(standing.MaxHeight, seated.MaxHeight);
             Assert.GreaterOrEqual(standing.MaxYawDegrees, seated.MaxYawDegrees);
+        }
+            [Test]
+        public void MenuPressRecentersOncePerPress()
+        {
+            var idle = new ControllerFrame { Connected = true };
+            var mapper = new ControllerCommandMapper();
+            mapper.Update(idle, default);
+            var menu = idle;
+            menu.Menu = true;
+            int count = 0;
+            for (int frame = 0; frame < 60; frame++) count += mapper.Update(menu, default).Count(c => c == ControllerCommand.Recenter);
+            mapper.Update(idle, default);
+            count += mapper.Update(menu, default).Count(c => c == ControllerCommand.Recenter);
+            Assert.AreEqual(2, count, "one recenter per press, holding never repeats");
+        }
+
+        static StagePose Recenter(float x, float z, Vector3 forward, Vector3 up)
+        {
+            Assert.IsTrue(StagePlacement.TryRecenter(x, z, forward.x, forward.y, forward.z, up.x, up.y, up.z, out var pose));
+            return pose;
+        }
+
+        [Test]
+        public void RecenterPutsStartPointUnderHeadFacingGaze()
+        {
+            var still = Recenter(0f, 0f, Vector3.forward, Vector3.up);
+            Assert.AreEqual(0f, still.X);
+            Assert.AreEqual(0f, still.Z);
+            Assert.AreEqual(0f, still.YawDegrees, 1e-3f, "already centred: nothing moves");
+
+            var turned = Recenter(1.5f, -2f, Vector3.right, Vector3.up);
+            Assert.AreEqual(1.5f, turned.X);
+            Assert.AreEqual(-2f, turned.Z);
+            Assert.AreEqual(90f, turned.YawDegrees, 1e-3f);
+
+            var tilted = Quaternion.Euler(30f, -90f, 10f); // looking down-left with a head tilt
+            Assert.AreEqual(-90f, Recenter(0f, 0f, tilted * Vector3.forward, tilted * Vector3.up).YawDegrees, 1e-3f);
+        }
+
+        [Test]
+        public void RecenterWorksLookingStraightDownOrUp()
+        {
+            var down = Quaternion.Euler(0f, 180f, 0f) * Quaternion.Euler(90f, 0f, 0f);
+            Assert.AreEqual(180f, Mathf.Abs(Recenter(0f, 0f, down * Vector3.forward, down * Vector3.up).YawDegrees), 1e-3f,
+                "facing back while looking at the floor still faces back");
+            var up = Quaternion.Euler(0f, 90f, 0f) * Quaternion.Euler(-89f, 0f, 0f);
+            Assert.AreEqual(90f, Recenter(0f, 0f, up * Vector3.forward, up * Vector3.up).YawDegrees, 1e-2f);
+            Assert.IsFalse(StagePlacement.TryRecenter(0f, 0f, 0f, -1f, 0f, 0f, 0f, 0f, out _), "no heading at all: keep the stage where it is");
         }
     }
 }

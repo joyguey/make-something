@@ -99,6 +99,8 @@ namespace RoomOrchestra.EditorTools
             CreateUndoButton(root.transform, slabMaterial, motifMaterial);
             CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.13f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
             CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.28f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
+            CreateRecenterButton(new Vector3(0.43f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
+            if (parent != null && !parent.TryGetComponent<StageAnchor>(out _)) parent.AddComponent<StageAnchor>();
 
             var selector = root.AddComponent<OrbSelector>();
             var so = new SerializedObject(selector);
@@ -335,6 +337,33 @@ namespace RoomOrchestra.EditorTools
             var button = go.AddComponent<MusicControlButton>();
             button.Configure(kind, label.GetComponentInChildren<TMP_Text>(), pauseIcon, playIcon);
             EditorUtility.SetDirty(button);
+        }
+
+        // Recenter, at the end of the front row: a target mark (ring and dot) facing the player.
+        static void CreateRecenterButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = new GameObject("RecenterButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = position;
+            go.transform.rotation = FacePlayer(position);
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.03f, 0f);
+            box.size = new Vector3(0.13f, 0.08f, 0.1f);
+            Box("RecenterSlab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            var ring = Primitive(PrimitiveType.Cylinder, "RecenterRing", go.transform, mark, keepCollider: false);
+            ring.localPosition = new Vector3(0f, 0.035f, 0f);
+            ring.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            ring.localScale = new Vector3(0.036f, 0.004f, 0.036f);
+            var gap = Primitive(PrimitiveType.Cylinder, "RecenterRingGap", go.transform, slab, keepCollider: false);
+            gap.localPosition = new Vector3(0f, 0.035f, -0.0045f);
+            gap.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            gap.localScale = new Vector3(0.024f, 0.001f, 0.024f);
+            var dot = Primitive(PrimitiveType.Cylinder, "RecenterDot", go.transform, mark, keepCollider: false);
+            dot.localPosition = new Vector3(0f, 0.035f, -0.006f);
+            dot.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            dot.localScale = new Vector3(0.01f, 0.001f, 0.01f);
+            Label("RecenterLabel", "Recenter", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f);
+            go.AddComponent<RecenterButton>();
         }
 
         // Beside each target, to its right as the player sees it: D E F# A B (or the five udu sounds)

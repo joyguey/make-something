@@ -12,6 +12,7 @@ namespace RoomOrchestra
         public bool Secondary; // B (right) / Y (left)
         public bool StickClick;
         public bool Grip;      // grip squeezed past half way: toggles echo edit mode (one press, no hold)
+        public bool Menu;      // menu button (left controller on PICO): recenters the stage
     }
 
     public enum ControllerCommand
@@ -23,7 +24,8 @@ namespace RoomOrchestra
         Place,
         CycleIntensity,
         CyclePetal,
-        ToggleEchoEdit
+        ToggleEchoEdit,
+        Recenter
     }
 
     /// <summary>
@@ -38,7 +40,7 @@ namespace RoomOrchestra
 
         struct HandState
         {
-            public bool StickArmedX, StickArmedY, Primary, Secondary, StickClick, Grip, Initialized;
+            public bool StickArmedX, StickArmedY, Primary, Secondary, StickClick, Grip, Menu, Initialized;
         }
 
         readonly HandState[] m_Hands = new HandState[2];
@@ -69,6 +71,7 @@ namespace RoomOrchestra
                 s.Secondary = f.Secondary;
                 s.StickClick = f.StickClick;
                 s.Grip = f.Grip;
+                s.Menu = f.Menu;
                 s.StickArmedX = Abs(f.StickX) < ReleaseThreshold;
                 s.StickArmedY = Abs(f.StickY) < ReleaseThreshold;
                 return;
@@ -100,10 +103,12 @@ namespace RoomOrchestra
             if (f.Secondary && !s.Secondary) m_Buffer.Add(ControllerCommand.CycleIntensity);
             if (f.StickClick && !s.StickClick) m_Buffer.Add(ControllerCommand.CyclePetal);
             if (f.Grip && !s.Grip) m_Buffer.Add(ControllerCommand.ToggleEchoEdit);
+            if (f.Menu && !s.Menu) m_Buffer.Add(ControllerCommand.Recenter);
             s.Primary = f.Primary;
             s.Secondary = f.Secondary;
             s.StickClick = f.StickClick;
             s.Grip = f.Grip;
+            s.Menu = f.Menu;
         }
 
         public void Reset()
