@@ -47,7 +47,7 @@ namespace RoomOrchestra
             return true;
         }
 
-        bool TryGetHeadPose(out Pose pose)
+        public bool TryGetHeadPose(out Pose pose)
         {
             pose = default;
 #if UNITY_ANDROID && !UNITY_EDITOR

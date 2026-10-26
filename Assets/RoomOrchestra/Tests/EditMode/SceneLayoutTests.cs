@@ -176,6 +176,7 @@ namespace RoomOrchestra.Tests
             if (owner == null) owner = c.GetComponentInParent<RecenterButton>();
             if (owner == null) owner = c.GetComponentInParent<MixButton>();
             if (owner == null) owner = c.GetComponentInParent<MotionToggleButton>();
+            if (owner == null) owner = c.GetComponentInParent<HeightButton>();
             if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
             return owner;
         }
@@ -193,6 +194,12 @@ namespace RoomOrchestra.Tests
         [Test]
         public void EveryControlIsTheFirstThingAPointerRayHits()
         {
+            var failures = ShadowedControls(PointerOrigins);
+            Assert.IsEmpty(failures, string.Join("\n", failures));
+        }
+
+        static System.Collections.Generic.List<string> ShadowedControls((string name, Vector3 origin)[] origins)
+        {
             Physics.SyncTransforms();
             var controls = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None)
                 .Where(c => c.enabled && TapOwner(c) != null && !(TapOwner(c) is InstrumentTarget))
@@ -202,7 +209,7 @@ namespace RoomOrchestra.Tests
             foreach (var control in controls)
             {
                 var owner = TapOwner(control);
-                foreach (var (name, origin) in PointerOrigins)
+                foreach (var (name, origin) in origins)
                 {
                     var toCenter = control.bounds.center - origin;
                     // Any collider counts, not only other controls: a post or prop in the way eats the tap too.
@@ -213,7 +220,83 @@ namespace RoomOrchestra.Tests
                         failures.Add($"{owner.name} ({control.name}) from {name}: hits {hits[0].collider.name} first");
                 }
             }
-            Assert.IsEmpty(failures, string.Join("\n", failures));
+            return failures;
+        }
+
+        // ---- Height: Standing lifts every control together ----
+
+        static ControlsRig Rig()
+        {
+            var rig = Object.FindFirstObjectByType<ControlsRig>();
+            Assert.IsNotNull(rig, "Controls holder with ControlsRig");
+            return rig;
+        }
+
+        [Test]
+        public void HeightButtonLabeledReachableAndStartsSeated()
+        {
+            var height = Object.FindFirstObjectByType<HeightButton>();
+            Assert.IsNotNull(height);
+            AssertSeated(height.name, height.transform.position);
+            Assert.IsNotNull(height.GetComponent<Collider>(), "tappable");
+            Assert.AreEqual("Height\nSeated", height.Label.text, "starts seated: nothing moves at startup");
+            Assert.Less(Rig().transform.localPosition.sqrMagnitude, 1e-8f, "controls authored at the seated height");
+        }
+
+        [Test]
+        public void EveryControlLivesUnderTheControlsHolder()
+        {
+            var rig = Rig();
+            foreach (var c in Object.FindObjectsByType<Collider>(FindObjectsSortMode.None))
+            {
+                var owner = TapOwner(c);
+                if (owner == null || owner is InstrumentTarget) continue;
+                Assert.IsTrue(c.transform.IsChildOf(rig.transform), $"{owner.name} must lift with the other controls");
+            }
+        }
+
+        static readonly (string name, Vector3 origin)[] StandingOrigins =
+        {
+            ("standing eye", new Vector3(0f, 1.6f, 0f)),
+            ("standing right hand", new Vector3(0.2f, 1.15f, 0.3f)),
+            ("standing left hand", new Vector3(-0.2f, 1.15f, 0.3f)),
+            ("tall standing right hand", new Vector3(0.2f, 1.3f, 0.3f)),
+            ("tall standing left hand", new Vector3(-0.2f, 1.3f, 0.3f)),
+        };
+
+        [Test]
+        public void StandingLiftKeepsEveryControlReachableAndUnshadowed()
+        {
+            var rig = Rig();
+            try
+            {
+                rig.Apply(PlayPosture.Standing);
+                Assert.AreEqual(PostureLayout.StandingLift, rig.transform.localPosition.y, 1e-5f);
+                var envelope = PostureLayout.Reach(PlayPosture.Standing);
+                foreach (var c in Object.FindObjectsByType<Collider>(FindObjectsSortMode.None))
+                {
+                    var owner = TapOwner(c);
+                    if (owner == null || owner is InstrumentTarget) continue;
+                    var p = c.bounds.center;
+                    Assert.AreEqual(ReachResult.Ok, envelope.Check(p.x, p.y, p.z), $"{owner.name} at {p} standing");
+                }
+                var failures = ShadowedControls(StandingOrigins);
+                Assert.IsEmpty(failures, string.Join("\n", failures));
+
+                var eye = new Vector3(0f, PostureLayout.EyeHeight(PlayPosture.Standing), 0f);
+                foreach (var target in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
+                {
+                    var toTarget = target.AimPosition - eye;
+                    foreach (var r in rig.GetComponentsInChildren<Renderer>())
+                        if (r.bounds.IntersectRay(new Ray(eye, toTarget.normalized), out float d) && d < toTarget.magnitude)
+                            Assert.Fail($"{r.name} blocks the standing view of {target.name}");
+                }
+            }
+            finally
+            {
+                rig.Apply(PlayPosture.Seated);
+            }
+            Assert.Less(rig.transform.localPosition.sqrMagnitude, 1e-8f, "Seated puts the controls back");
         }
 
         [Test]

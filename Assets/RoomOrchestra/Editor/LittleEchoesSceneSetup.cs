@@ -58,10 +58,13 @@ namespace RoomOrchestra.EditorTools
 
             var root = new GameObject(RootName);
             if (parent != null) root.transform.SetParent(parent.transform, false);
+            // Every tappable control lives under one holder that Height (Seated/Standing) lifts together.
+            var controls = Holder("Controls", root.transform, Vector3.zero);
+            controls.gameObject.AddComponent<ControlsRig>();
 
             // Orb tray
             var tray = new GameObject("OrbTray").transform;
-            tray.SetParent(root.transform, false);
+            tray.SetParent(controls, false);
             tray.position = TrayCenter;
             Box("TraySlab", tray, Vector3.zero, new Vector3(0.56f, 0.03f, 0.18f), slabMaterial, keepCollider: false);
             Box("TrayPost", tray, new Vector3(0f, -TrayCenter.y / 2f, 0f), new Vector3(0.04f, TrayCenter.y, 0.04f), slabMaterial, keepCollider: false);
@@ -75,7 +78,7 @@ namespace RoomOrchestra.EditorTools
                 Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.19f + 0.19f * i, 0.025f, -0.095f), 0.022f);
             }
 
-            var tierButton = CreateTierButton(root.transform, slabMaterial, motifMaterial);
+            var tierButton = CreateTierButton(controls, slabMaterial, motifMaterial);
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -86,7 +89,7 @@ namespace RoomOrchestra.EditorTools
             marker.localScale = new Vector3(0.14f, 0.006f, 0.14f);
 
             // Pitch columns: five labeled tiles beside each target, low to high.
-            var columns = targets.Select((t, i) => CreatePitchColumn(t, root.transform, slabMaterial, i == StartTarget)).ToArray();
+            var columns = targets.Select((t, i) => CreatePitchColumn(t, controls, slabMaterial, i == StartTarget)).ToArray();
 
             var launcher = Object.FindFirstObjectByType<BallLauncher>();
             PreSkinBalls(orbMaterials[(int)OrbType.Flutter]);
@@ -97,11 +100,13 @@ namespace RoomOrchestra.EditorTools
             var conductor = root.AddComponent<EchoConductor>();
             conductor.Configure(orbits);
             EditorUtility.SetDirty(conductor);
-            CreateUndoButton(root.transform, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.13f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.28f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
-            CreateRecenterButton(new Vector3(0.43f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
-            CreateMotionButton(new Vector3(0.58f, TrayCenter.y, 1.0f), root.transform, slabMaterial, motifMaterial);
+            CreateUndoButton(controls, slabMaterial, motifMaterial);
+            // Front row right of Undo, 0.14 m apart so Height still fits inside the seated view.
+            CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.12f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.26f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
+            CreateRecenterButton(new Vector3(0.40f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
+            CreateMotionButton(new Vector3(0.54f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
+            CreateHeightButton(new Vector3(0.68f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
             // The ball stand steps right and back to make room for the Motion button (still seated reach).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
             if (dispenser != null) dispenser.position = DispenserPosition;
@@ -390,6 +395,32 @@ namespace RoomOrchestra.EditorTools
             }
             var label = Label("MotionLabel", MotionToggleButton.TextFor(MotionMode.Full), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.04f);
             var button = go.AddComponent<MotionToggleButton>();
+            button.Configure(label.GetComponentInChildren<TMP_Text>());
+            EditorUtility.SetDirty(button);
+        }
+
+        // Height (Seated / Standing), at the end of the front row: an up-down arrow, and a label with the setting.
+        static void CreateHeightButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = new GameObject("HeightButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = position;
+            go.transform.rotation = FacePlayer(position);
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.03f, 0f);
+            box.size = new Vector3(0.13f, 0.08f, 0.1f);
+            Box("HeightSlab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            Box("HeightArrowStem", go.transform, new Vector3(0f, 0.035f, 0f), new Vector3(0.008f, 0.04f, 0.008f), mark, keepCollider: false);
+            for (int i = 0; i < 2; i++)
+            {
+                float y = i == 0 ? 0.052f : 0.018f;
+                var left = Box($"HeightArrowHead{i}L", go.transform, new Vector3(-0.006f, y, 0f), new Vector3(0.018f, 0.006f, 0.008f), mark, keepCollider: false);
+                left.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 40f : -40f);
+                var right = Box($"HeightArrowHead{i}R", go.transform, new Vector3(0.006f, y, 0f), new Vector3(0.018f, 0.006f, 0.008f), mark, keepCollider: false);
+                right.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? -40f : 40f);
+            }
+            var label = Label("HeightLabel", HeightButton.TextFor(PlayPosture.Seated), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.04f);
+            var button = go.AddComponent<HeightButton>();
             button.Configure(label.GetComponentInChildren<TMP_Text>());
             EditorUtility.SetDirty(button);
         }

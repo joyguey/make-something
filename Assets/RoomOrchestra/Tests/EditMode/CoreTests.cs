@@ -405,5 +405,19 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(MixLevels.IsMuted(3));
             Assert.AreEqual(1f, MixLevels.Gain(0));
         }
+
+        [Test]
+        public void PostureTogglesAndStandingLiftFitsTheStandingReach()
+        {
+            Assert.AreEqual(PlayPosture.Standing, PostureLayout.Next(PlayPosture.Seated));
+            Assert.AreEqual(PlayPosture.Seated, PostureLayout.Next(PlayPosture.Standing));
+            Assert.AreEqual(0f, PostureLayout.ControlsLift(PlayPosture.Seated));
+            Assert.Greater(PostureLayout.ControlsLift(PlayPosture.Standing), 0f);
+            // Top pitch tile (1.15 m seated) stays below standing eye level once lifted.
+            Assert.Less(1.15f + PostureLayout.StandingLift, PostureLayout.EyeHeight(PlayPosture.Standing));
+            Assert.AreEqual(ReachResult.Ok, PostureLayout.Reach(PlayPosture.Standing).Check(0f, 1.15f + PostureLayout.StandingLift, 1.5f));
+            Assert.AreEqual(ReachResult.TooHigh, PostureLayout.Reach(PlayPosture.Seated).Check(0f, 1.15f + PostureLayout.StandingLift, 1.5f),
+                "the lifted layout is for standing only");
+        }
     }
 }

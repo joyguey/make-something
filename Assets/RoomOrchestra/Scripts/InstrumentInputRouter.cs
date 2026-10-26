@@ -84,6 +84,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<RecenterButton>();
             if (owner == null) owner = hit.GetComponentInParent<MixButton>();
             if (owner == null) owner = hit.GetComponentInParent<MotionToggleButton>();
+            if (owner == null) owner = hit.GetComponentInParent<HeightButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -139,6 +140,13 @@ namespace RoomOrchestra
             if (motion != null)
             {
                 motion.Press();
+                return true;
+            }
+
+            var height = hit.GetComponentInParent<HeightButton>();
+            if (height != null)
+            {
+                height.Press();
                 return true;
             }
 
@@ -223,6 +231,11 @@ namespace RoomOrchestra
                     if (keyboard.cKey.wasPressedThisFrame) conductor.Clear();
                     if (keyboard.zKey.wasPressedThisFrame) conductor.Undo();
                     if (keyboard.kKey.wasPressedThisFrame) conductor.TogglePause();
+                }
+                if (keyboard.hKey.wasPressedThisFrame)
+                {
+                    var height = FindFirstObjectByType<HeightButton>();
+                    if (height != null) height.Press();
                 }
                 if (keyboard.spaceKey.wasPressedThisFrame && cam != null && launcher != null)
                     launcher.ThrowAssisted(cam.transform.position + cam.transform.forward * 0.3f, cam.transform.forward, cam.transform.forward * editorThrowSpeed + Vector3.up);
