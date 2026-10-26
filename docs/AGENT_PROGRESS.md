@@ -168,5 +168,30 @@ Known / follow-ups:
 - Tests: EditMode 127/127, PlayMode 25/25 (calm: minis still, marker on beat 1/3 only on beats, no flash; back to full restores travel/flash).
 - NOT done in calm mode yet: aim-arc dots and ball flight (only while the player throws), the focus marker; no per-orbit beat meter beyond the stepping marker.
 
+## 2026-10-25 | Prompt 05 (part 5) — Height (Seated/Standing) + A11Y-01..09 walkthrough
+- Height toggle at the end of the front row ("Height / Seated" <-> "Height / Standing", up-down arrow). Every tappable control (blob tray, Loudness, Undo, Pause, Clear, Recenter, Motion, Height, pitch columns + volume tiles) now lives under one `Controls` holder (ControlsRig); Standing lifts it 0.3 m, Seated puts it back. Furniture, orbits and the ball stand stay on the floor. Seated is the authored default (startup unchanged); session-only (restoring Standing at launch would move objects before PICO Spatial connects).
+- 0.4 m was tried first: the raised tray shadowed the udu volume tile from the standing left hand (strict pointer-ray test). 0.3 m = the seated-to-standing hand rise, so every hand-to-control line keeps its seated clearance.
+- Lift is a preset, not read from the headset (unverified whether the Spatial origin is the floor on hardware). Each Height press logs the head height for that check.
+- Front row respaced 0.14 m (Pause 0.12, Clear 0.26, Recenter 0.40, Motion 0.54, Height 0.68) to keep Height inside the 35° seated view.
+- Tests: EditMode 131/131 (Height labeled/reachable/starts seated, every control under the holder, Standing: all controls in the standing envelope + unshadowed from standing/tall hands + no target occluded; posture math). PlayMode 35/35 incl. Height press lifts a tile and a same-frame ray hits it there.
+
+### A11Y walkthrough (Editor simulation on the REAL scene, `A11yWalkthroughPlayModeTests`, 2026-10-25)
+One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plus pointer taps cast from a seated hand position (how PICO Spatial picks taps; each tap asserts the control is the FIRST collider on the ray). No throwing, no hand tracking. NOT headset evidence.
+
+| Case | Result | Evidence / gap |
+|---|---|---|
+| A11Y-01 controller-only, one hand, seated, no throw: 2 Flutter on lamp, 1 Bop chair, 1 Boom table, edit timing, undo, clear | PASS (editor) | Left-only and right-only runs; nudge +1 step then undo restores; Clear by pointer tap; Undo restores all 4. Same loop by pointer taps only (seated and standing). |
+| A11Y-02 grayscale silhouettes/badges | see emulator check below | Shapes (tall/round/wide) + motifs (sparkle/dot/ripple) + text names. |
+| A11Y-03 muted: beat, voices, high/low | PASS (editor, partial) | All 3 volume tiles to Muted: echoes still shown and travelling; in Calm the marker still steps per beat; pitch read from labeled tiles. Not a claim of equal experience for Deaf players. |
+| A11Y-04 reduced motion | PASS (editor) | Motion button tapped: echoes hold still, every orbit keeps its beat marker, no flashes. Gaps: aim-arc/ball flight, focus marker. |
+| A11Y-05 device loss | PASS (editor) | Right controller lost mid-edit with grip held; left controller leaves edit mode and keeps placing; pointer controls still answer. |
+| A11Y-06 no rapid tapping/throw | PASS (editor) | Every step is one discrete press; holding never repeats (mapper tests); slots chosen by single nudges. |
+| A11Y-07 reset view from the seat | PASS (editor) | Menu with the head turned 90°: stage start point under the seat, facing the player, chair back in seated reach. Owner emulator check earlier (phase5d). |
+| A11Y-08 left/right hand, scale/contrast, readable labels | PARTIAL / FAIL | Handedness PASS; label size/facing tests PASS; **no interface scale or contrast option yet — FAIL, next item.** |
+| A11Y-09 pause any time, mixer | PASS (editor) | Pause tapped mid-edit: every target silent, nothing queued, stays silent, resume keeps the loop. Per-instrument volume/mute (part 3). |
+| A11Y-10 physical comfort trial | NOT TESTED | Needs a person on a headset. |
+
+- Test infra: loading the real scene in play mode made the SpatialAdapter Play-to-Device check pop a modal dialog and set `m_enableLoadingFromScene` (Assets/Settings/SpatialAdapterP2DSettings.asset). The setting was restored (editor-only, unused by APK builds); the test now unhooks that editor dialog for its own run and unloads the scene afterwards.
+
 ## Resume here (next session)
-1. Prompt 05 (rest): height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. 
+1. Prompt 05 (rest): interface scale/contrast option (A11Y-08 FAIL), calm-mode gaps (aim arc, focus marker); owner emulator check of Calm + Height.

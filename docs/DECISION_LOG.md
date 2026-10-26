@@ -69,3 +69,10 @@ Use entries of form:
 - Pause button shows bars while playing and a play triangle while paused (owner request). Swap by moving icons (hidden one parked inside the slab), not SetActive or runtime objects — both are unreliable under PICO Spatial.
 - Recenter moves the stage, not the player: stage origin under the head, yaw from gaze (head-up vector when looking straight down/up), height untouched so furniture stays on the floor. Height calibration is a separate later step. Only on request (tap, left Menu, editor R); never at startup (PICO Spatial startup pose race).
 - Controller: Menu = Recenter. PICO's right controller has no app menu button, so the mapper is hand-agnostic but on hardware only the left Menu triggers it; right-hand users have the tappable button and system Home recenter. Not verified on hardware.
+
+## 2026-10-25 | Prompt 05 | Height setting (Seated/Standing)
+- Height lifts the CONTROLS, not the stage: furniture must stay on the real floor in passthrough, and only the controls are what the player reaches for. One holder (`Controls`) moves as a block so the pointer-ray clearances proven for seated play carry over.
+- Preset lift (0.3 m = seated-to-standing hand rise), not a head-height measurement: the headset's Spatial origin height is unverified, and a wrong reading would put controls out of reach. Head height is logged on each press so a headset run can justify a measured calibration later.
+- Session-only, Seated default: restoring Standing at launch would move objects before PICO Spatial connects (known startup pose race). Revisit with a delayed restore after a headset test.
+- Test-only: the walkthrough loads the real scene in play mode; the SpatialAdapter Play-to-Device validator then opens a modal dialog that changes a project setting. The test unhooks that editor-only callback instead of changing the setting.
+
