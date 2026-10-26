@@ -163,6 +163,58 @@ namespace RoomOrchestra.Tests
             }
         }
 
+        // PICO Spatial picks what a tap hits with a ray from the hand/controller, not the eye, so a control
+        // low behind the front row can be shadowed by a front-row button (owner tapped mbira volume and hit
+        // Clear on the emulator). Every control must be the first thing hit from every plausible origin.
+        static Component TapOwner(Collider c)
+        {
+            Component owner = c.GetComponentInParent<OrbToken>();
+            if (owner == null) owner = c.GetComponentInParent<TierButton>();
+            if (owner == null) owner = c.GetComponentInParent<PitchTile>();
+            if (owner == null) owner = c.GetComponentInParent<UndoButton>();
+            if (owner == null) owner = c.GetComponentInParent<MusicControlButton>();
+            if (owner == null) owner = c.GetComponentInParent<RecenterButton>();
+            if (owner == null) owner = c.GetComponentInParent<MixButton>();
+            if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
+            return owner;
+        }
+
+        static readonly (string name, Vector3 origin)[] PointerOrigins =
+        {
+            ("seated eye", new Vector3(0f, 1.15f, 0f)),
+            ("standing eye", new Vector3(0f, 1.6f, 0f)),
+            ("seated right hand", new Vector3(0.2f, 0.85f, 0.3f)),
+            ("seated left hand", new Vector3(-0.2f, 0.85f, 0.3f)),
+            ("standing right hand", new Vector3(0.2f, 1.15f, 0.3f)),
+            ("standing left hand", new Vector3(-0.2f, 1.15f, 0.3f)),
+        };
+
+        [Test]
+        public void EveryControlIsTheFirstThingAPointerRayHits()
+        {
+            Physics.SyncTransforms();
+            var controls = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None)
+                .Where(c => c.enabled && TapOwner(c) != null && !(TapOwner(c) is InstrumentTarget))
+                .ToArray();
+            Assert.Greater(controls.Length, 20);
+            var failures = new System.Collections.Generic.List<string>();
+            foreach (var control in controls)
+            {
+                var owner = TapOwner(control);
+                foreach (var (name, origin) in PointerOrigins)
+                {
+                    var toCenter = control.bounds.center - origin;
+                    var hits = Physics.RaycastAll(origin, toCenter.normalized, toCenter.magnitude + 0.1f)
+                        .Where(h => TapOwner(h.collider) != null)
+                        .OrderBy(h => h.distance)
+                        .ToArray();
+                    if (hits.Length > 0 && TapOwner(hits[0].collider) != owner)
+                        failures.Add($"{owner.name} ({control.name}) from {name}: hits {TapOwner(hits[0].collider).name} first");
+                }
+            }
+            Assert.IsEmpty(failures, string.Join("\n", failures));
+        }
+
         [Test]
         public void NothingAuthoredAtNearZeroScale()
         {

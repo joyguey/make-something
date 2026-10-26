@@ -153,5 +153,11 @@ Known / follow-ups:
 - Emulator (owner hands-on, 2026-10-25, phase5d APK): Pause shows the play triangle + "Play" and back; Recenter brings the stage in front after turning away. Owner: "great, that works".
 - NOT verified: recenter on a headset (GetHMDPose return code meaning undocumented; logged); right-controller recenter (PICO right controller has no app menu button: right-hand users use the tappable button or the system Home recenter); seated comfort on hardware.
 
+## 2026-10-25 | Prompt 05 (part 3) — per-instrument volume/mute + pointer-ray layout fix
+- Volume/mute (A11Y-09 mixer): each instrument's name tile under its pitch column is its volume button, one tap per step 100% -> 60% -> 30% -> Muted -> 100%, applied at once to ringing and scheduled voices; echoes kept while muted. Master volume = headset keys. Owner (emulator, phase5e): "yes it works".
+- Bug found by owner: tapping the mbira volume tile ran Clear (log: "Echoes cleared" then "mbira volume: Vol 60%"). Cause: PICO Spatial picks hits with a ray from the hand/controller; the front row (y 0.8, z 1.0) sat between hands and the low tiles. Reproduced by new test EveryControlIsTheFirstThingAPointerRayHits (6 origins: seated/standing eyes and hands): 19 shadowed controls (pitch tiles, volume tiles, Loudness behind Undo).
+- Fix: the whole front row (blob tray, Loudness, Undo, Pause, Clear, Recenter) lowered to 0.5 m (still >= 0.3 m seated minimum, 1 m away); Undo moved beside Loudness instead of in front. Test now passes. EditMode 126/126, PlayMode 22/22.
+- Follow-up noted: when PICO sends the app to the background, Unity freezes the scene mid-motion (seen on emulator); pause the music and show Play on focus loss.
+
 ## Resume here (next session)
-1. Prompt 05 (rest): per-instrument volume/mute, reduced motion/flash setting, height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. 
+1. Prompt 05 (rest): auto-pause on focus loss, reduced motion/flash setting, height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. 

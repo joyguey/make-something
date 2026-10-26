@@ -26,7 +26,7 @@ namespace RoomOrchestra.EditorTools
 
         // Front-left, where the old loop station stood: inside the default view, and seated/standing
         // sight lines to all three targets pass clear of it (checked by SceneLayoutTests).
-        static readonly Vector3 TrayCenter = new Vector3(-0.55f, 0.8f, 1.1f);
+        static readonly Vector3 TrayCenter = new Vector3(-0.55f, 0.5f, 1.1f); // low enough that hand pointer rays to every tile pass over the front row
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]
         public static void ApplyAndSave()
@@ -283,12 +283,12 @@ namespace RoomOrchestra.EditorTools
             return view;
         }
 
-        // Undo, beside the intensity button: a slab with a hooked arrow.
+        // Undo, front row between Loudness and Pause: a slab with a hooked arrow.
         static void CreateUndoButton(Transform root, Material slab, Material mark)
         {
             var go = new GameObject("UndoButton");
             go.transform.SetParent(root, false);
-            go.transform.position = TrayCenter + new Vector3(0.36f, 0f, -0.1f);
+            go.transform.position = TrayCenter + new Vector3(0.53f, 0f, -0.1f); // beside, not in front of, Loudness
             var box = go.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, 0.03f, 0f);
             box.size = new Vector3(0.12f, 0.08f, 0.08f);
