@@ -45,6 +45,18 @@ namespace RoomOrchestra
         /// Turns this ball into <paramref name="type"/>: proportions, mass, bounce and color.
         /// Writes only what differs, so pre-skinned balls cause no changes at startup.
         /// </summary>
+        /// <summary>
+        /// Upright, narrow waiting shape (Flutter's, the authored one) so a parked ball fits wholly inside
+        /// the 12 cm dispenser post; a wide Boom or a tilted ball poked out of it. ApplyOrb restores the
+        /// orb's own shape when the ball is handed out.
+        /// </summary>
+        public void FitForParking()
+        {
+            var narrow = OrbCatalog.Get(OrbType.Flutter);
+            var scale = new Vector3(narrow.ScaleX, narrow.ScaleY, narrow.ScaleZ) * diameter;
+            if (transform.localScale != scale) transform.localScale = scale;
+        }
+
         public void ApplyOrb(OrbType type)
         {
             if (m_Body == null) Awake();

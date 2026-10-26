@@ -94,7 +94,8 @@ namespace RoomOrchestra
         void Park(Ball ball)
         {
             ball.Hold();
-            Teleport(ball, ParkPosition, ball.transform.rotation);
+            ball.FitForParking();
+            Teleport(ball, ParkPosition, Quaternion.identity);
         }
 
         // Interpolated rigidbodies write their own pose back to the transform, so move both.

@@ -238,6 +238,22 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator GoingToTheBackgroundPausesAndComingBackStaysPaused()
+        {
+            var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);
+            var selector = MakeRig(chair);
+            yield return null;
+            selector.PlaceOn(chair);
+            m_Conductor.SendMessage("OnApplicationPause", true);
+            Assert.IsTrue(m_Conductor.IsPaused, "paused when the app leaves the foreground");
+            Assert.IsFalse(chair.IsSounding);
+            m_Conductor.SendMessage("OnApplicationPause", false);
+            Assert.IsTrue(m_Conductor.IsPaused, "still paused on return: the player taps Play");
+            m_Conductor.SendMessage("OnApplicationPause", true);
+            Assert.IsTrue(m_Conductor.IsPaused, "a second background trip does not toggle it back on");
+        }
+
+        [UnityTest]
         public IEnumerator EchoMiniSitsOnTheMarkerAtItsStep()
         {
             var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);

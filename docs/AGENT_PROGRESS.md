@@ -158,6 +158,8 @@ Known / follow-ups:
 - Bug found by owner: tapping the mbira volume tile ran Clear (log: "Echoes cleared" then "mbira volume: Vol 60%"). Cause: PICO Spatial picks hits with a ray from the hand/controller; the front row (y 0.8, z 1.0) sat between hands and the low tiles. Reproduced by new test EveryControlIsTheFirstThingAPointerRayHits (6 origins: seated/standing eyes and hands): 19 shadowed controls (pitch tiles, volume tiles, Loudness behind Undo).
 - Fix: the whole front row (blob tray, Loudness, Undo, Pause, Clear, Recenter) lowered to 0.5 m (still >= 0.3 m seated minimum, 1 m away); Undo moved beside Loudness instead of in front. Test now passes. EditMode 126/126, PlayMode 22/22.
 - Follow-up noted: when PICO sends the app to the background, Unity freezes the scene mid-motion (seen on emulator); pause the music and show Play on focus loss.
+- Owner: part of a Boom ball stuck out of the dispenser post. Cause: post is 12 cm wide, Boom 13 cm, and parked balls kept their landing tilt. Fix: parked balls stand upright in the narrow Flutter shape (8.5 cm; the authored shape, so startup is a no-op — verified 0 of 24 scene balls change); handed-out balls get their orb's shape back. PlayMode test parks a tilted Boom.
+- Auto-pause: going to the background (OnApplicationPause) pauses the music; it stays paused on return (button shows Play). PlayMode test. EditMode 126/126, PlayMode 24/24.
 
 ## Resume here (next session)
-1. Prompt 05 (rest): auto-pause on focus loss, reduced motion/flash setting, height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. 
+1. Prompt 05 (rest): reduced motion/flash setting, height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. 

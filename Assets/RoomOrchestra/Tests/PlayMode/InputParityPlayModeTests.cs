@@ -191,6 +191,28 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator ParkedBallsStandUprightAndFitInsideTheDispenserPost()
+        {
+            var spawn = Track(new GameObject("Spawn").transform);
+            spawn.position = new Vector3(0f, 1f, 0f);
+            var balls = new[] { MakeBall(OrbType.Boom, Vector3.zero), MakeBall(OrbType.Boom, Vector3.zero) };
+            foreach (var b in balls) b.transform.rotation = Quaternion.Euler(70f, 20f, 35f); // landed tilted
+            var launcher = Track(new GameObject("Launcher").AddComponent<BallLauncher>());
+            launcher.Configure(spawn, balls);
+            yield return null; // Start parks the spares
+
+            var parked = balls[0] == launcher.ReadyBall ? balls[1] : balls[0];
+            yield return new WaitForFixedUpdate();
+            Assert.Less(Quaternion.Angle(Quaternion.identity, parked.transform.rotation), 0.1f, "upright");
+            var size = parked.GetComponent<Renderer>().bounds.size;
+            const float postWidth = 0.12f;
+            Assert.Less(Mathf.Max(size.x, size.z), postWidth - 0.02f, $"fits inside the post with margin ({size})");
+
+            launcher.SetOrb(OrbType.Boom);
+            Assert.Greater(launcher.ReadyBall.transform.localScale.x, launcher.ReadyBall.transform.localScale.y, "handed out as a wide Boom again");
+        }
+
+        [UnityTest]
         public IEnumerator SelectingAnOrbReskinsTheReadyBall()
         {
             var spawn = Track(new GameObject("Spawn").transform);

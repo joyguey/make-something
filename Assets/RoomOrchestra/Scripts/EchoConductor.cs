@@ -52,6 +52,14 @@ namespace RoomOrchestra
             if (Instance == this) Instance = null;
         }
 
+        // PICO can send the app to the background (system menu, another app) and Unity freezes there, so
+        // pause the music on the way out. It stays paused on return (the button shows Play): nothing
+        // restarts by surprise.
+        void OnApplicationPause(bool pausing)
+        {
+            if (pausing && !IsPaused) TogglePause();
+        }
+
         void OnEnable() => MusicalHitPipeline.Committed += OnHit;
         void OnDisable() => MusicalHitPipeline.Committed -= OnHit;
 
