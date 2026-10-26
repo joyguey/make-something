@@ -649,6 +649,27 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void RingsAreHalosTippedTowardTheSeatWithUprightCharacters()
+        {
+            var eye = new Vector3(0f, 1.15f, 0f);
+            foreach (var orbit in Object.FindObjectsByType<OrbitView>(FindObjectsSortMode.None))
+            {
+                var t = orbit.transform;
+                Assert.AreEqual(OrbitView.HaloTilt, Vector3.Angle(t.up, new Vector3(t.up.x, 0f, t.up.z)), 0.5f, $"{orbit.name} tipped {OrbitView.HaloTilt} degrees from flat");
+                var away = t.position - eye;
+                away.y = 0f;
+                var marker = new Vector3(t.up.x, 0f, t.up.z);
+                Assert.Greater(Vector3.Dot(marker.normalized, away.normalized), 0.99f, $"{orbit.name}: 12 o'clock on the far side, as the seated player sees it");
+                foreach (var mini in orbit.GetComponentsInChildren<EchoMini>())
+                {
+                    Assert.Greater(Vector3.Dot(mini.transform.up, Vector3.up), 0.999f, $"{mini.name} stands upright");
+                    var facing = -mini.transform.forward;
+                    Assert.Less(Vector3.Dot(new Vector3(facing.x, 0f, facing.z).normalized, away.normalized), -0.99f, $"{mini.name} faces the player");
+                }
+            }
+        }
+
+        [Test]
         public void ThrowableBallsWearTheCharacterFace()
         {
             foreach (var ball in Object.FindObjectsByType<Ball>(FindObjectsSortMode.None))

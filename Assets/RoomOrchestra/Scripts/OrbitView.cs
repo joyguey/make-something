@@ -23,6 +23,18 @@ namespace RoomOrchestra
         [SerializeField, Min(1f)] float selectedScale = 1.5f;
         [Tooltip("The play marker at the top of the ring.")]
         [SerializeField] Transform marker;
+        [Tooltip("Tilt of the ring from flat, degrees: 0 = a flat halo, 90 = an upright clock face.")]
+        [SerializeField, Range(0f, 90f)] float tilt = HaloTilt;
+        [Tooltip("Turn to face the player as they walk around, so echoes always read clockwise from where they stand.")]
+        [SerializeField] bool faceViewer = true;
+
+        /// <summary>
+        /// Rings are halos around their object, tipped toward the player so the echoes read clearly; the
+        /// marker sits on the far side (12 o'clock as the player sees it).
+        /// </summary>
+        public const float HaloTilt = 35f;
+        const float StartTurningDegrees = 4f, StopTurningDegrees = 0.3f, TurnSeconds = 0.6f;
+        bool m_Turning;
 
         readonly Dictionary<long, Transform> m_ByEcho = new();
         readonly Dictionary<Transform, long> m_ByMini = new();
@@ -66,6 +78,39 @@ namespace RoomOrchestra
         }
 
         public Vector3 MarkerPosition => transform.TransformPoint(new Vector3(0f, radius, 0f));
+
+        public float Tilt => tilt;
+
+        /// <summary>
+        /// The ring's rotation at <paramref name="ringPosition"/> for a player at <paramref name="viewer"/>:
+        /// turned to face them (yaw only) and tipped back from upright to <paramref name="tiltDegrees"/>.
+        /// Its local Y (12 o'clock) points away and up; its local -Z face looks up toward the player.
+        /// </summary>
+        public static Quaternion Facing(Vector3 ringPosition, Vector3 viewer, float tiltDegrees)
+        {
+            var away = ringPosition - viewer;
+            away.y = 0f;
+            if (away.sqrMagnitude < 1e-6f) away = Vector3.forward;
+            return Quaternion.LookRotation(away.normalized, Vector3.up) * Quaternion.Euler(90f - tiltDegrees, 0f, 0f);
+        }
+
+        /// <summary>Rotation that stands a ring's child upright (minis, marker) whatever the tilt.</summary>
+        public static Quaternion Upright(float tiltDegrees) => Quaternion.Euler(-(90f - tiltDegrees), 0f, 0f);
+
+        // Turn smoothly to face the player when they have walked round (a few degrees of slack, so small
+        // head movements never set it turning and nothing is rewritten while the player sits still).
+        void LateUpdate()
+        {
+            if (!faceViewer || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            if (!Viewer.TryGetPosition(out var head)) return;
+            var want = Facing(transform.position, head, tilt);
+            float off = Quaternion.Angle(transform.rotation, want);
+            if (!m_Turning && off < StartTurningDegrees) return;
+            m_Turning = off > StopTurningDegrees;
+            transform.rotation = m_Turning
+                ? Quaternion.Slerp(transform.rotation, want, 1f - Mathf.Exp(-Time.deltaTime / TurnSeconds))
+                : want;
+        }
 
         /// <summary>The mini showing <paramref name="echoId"/>, or null (not on the ring yet).</summary>
         public Transform MiniFor(long echoId) => m_ByEcho.TryGetValue(echoId, out var mini) ? mini : null;

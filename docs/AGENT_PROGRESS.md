@@ -261,5 +261,11 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Growth now counts only notes ADDED to the song (EchoConductor.NoteAdded on each new echo), never loop repeats. Retuned for that: full vine at 6 notes on its instrument (a full ring), ball-stand vine at 16 total, toadstools at 1/3/5/7/9/12/15 notes added. Butterflies unchanged (follow the current song). Sparkles still flare on every repeat.
 - Test: a real conductor loop repeating for over a bar adds nothing; the next new note grows the vine again.
 
+## 2026-10-26 | Halo rings that face a roaming player
+- Owner asked what happens when the player walks around (rings were upright clock faces turned once toward the seat: edge-on from the side, reversed from behind; tray/buttons stay at the start). Owner had first imagined a horizontal ring (raise the hand to lift the ring for volume later) and wants roaming play (throw at other objects/walls).
+- Built: every echo ring is now a halo tipped 35° from flat toward the player (OrbitView.HaloTilt; 90 = old upright ring), and it turns smoothly (yaw only, 0.6 s, 4° slack so a seated player's small head moves never rewrite it) to face the player's head (Viewer: headset pose on device), so echoes always read clockwise from where the player stands with the marker on the far side. Minis and the marker stand upright facing the player.
+- Tests: EditMode 141/141 (halo tilt, marker on the far side, upright minis facing the seat; existing occlusion/pointer tests still pass); PlayMode 55/55 (a camera walks round to the side: the ring turns to face it and still reads clockwise).
+- Open: tray/buttons for a roaming player (options presented to the owner).
+
 ## Resume here (next session)
 1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

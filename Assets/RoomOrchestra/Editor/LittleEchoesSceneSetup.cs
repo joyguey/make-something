@@ -274,7 +274,7 @@ namespace RoomOrchestra.EditorTools
             var go = new GameObject($"Orbit_{target.Instrument}");
             go.transform.SetParent(root, false);
             go.transform.position = target.AimPosition + Vector3.up * lift;
-            go.transform.rotation = Quaternion.LookRotation(go.transform.position - PlayerEye, Vector3.up);
+            go.transform.rotation = OrbitView.Facing(go.transform.position, PlayerEye, OrbitView.HaloTilt); // a halo tipped toward the seat
 
             for (int i = 0; i < MusicClock.StepsPerBar; i++)
             {
@@ -286,7 +286,7 @@ namespace RoomOrchestra.EditorTools
 
             var mark = Primitive(PrimitiveType.Cube, "PlayMarker", go.transform, marker, keepCollider: false);
             mark.localPosition = new Vector3(0f, OrbitRadius + 0.055f, 0f);
-            mark.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            mark.localRotation = OrbitView.Upright(OrbitView.HaloTilt) * Quaternion.Euler(0f, 0f, 45f); // an upright diamond
             mark.localScale = new Vector3(0.035f, 0.035f, 0.012f);
 
             Transform park;
@@ -325,6 +325,7 @@ namespace RoomOrchestra.EditorTools
                         mini.localScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * MiniDiameter;
                     }
                     mini.position = park.position;
+                    mini.localRotation = OrbitView.Upright(OrbitView.HaloTilt); // characters stand up and face the player
                     mini.gameObject.AddComponent<EchoMini>().Configure(view);
                     EditorUtility.SetDirty(mini.GetComponent<EchoMini>());
                     pools[o][m] = mini;
