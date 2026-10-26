@@ -150,7 +150,8 @@ Known / follow-ups:
 - Emulator (owner hands-on, 2026-10-25, phase5b APK): Pause/Clear work ("everything works"). Phase5c (triangle) / phase5d (recenter): built; triangle seen only in Unity render (scratchpad close-ups), not yet on PICO.
 - Recenter (A11Y-07): Recenter button (ring-and-dot icon, label), left controller Menu button, editor R. Moves the whole stage root (StageAnchor on `RoomOrchestra`) so the start point is under the head and the stage faces the gaze; height unchanged (furniture stays on the floor); works when looking straight down/up. Head pose: SpatialAdapterRuntime.GetHMDPose (scene camera config RoomOrchestraFullSpace = Unconstrained, so supported). Never runs at startup.
 - Tests: EditMode 123/123, PlayMode 21/21 (recenter math, menu once per press, layout/reach/label, stage + interpolated rigidbody move together).
-- NOT verified: recenter on emulator/headset (GetHMDPose return code meaning undocumented; logged); right-controller recenter (PICO right controller has no app menu button: right-hand users use the tappable button or the system Home recenter); seated comfort on hardware.
+- Emulator (owner hands-on, 2026-10-25, phase5d APK): Pause shows the play triangle + "Play" and back; Recenter brings the stage in front after turning away. Owner: "great, that works".
+- NOT verified: recenter on a headset (GetHMDPose return code meaning undocumented; logged); right-controller recenter (PICO right controller has no app menu button: right-hand users use the tappable button or the system Home recenter); seated comfort on hardware.
 
 ## Resume here (next session)
-1. Prompt 05 (rest): per-instrument volume/mute, reduced motion/flash setting, height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. Emulator-check phase5d (triangle icon + Recenter).
+1. Prompt 05 (rest): per-instrument volume/mute, reduced motion/flash setting, height calibration (seated/standing) in first run, then the controller-only A11Y-01..09 walkthrough with PASS/FAIL. 
