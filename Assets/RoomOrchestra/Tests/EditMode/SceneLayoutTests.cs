@@ -547,7 +547,10 @@ namespace RoomOrchestra.Tests
             foreach (var mini in Object.FindObjectsByType<EchoMini>(FindObjectsSortMode.None))
                 AssertAlive(mini, mini.GetComponent<CharacterFace>(), awake: false); // parked in the hub
             foreach (var ball in Object.FindObjectsByType<Ball>(FindObjectsSortMode.None))
+            {
                 AssertAlive(ball, ball.GetComponent<CharacterFace>(), awake: false); // the launcher wakes the one it hands out
+                Assert.IsTrue(ball.GetComponent<JellyBody>().FacesViewer, $"{ball.name} keeps its face to the player while it tumbles");
+            }
             var director = Object.FindFirstObjectByType<CharacterDirector>();
             Assert.IsNotNull(director, "CharacterDirector in scene");
         }

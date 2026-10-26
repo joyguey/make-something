@@ -24,6 +24,7 @@ namespace RoomOrchestra
         [SerializeField] Transform mouthO;
 
         Vector3 m_EyeLHome, m_EyeRHome, m_EyeScale, m_SmileHome, m_MouthParked;
+        Vector3 m_EyeLCentre, m_EyeRCentre; // eye meshes are built around the body centre, not their own
         bool m_Captured;
         float m_Until, m_Glance, m_NextBlink, m_HappyStart = -10f;
 
@@ -48,6 +49,8 @@ namespace RoomOrchestra
             m_EyeLHome = eyeL.localPosition;
             m_EyeRHome = eyeR.localPosition;
             m_EyeScale = eyeL.localScale;
+            m_EyeLCentre = MeshCentre(eyeL);
+            m_EyeRCentre = MeshCentre(eyeR);
             m_SmileHome = smile.localPosition;
             if (mouthO != null) m_MouthParked = mouthO.localPosition;
             m_NextBlink = Time.time + 1f + Random.value * 3f;
@@ -90,21 +93,32 @@ namespace RoomOrchestra
             }
             bool happy = now - m_HappyStart < HappySeconds;
 
-            var eyeScale = m_EyeScale;
+            // Eyes grow and close flat against the face (x, y), never in depth, so they never bulge out.
+            var grow = Vector3.one;
             bool scared = Current == Expression.Scared;
-            if (Current == Expression.Curious || scared) eyeScale *= WideEyes;
-            if (blinking) eyeScale.y *= 0.15f;
-            else if (happy && Current != Expression.Curious) eyeScale.y *= 0.45f; // smiling eyes
+            if (Current == Expression.Curious || scared) grow = new Vector3(WideEyes, WideEyes, 1f);
+            if (blinking) grow.y *= 0.15f;
+            else if (happy && Current != Expression.Curious) grow.y *= 0.45f; // smiling eyes
             var shift = Current == Expression.Sibling ? Vector3.right * (m_Glance * GlanceOffset)
                 : scared ? Vector3.down * LookDown // eyes on the drop below
                 : Vector3.zero;
-            Set(eyeL, m_EyeLHome + shift, eyeScale);
-            Set(eyeR, m_EyeRHome + shift, eyeScale);
+            Set(eyeL, m_EyeLHome + shift + AboutCentre(m_EyeLCentre, grow), Vector3.Scale(m_EyeScale, grow));
+            Set(eyeR, m_EyeRHome + shift + AboutCentre(m_EyeRCentre, grow), Vector3.Scale(m_EyeScale, grow));
 
             bool oh = (Current == Expression.Curious || scared) && mouthO != null;
             SetPosition(smile, oh ? m_SmileHome + Parked : m_SmileHome);
             if (mouthO != null) SetPosition(mouthO, oh ? m_MouthParked - Parked : m_MouthParked);
         }
+
+        // Offset that keeps a part's own centre in place while its transform scales by grow.
+        Vector3 AboutCentre(Vector3 centre, Vector3 grow)
+        {
+            var c = Vector3.Scale(m_EyeScale, centre);
+            return c - Vector3.Scale(grow, c);
+        }
+
+        static Vector3 MeshCentre(Transform part) =>
+            part.TryGetComponent<MeshFilter>(out var filter) && filter.sharedMesh != null ? filter.sharedMesh.bounds.center : Vector3.zero;
 
         static void Set(Transform t, Vector3 position, Vector3 scale)
         {

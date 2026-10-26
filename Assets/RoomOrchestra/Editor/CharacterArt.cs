@@ -103,12 +103,12 @@ namespace RoomOrchestra.EditorTools
         }
 
         // Face and jelly body on the root, both driving parts under the visual.
-        static void Alive(GameObject root, Transform visual, OrbType type, bool awake, Transform eyeL, Transform eyeR, Transform smile, Transform oh = null)
+        static void Alive(GameObject root, Transform visual, OrbType type, bool awake, Transform eyeL, Transform eyeR, Transform smile, Transform oh = null, bool faceViewer = false)
         {
             var face = root.AddComponent<CharacterFace>();
             face.Configure(eyeL, eyeR, smile, oh);
             var jelly = root.AddComponent<JellyBody>();
-            jelly.Configure(visual, type, awake);
+            jelly.Configure(visual, type, awake, faceViewer);
             EditorUtility.SetDirty(face);
             EditorUtility.SetDirty(jelly);
         }
@@ -161,7 +161,8 @@ namespace RoomOrchestra.EditorTools
             var eyeR = Child(visual, OrbType.Bop, "EyeR", face, Vector3.zero);
             var smile = Child(visual, OrbType.Bop, "Smile", face, Vector3.zero);
             var oh = Child(visual, OrbType.Bop, "Mouth_O", face, MouthParked); // for the scared fall to the floor
-            Alive(ball, visual, current, awake: false, eyeL, eyeR, smile, oh); // the launcher wakes the ball it hands out
+            // The launcher wakes the ball it hands out; a tumbling ball keeps its face turned to the player.
+            Alive(ball, visual, current, awake: false, eyeL, eyeR, smile, oh, faceViewer: true);
             var parts = new[] { eyeL.GetComponent<Renderer>(), eyeR.GetComponent<Renderer>(), smile.GetComponent<Renderer>(), oh.GetComponent<Renderer>() };
             return (visual.GetComponent<Renderer>(), outline.GetComponent<Renderer>(), parts);
         }

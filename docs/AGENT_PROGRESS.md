@@ -224,5 +224,12 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Tests: EditMode 138/138 (ground marked, clouds hidden in the post, ball oh-mouth parked); PlayMode 44/44 (real physics: rolls off a table -> scared -> expires on the floor -> poof where it landed -> cloud back in the stand; dropping onto furniture is neither scary nor a poof). Unity render of the cloud mid-burst checked (scratchpad poof2.png).
 - NOT verified on PICO yet (needs a throw on the emulator). No poof sound (no licensed asset; Prompt 07).
 
+## 2026-10-25 | Prompt 06 (part 4) — owner feedback on the fall and the eyes
+- Owner (emulator, phase6f): could not see the scared face when a ball rolled off the chair; Bop/Boom tray characters' eyes "bulge out" when hit; not on Flutter.
+- Log: 13 floor landings, all poofed; scared ran but the fall off the chair lasts ~0.3 s, the ball tumbles (face away) and vanished on contact. Flutter: one Flutter echo planted (tray reacted while the owner watched the throw); the later Flutter hit met a full mbira ring (6/6), so no echo and no reaction (correct).
+- Bug: eye meshes are built around the body centre, so scaling an eye also pushed it outward (bulge) and blinks pulled it toward the centre. Fix: eyes scale about their own mesh centre, in the face plane only (x, y; never depth).
+- Fall made readable: scared starts at 0.3 m/s downward; thrown/rolling balls keep the face turned to the player (Viewer: headset pose on device, camera in Editor, seated eye otherwise); on the floor the character sits squashed and startled for 0.35 s, then poofs.
+- Tests: EditMode 138/138; PlayMode 45/45 (eye grows in place, no thicker, scared eyes look down; roll-off -> scared -> startled pause on the floor -> poof).
+
 ## Resume here (next session)
 1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

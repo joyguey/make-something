@@ -75,6 +75,36 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator WideEyesGrowInPlaceAndNeverBulgeOut()
+        {
+            // Like the real character meshes: the eye's vertices sit on the face, its pivot at the body centre.
+            var eyeAt = new Vector3(-0.15f, 0.07f, -0.36f);
+            var source = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var mesh = Object.Instantiate(source.GetComponent<MeshFilter>().sharedMesh);
+            Object.Destroy(source);
+            var vertices = mesh.vertices;
+            for (int i = 0; i < vertices.Length; i++) vertices[i] = Vector3.Scale(vertices[i], new Vector3(0.1f, 0.15f, 0.06f)) + eyeAt;
+            mesh.vertices = vertices;
+            mesh.RecalculateBounds();
+            foreach (var eye in new[] { m_EyeL, m_EyeR })
+            {
+                eye.localPosition = Vector3.zero;
+                eye.localScale = Vector3.one;
+                eye.GetComponent<MeshFilter>().sharedMesh = mesh;
+            }
+            var face = Face();
+            var before = m_EyeL.GetComponent<Renderer>().bounds;
+            face.Show(Expression.Curious);
+            var wide = m_EyeL.GetComponent<Renderer>().bounds;
+            Assert.Less((wide.center - before.center).magnitude, 1e-4f, "grows around its own centre");
+            Assert.Greater(wide.size.x, before.size.x * 1.4f, "wider");
+            Assert.AreEqual(before.size.z, wide.size.z, 1e-5f, "no thicker: does not poke out of the face");
+            face.Show(Expression.Scared);
+            Assert.Less(m_EyeL.GetComponent<Renderer>().bounds.center.y, before.center.y - 0.03f, "scared eyes look down at the drop");
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator SiblingsGlanceSidewaysTowardEachOther()
         {
             var face = Face();

@@ -19,6 +19,8 @@ namespace RoomOrchestra
         [SerializeField] Transform visual;
         [SerializeField] OrbType character;
         [SerializeField] bool awake = true;
+        [Tooltip("Keep the face turned to the player however the body tumbles (thrown balls).")]
+        [SerializeField] bool faceViewer;
 
         CharacterMotion m_Motion;
         Vector3 m_HomePosition, m_HomeScale;
@@ -36,12 +38,15 @@ namespace RoomOrchestra
         public Vector2 Lean => m_Lean;
         public float Squash => m_Squash;
 
-        public void Configure(Transform look, OrbType type, bool startAwake = true)
+        public void Configure(Transform look, OrbType type, bool startAwake = true, bool turnToViewer = false)
         {
             visual = look;
             character = type;
             awake = startAwake;
+            faceViewer = turnToViewer;
         }
+
+        public bool FacesViewer => faceViewer;
 
         void Capture()
         {
@@ -147,10 +152,21 @@ namespace RoomOrchestra
 
             float squash = m_Squash + breathe - hopStretch;
             var scale = Vector3.Scale(m_HomeScale, new Vector3(1f + squash * 0.5f, 1f - squash, 1f + squash * 0.5f));
-            var rotation = m_HomeRotation * Quaternion.Euler(m_Lean.x, 0f, m_Lean.y + sway);
+            var upright = faceViewer ? TowardViewer() : m_HomeRotation;
+            var rotation = upright * Quaternion.Euler(m_Lean.x, 0f, m_Lean.y + sway);
             // Grow from the base: shift down by the height lost, then lift for the hop (body units).
             var offset = Vector3.up * (-squash * 0.5f * m_HomeScale.y + lift * m_HomeScale.y);
             Write(m_HomePosition + offset, rotation, scale);
+        }
+
+        // Local rotation that stands the look upright with its face (-Z) toward the player's head.
+        Quaternion TowardViewer()
+        {
+            if (!Viewer.TryGetPosition(out var head)) return m_HomeRotation;
+            var away = transform.position - head;
+            away.y = 0f;
+            if (away.sqrMagnitude < 1e-6f) return m_HomeRotation;
+            return Quaternion.Inverse(transform.rotation) * Quaternion.LookRotation(away.normalized, Vector3.up);
         }
 
         void Write(Vector3 position, Quaternion rotation, Vector3 scale)

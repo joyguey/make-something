@@ -124,6 +124,7 @@ namespace RoomOrchestra
         {
             if (m_Body == null) m_Body = GetComponent<Rigidbody>();
             InFlight = false;
+            m_PoofAt = -1f;
             m_Body.isKinematic = true;
         }
 
@@ -150,7 +151,7 @@ namespace RoomOrchestra
         }
 
         /// <summary>Falling faster than this (m/s) toward the floor looks scared; it looks this far ahead (m).</summary>
-        public const float ScaredFallSpeed = 0.8f, ScaredLookAhead = 3f;
+        public const float ScaredFallSpeed = 0.3f, ScaredLookAhead = 3f;
 
         public void SetAlive(bool alive)
         {
@@ -162,12 +163,14 @@ namespace RoomOrchestra
             if (TryGetComponent<JellyBody>(out var jelly)) jelly.Kick(collision.relativeVelocity.magnitude / 5f); // splat
             if (InFlight && collision.collider.GetComponentInParent<GroundSurface>() != null)
             {
-                // Down on the floor: a poof, and the character is gone (back to the stand).
-                var point = collision.contactCount > 0 ? collision.GetContact(0).point : transform.position;
-                PoofCloud.PoofAt(point);
-                Debug.Log($"[RoomOrchestra] {orb} landed on the floor: poof");
+                // Down on the floor: a squashed, startled moment where it landed, then a poof and it is
+                // gone (back to the stand).
+                m_PoofPoint = collision.contactCount > 0 ? collision.GetContact(0).point : transform.position;
+                m_PoofAt = Time.time + FloorPauseSeconds;
                 InFlight = false;
-                Expired?.Invoke(this);
+                m_Body.isKinematic = true;
+                if (TryGetComponent<CharacterFace>(out var face)) face.Show(Expression.Scared, hold: FloorPauseSeconds + 0.1f);
+                if (jelly != null) jelly.Kick(1f);
                 return;
             }
             if (!InFlight || MusicalHitPipeline.HasFired(m_ActionId)) return;
@@ -189,8 +192,24 @@ namespace RoomOrchestra
         /// </summary>
         public bool FallingToTheFloor { get; private set; }
 
+        /// <summary>How long a character sits startled on the floor before it poofs (s).</summary>
+        public const float FloorPauseSeconds = 0.35f;
+
+        float m_PoofAt = -1f;
+        Vector3 m_PoofPoint;
+
+        public bool OnTheFloor => m_PoofAt > 0f;
+
         void Update()
         {
+            if (m_PoofAt > 0f && Time.time >= m_PoofAt)
+            {
+                m_PoofAt = -1f;
+                PoofCloud.PoofAt(m_PoofPoint);
+                Debug.Log($"[RoomOrchestra] {orb} landed on the floor: poof");
+                Expired?.Invoke(this);
+                return;
+            }
             FallingToTheFloor = InFlight && IsFallingToTheFloor();
             if (FallingToTheFloor)
             {

@@ -75,15 +75,22 @@ namespace RoomOrchestra.Tests
             ball.Launch(new Vector3(1.2f, 0f, 0f)); // rolls along the table top and off the edge
             ball.transform.position = new Vector3(0.1f, 0.78f, 0f);
 
-            bool wasScared = false;
+            bool wasScared = false, sawFloorPause = false;
             Vector3 landedNear = Vector3.zero;
             for (float end = Time.time + 3f; Time.time < end && !expired;)
             {
                 yield return new WaitForFixedUpdate();
-                if (face.Current == Expression.Scared) wasScared = true;
+                if (face.Current == Expression.Scared && !ball.OnTheFloor) wasScared = true;
+                if (ball.OnTheFloor)
+                {
+                    sawFloorPause = true;
+                    Assert.AreEqual(Expression.Scared, face.Current, "startled on the floor before the poof");
+                    Assert.IsFalse(cloud.Playing, "the poof waits until the startled moment is over");
+                }
                 landedNear = ball.transform.position;
             }
             Assert.IsTrue(wasScared, "looked scared on the way down");
+            Assert.IsTrue(sawFloorPause, "sat startled on the floor for a moment");
             Assert.IsTrue(expired, "gone once it hit the floor");
             Assert.IsTrue(cloud.Playing, "poof!");
             Assert.Less(Vector3.Distance(cloud.transform.position, new Vector3(landedNear.x, 0f, landedNear.z)), 0.3f, "the poof is where it landed");
