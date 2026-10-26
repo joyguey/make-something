@@ -6,9 +6,9 @@ using UnityEngine;
 namespace RoomOrchestra.EditorTools
 {
     /// <summary>
-    /// Switches the instruments between the approved prototype samples (Audio/Udu, /Mbira, /Erhu; origin
-    /// unknown) and the voices synthesized by ArtSource/Audio/synthesize_instruments.py (Audio/Synth/...;
-    /// origin documented), for an owner listening comparison. The game renders every voice to the same
+    /// Switches the instruments between the owner's chosen set (Audio/Udu, /Mbira, /Erhu; synthesized by
+    /// ArtSource/Audio/gen_world_instruments.py) and the alternative voices synthesized by
+    /// ArtSource/Audio/synthesize_instruments.py (Audio/Synth/...), for an owner listening comparison. The game renders every voice to the same
     /// peak, so in-game loudness follows a sound's average-to-peak ratio: each instrument's volume is
     /// trimmed by the measured ratio so the mix balance the owner approved is kept.
     /// </summary>

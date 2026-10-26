@@ -87,4 +87,4 @@ Use entries of form:
 
 
 ## 2026-10-26 — Owner keeps sound set A
-After listening on the emulator (phase6l = A vs phase7-synth = B), the owner prefers A, the prototype samples. A stays active. The synthesized set B stays in `Audio/Synth/` as a documented fallback. Open item: A's origin is still unknown (see docs/AUDIO_ASSET_LICENSES.md). Before any public release, either document A's origin or regenerate it with a script, so it has a known source.
+After listening on the emulator (phase6l = A vs phase7-synth = B), the owner prefers A, the prototype samples. A stays active. The synthesized set B stays in `Audio/Synth/` as a documented fallback. Same day, A's origin was resolved: `ArtSource/Audio/gen_world_instruments.py` was recovered from the 2026-10-15 session, and it regenerates all 15 active WAVs byte for byte. A is project-made synthesis, not a recording.
