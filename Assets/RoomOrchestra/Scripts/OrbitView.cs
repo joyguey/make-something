@@ -9,8 +9,6 @@ namespace RoomOrchestra
     /// marker exactly when its repeat sounds; one revolution is one bar. Minis are pre-placed in the
     /// scene and parked at the ring's centre when unused (PICO Spatial: no runtime objects, no
     /// scale-hiding, nothing changes at startup).
-    /// Calm motion: minis hold still at their step's place on the ring (read clockwise from the top)
-    /// and the marker steps to the current beat instead, so nothing sweeps around.
     /// </summary>
     public class OrbitView : MonoBehaviour
     {
@@ -31,8 +29,6 @@ namespace RoomOrchestra
         readonly Dictionary<Transform, Vector3> m_BaseScale = new();
         readonly HashSet<long> m_Seen = new();
         readonly List<long> m_Stale = new();
-        Vector3 m_MarkerHome;
-        bool m_HasMarkerHome;
 
         public InstrumentTarget Target => target;
         public float Radius => radius;
@@ -54,7 +50,7 @@ namespace RoomOrchestra
         /// </summary>
         public Vector3 PositionAt(double phase, int step) => PointAt(phase - step / (double)MusicClock.StepsPerBar, radius);
 
-        /// <summary>Calm motion: an echo's fixed place, <paramref name="step"/>/16 of a turn clockwise from the top.</summary>
+        /// <summary>An echo's place on the ring, <paramref name="step"/>/16 of a turn clockwise from the top.</summary>
         public Vector3 SlotPosition(int step) => PointAt(step / (double)MusicClock.StepsPerBar, radius);
 
         public Transform Marker => marker;
@@ -73,8 +69,6 @@ namespace RoomOrchestra
         /// <summary>Places this target's echoes on the ring for the given bar phase; parks the rest.</summary>
         public void Sync(IReadOnlyList<EchoEvent> echoes, double phase, long selectedId)
         {
-            bool calm = ComfortSettings.CalmMotion;
-            SyncMarker(calm, phase);
             m_Seen.Clear();
             foreach (var echo in echoes)
             {
@@ -87,7 +81,7 @@ namespace RoomOrchestra
                     m_ByEcho[echo.StableId] = mini;
                     m_ByMini[mini] = echo.StableId;
                 }
-                Move(mini, calm ? SlotPosition(echo.Step) : PositionAt(phase, echo.Step));
+                Move(mini, PositionAt(phase, echo.Step));
                 Scale(mini, echo.StableId == selectedId ? selectedScale : 1f);
             }
 
@@ -101,23 +95,6 @@ namespace RoomOrchestra
                 Scale(mini, 1f);
                 if (parkPoint != null) Move(mini, parkPoint.position);
             }
-        }
-
-        void SyncMarker(bool calm, double phase)
-        {
-            if (marker == null) return;
-            if (!m_HasMarkerHome)
-            {
-                m_MarkerHome = marker.localPosition;
-                m_HasMarkerHome = true;
-            }
-            if (!calm)
-            {
-                if (marker.localPosition != m_MarkerHome) marker.localPosition = m_MarkerHome;
-                return;
-            }
-            double beat = System.Math.Floor(phase * MusicClock.BeatsPerBar) / MusicClock.BeatsPerBar;
-            Move(marker, PointAt(beat, m_MarkerHome.magnitude));
         }
 
         Transform FreeMini(OrbType orb)

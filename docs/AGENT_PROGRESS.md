@@ -193,5 +193,11 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 
 - Test infra: loading the real scene in play mode made the SpatialAdapter Play-to-Device check pop a modal dialog and set `m_enableLoadingFromScene` (Assets/Settings/SpatialAdapterP2DSettings.asset). The setting was restored (editor-only, unused by APK builds); the test now unhooks that editor dialog for its own run and unloads the scene afterwards.
 
+## 2026-10-25 | Owner direction — Calm motion removed, priorities before more accessibility UI
+- Owner: Calm motion "feels unnecessary"; "too many buttons at the bottom"; UI clean-up later. Removed the Motion button, the calm branch in OrbitView (minis still/marker stepping) and the ColorFlash skip. Height stays, now at x 0.54 in the front row.
+- A11Y-04 is now NOT IMPLEMENTED (no reduced-motion option); its walkthrough test was removed. CLAUDE.md lists adjustable motion as a hard gate: revisit during UI clean-up (e.g. inside one settings control rather than another front-row button).
+- Owner wants core features before more accessibility UI, because headset look may differ from the emulator.
+- Tests: EditMode 130/130, PlayMode 33/33.
+
 ## Resume here (next session)
-1. Prompt 05 (rest): interface scale/contrast option (A11Y-08 FAIL), calm-mode gaps (aim arc, focus marker); owner emulator check of Calm + Height.
+1. Owner to choose the next prompt (06 character art / 07 sound / 08 tempo / 09 QA). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

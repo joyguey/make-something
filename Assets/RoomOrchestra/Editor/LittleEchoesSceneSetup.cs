@@ -101,13 +101,12 @@ namespace RoomOrchestra.EditorTools
             conductor.Configure(orbits);
             EditorUtility.SetDirty(conductor);
             CreateUndoButton(controls, slabMaterial, motifMaterial);
-            // Front row right of Undo, 0.14 m apart so Height still fits inside the seated view.
+            // Front row right of Undo, 0.14 m apart.
             CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.12f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
             CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.26f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
             CreateRecenterButton(new Vector3(0.40f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
-            CreateMotionButton(new Vector3(0.54f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
-            CreateHeightButton(new Vector3(0.68f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
-            // The ball stand steps right and back to make room for the Motion button (still seated reach).
+            CreateHeightButton(new Vector3(0.54f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
+            // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
             if (dispenser != null) dispenser.position = DispenserPosition;
             if (parent != null && !parent.TryGetComponent<StageAnchor>(out _)) parent.AddComponent<StageAnchor>();
@@ -374,29 +373,6 @@ namespace RoomOrchestra.EditorTools
             dot.localScale = new Vector3(0.01f, 0.001f, 0.01f);
             Label("RecenterLabel", "Recenter", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f);
             go.AddComponent<RecenterButton>();
-        }
-
-        // Motion (Full / Calm), at the end of the front row: three still dots, and a label with the mode.
-        static void CreateMotionButton(Vector3 position, Transform root, Material slab, Material mark)
-        {
-            var go = new GameObject("MotionButton");
-            go.transform.SetParent(root, false);
-            go.transform.position = position;
-            go.transform.rotation = FacePlayer(position);
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = new Vector3(0.13f, 0.08f, 0.1f);
-            Box("MotionSlab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
-            for (int i = -1; i <= 1; i++)
-            {
-                var dot = Primitive(PrimitiveType.Sphere, $"MotionDot{i + 1}", go.transform, mark, keepCollider: false);
-                dot.localPosition = new Vector3(0.022f * i, 0.025f, 0f);
-                dot.localScale = Vector3.one * 0.014f;
-            }
-            var label = Label("MotionLabel", MotionToggleButton.TextFor(MotionMode.Full), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.04f);
-            var button = go.AddComponent<MotionToggleButton>();
-            button.Configure(label.GetComponentInChildren<TMP_Text>());
-            EditorUtility.SetDirty(button);
         }
 
         // Height (Seated / Standing), at the end of the front row: an up-down arrow, and a label with the setting.

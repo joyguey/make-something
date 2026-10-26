@@ -38,7 +38,6 @@ namespace RoomOrchestra
 
         public void Flash()
         {
-            if (ComfortSettings.CalmMotion) return; // calm motion: no flashing
             if (m_Materials == null)
                 CreateInstances();
             m_Remaining = duration;

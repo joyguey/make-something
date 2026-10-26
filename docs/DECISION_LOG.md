@@ -76,3 +76,6 @@ Use entries of form:
 - Session-only, Seated default: restoring Standing at launch would move objects before PICO Spatial connects (known startup pose race). Revisit with a delayed restore after a headset test.
 - Test-only: the walkthrough loads the real scene in play mode; the SpatialAdapter Play-to-Device validator then opens a modal dialog that changes a project setting. The test unhooks that editor-only callback instead of changing the setting.
 
+## 2026-10-25 | Owner | Calm motion removed; core features before more accessibility UI
+- Owner decision: remove Calm motion (felt unnecessary) and stop adding front-row buttons; UI clean-up later. Accessibility options still required by CLAUDE.md (motion, scale/contrast) are deferred to that clean-up, not dropped, and recorded as NOT IMPLEMENTED until then.
+

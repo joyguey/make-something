@@ -25,7 +25,6 @@ namespace RoomOrchestra.Tests
         [TearDown]
         public void TearDown()
         {
-            ComfortSettings.SetMotion(MotionMode.Full);
             foreach (var go in m_Spawned) if (go != null) Object.Destroy(go);
             m_Spawned.Clear();
         }
@@ -252,61 +251,6 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(m_Conductor.IsPaused, "still paused on return: the player taps Play");
             m_Conductor.SendMessage("OnApplicationPause", true);
             Assert.IsTrue(m_Conductor.IsPaused, "a second background trip does not toggle it back on");
-        }
-
-        [UnityTest]
-        public IEnumerator CalmMotionHoldsMinisStillStepsTheMarkerByBeatAndStopsFlashes()
-        {
-            var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);
-            var flash = chair.gameObject.AddComponent<ColorFlash>();
-            MakeRig(chair);
-            var orbitGo = new GameObject("Orbit");
-            m_Spawned.Add(orbitGo);
-            orbitGo.transform.position = new Vector3(0f, 1f, 2f);
-            var marker = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
-            marker.SetParent(orbitGo.transform, false);
-            var home = new Vector3(0f, 0.355f, 0f);
-            marker.localPosition = home;
-            var view = orbitGo.AddComponent<OrbitView>();
-            Transform[] Pool()
-            {
-                var pool = new Transform[EchoSequencer.MaxPerTarget];
-                for (int i = 0; i < pool.Length; i++)
-                {
-                    pool[i] = GameObject.CreatePrimitive(PrimitiveType.Sphere).transform;
-                    pool[i].SetParent(orbitGo.transform, false);
-                    pool[i].localScale = Vector3.one * 0.05f;
-                }
-                return pool;
-            }
-            var bop = Pool();
-            view.Configure(chair, orbitGo.transform, Pool(), bop, Pool(), 0.3f, marker);
-            yield return null;
-            var hit = new MusicalHitEvent(1, 1, InstrumentType.Mbira, OrbType.Bop, IntensityTier.Medium, PitchInput.FromPetal(1), InputPath.Place,
-                m_Conductor.Clock.TimeOf(0, 6));
-            m_Conductor.Sequencer.TryAdd(hit, out _);
-
-            ComfortSettings.SetMotion(MotionMode.Calm);
-            view.Sync(m_Conductor.Sequencer.Echoes, 1 / 16.0, 0);
-            var still = bop[0].position;
-            Assert.Less((still - view.SlotPosition(6)).magnitude, 1e-4f, "mini sits at its own step on the ring");
-            Assert.Less((marker.localPosition - home).magnitude, 1e-4f, "beat 1: marker at the top");
-            view.Sync(m_Conductor.Sequencer.Echoes, 9 / 16.0, 0);
-            Assert.Less((bop[0].position - still).magnitude, 1e-5f, "mini holds still through the bar");
-            Assert.AreEqual(0f, marker.localPosition.x, 1e-4f, "beat 3: marker at the bottom");
-            Assert.AreEqual(-home.y, marker.localPosition.y, 1e-4f);
-            view.Sync(m_Conductor.Sequencer.Echoes, 10 / 16.0, 0);
-            Assert.AreEqual(-home.y, marker.localPosition.y, 1e-4f, "marker only moves on the beat");
-
-            flash.Flash();
-            Assert.IsFalse(flash.IsFlashing, "no flashing in calm motion");
-
-            ComfortSettings.SetMotion(MotionMode.Full);
-            view.Sync(m_Conductor.Sequencer.Echoes, 6 / 16.0, 0);
-            Assert.Less((bop[0].position - view.MarkerPosition).magnitude, 1e-4f, "full motion: mini travels to the top again");
-            Assert.Less((marker.localPosition - home).magnitude, 1e-4f, "marker back home");
-            flash.Flash();
-            Assert.IsTrue(flash.IsFlashing);
         }
 
         [UnityTest]

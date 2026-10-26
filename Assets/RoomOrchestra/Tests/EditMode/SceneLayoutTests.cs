@@ -175,7 +175,6 @@ namespace RoomOrchestra.Tests
             if (owner == null) owner = c.GetComponentInParent<MusicControlButton>();
             if (owner == null) owner = c.GetComponentInParent<RecenterButton>();
             if (owner == null) owner = c.GetComponentInParent<MixButton>();
-            if (owner == null) owner = c.GetComponentInParent<MotionToggleButton>();
             if (owner == null) owner = c.GetComponentInParent<HeightButton>();
             if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
             return owner;
@@ -458,18 +457,6 @@ namespace RoomOrchestra.Tests
                 StringAssert.EndsWith("\nVol 100%", mix.Label.text);
                 StringAssert.StartsWith(mix.Target.Instrument.ToString().ToLowerInvariant(), mix.Label.text);
             }
-        }
-
-        [Test]
-        public void MotionToggleLabeledReachableAndOrbitsHaveAMarker()
-        {
-            var motion = Object.FindFirstObjectByType<MotionToggleButton>();
-            Assert.IsNotNull(motion);
-            AssertSeated(motion.name, motion.transform.position);
-            Assert.IsNotNull(motion.GetComponent<Collider>(), "tappable");
-            Assert.AreEqual("Motion\nFull", motion.Label.text, "starts in full motion: nothing changes at startup");
-            foreach (var orbit in Object.FindObjectsByType<OrbitView>(FindObjectsSortMode.None))
-                Assert.IsNotNull(orbit.Marker, $"{orbit.name} play marker wired for calm motion");
         }
 
         [Test]

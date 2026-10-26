@@ -31,7 +31,6 @@ namespace RoomOrchestra.Tests
         [UnitySetUp]
         public IEnumerator LoadScene()
         {
-            ComfortSettings.SetMotion(MotionMode.Full);
             ComfortSettings.SetPosture(PlayPosture.Seated);
             MusicalHitPipeline.Reset();
             // The PICO SDK's scene components ask Android for currentActivity, which throws in the Editor.
@@ -69,7 +68,6 @@ namespace RoomOrchestra.Tests
         [UnityTearDown]
         public IEnumerator Unload()
         {
-            ComfortSettings.SetMotion(MotionMode.Full);
             ComfortSettings.SetPosture(PlayPosture.Seated);
             var empty = SceneManager.CreateScene($"A11yEmpty{Time.frameCount}");
             SceneManager.SetActiveScene(empty);
@@ -199,7 +197,7 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count);
         }
 
-        // ---- A11Y-03: everything muted, the music stays visible ----
+        // ---- A11Y-03: everything muted, the echoes stay visible ----
         [UnityTest]
         public IEnumerator A11y03_MutedMixStillShowsBeatAndEchoes()
         {
@@ -219,30 +217,6 @@ namespace RoomOrchestra.Tests
             var start = mini.transform.position;
             yield return new WaitForSeconds(0.5f);
             Assert.Greater((mini.transform.position - start).magnitude, 0.01f, "it still travels with the beat while muted");
-
-            ComfortSettings.SetMotion(MotionMode.Calm);
-            yield return new WaitForSeconds(0.8f); // over a beat (0.68 s at 88 BPM)
-            var markerA = orbit.Marker.localPosition;
-            yield return new WaitForSeconds(0.7f);
-            Assert.Greater((orbit.Marker.localPosition - markerA).magnitude, 0.01f, "calm + muted: the beat marker still steps");
-        }
-
-        // ---- A11Y-04: calm motion keeps every cue (scene-level) ----
-        [UnityTest]
-        public IEnumerator A11y04_CalmMotionTappedFromTheButtonKeepsEchoesAndMarkers()
-        {
-            var hand = SeatedHand(0);
-            Tap(hand, Find<PitchTile>(t => t.Target.Instrument == InstrumentType.Udu && t.Petal == 1));
-            Tap(hand, Find<MotionToggleButton>());
-            Assert.IsTrue(ComfortSettings.CalmMotion);
-            Assert.AreEqual("Motion\nCalm", Find<MotionToggleButton>().Label.text);
-            yield return null;
-            var orbit = m_Conductor.Orbits.First(o => o.Target.Instrument == InstrumentType.Udu);
-            var mini = orbit.GetComponentsInChildren<EchoMini>().First(m => orbit.EchoFor(m.transform) != 0);
-            var still = mini.transform.position;
-            yield return new WaitForSeconds(0.5f);
-            Assert.Less((mini.transform.position - still).magnitude, 1e-4f, "the echo holds still at its place");
-            foreach (var o in m_Conductor.Orbits) Assert.IsNotNull(o.Marker, $"{o.name} keeps a beat marker");
         }
 
         // ---- A11Y-05: controller lost mid-edit, the other one carries on (no softlock) ----
