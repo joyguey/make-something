@@ -466,13 +466,15 @@ namespace RoomOrchestra.Tests
             string[] parts = { "Outline", "EyeL", "EyeR", "Smile", "Mouth_O", "Highlight", "Motif" };
             foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
             {
-                var body = token.GetComponent<MeshFilter>();
+                var visual = token.transform.Find("Visual");
+                Assert.IsNotNull(visual, $"{token.name} has a wobbling visual");
+                var body = visual.GetComponent<MeshFilter>();
                 Assert.IsNotNull(body, $"{token.name} has a character body");
                 Assert.AreEqual($"{token.Orb}_Body", body.sharedMesh.name);
                 int triangles = body.sharedMesh.triangles.Length / 3;
                 foreach (var part in parts)
                 {
-                    var child = token.transform.Find(part);
+                    var child = visual.Find(part);
                     Assert.IsNotNull(child, $"{token.name} has {part}");
                     var mesh = child.GetComponent<MeshFilter>().sharedMesh;
                     Assert.AreEqual($"{token.Orb}_{part}", mesh.name);
@@ -482,16 +484,16 @@ namespace RoomOrchestra.Tests
 
                 // Face toward the seated player: the eyes are nearer the eye than the body centre.
                 var eye = new Vector3(0f, 1.15f, 0f);
-                var eyes = token.transform.Find("EyeL").GetComponent<Renderer>().bounds.center;
+                var eyes = visual.Find("EyeL").GetComponent<Renderer>().bounds.center;
                 Assert.Less(Vector3.Distance(eye, eyes), Vector3.Distance(eye, token.transform.position) - 0.02f, $"{token.name} faces the player");
                 // The player's left eye is on the player's left.
                 var right = Vector3.Cross(Vector3.up, token.transform.position - eye).normalized;
-                Assert.Less(Vector3.Dot(token.transform.Find("EyeL").GetComponent<Renderer>().bounds.center - token.transform.position, right),
-                    Vector3.Dot(token.transform.Find("EyeR").GetComponent<Renderer>().bounds.center - token.transform.position, right), $"{token.name} eyes not mirrored");
+                Assert.Less(Vector3.Dot(visual.Find("EyeL").GetComponent<Renderer>().bounds.center - token.transform.position, right),
+                    Vector3.Dot(visual.Find("EyeR").GetComponent<Renderer>().bounds.center - token.transform.position, right), $"{token.name} eyes not mirrored");
 
                 // The surprised mouth waits wholly inside the body (PICO Spatial draws inactive objects).
-                var mouth = token.transform.Find("Mouth_O").GetComponent<Renderer>().bounds;
-                var bodyBounds = token.GetComponent<Renderer>().bounds;
+                var mouth = visual.Find("Mouth_O").GetComponent<Renderer>().bounds;
+                var bodyBounds = visual.GetComponent<Renderer>().bounds;
                 var inner = new Bounds(bodyBounds.center, bodyBounds.size * 0.8f);
                 Assert.IsTrue(inner.Contains(mouth.min) && inner.Contains(mouth.max), $"{token.name} oh-mouth parked inside the body");
             }
@@ -519,6 +521,19 @@ namespace RoomOrchestra.Tests
             }
         }
 
+        static void AssertAlive(Component character, CharacterFace face, bool awake)
+        {
+            Assert.IsNotNull(face, $"{character.name} face");
+            var jelly = character.GetComponent<JellyBody>();
+            Assert.IsNotNull(jelly, $"{character.name} jelly body");
+            Assert.AreEqual(awake, jelly.IsAwake, $"{character.name} authored awake state");
+            Assert.IsNotNull(jelly.Visual, character.name);
+            Assert.AreNotEqual(character.transform, jelly.Visual, $"{character.name} wobbles a child, never the root its owner moves and scales");
+            Assert.IsTrue(face.EyeL.IsChildOf(jelly.Visual) && face.Smile.IsChildOf(jelly.Visual), $"{character.name} face rides on the jelly");
+            Assert.AreEqual(Vector3.one, jelly.Visual.localScale, $"{character.name} authored at rest");
+            Assert.AreEqual(Quaternion.identity, jelly.Visual.localRotation, character.name);
+        }
+
         [Test]
         public void EveryCharacterHasAFaceAndTheDirectorListens()
         {
@@ -527,15 +542,12 @@ namespace RoomOrchestra.Tests
                 var face = token.GetComponent<CharacterFace>();
                 Assert.IsNotNull(face, token.name);
                 Assert.IsNotNull(face.MouthO, $"{token.name} can say oh");
-                Assert.IsNull(face.Visual, $"{token.name}: selection size owns the token scale, no squash");
+                AssertAlive(token, face, awake: true);
             }
             foreach (var mini in Object.FindObjectsByType<EchoMini>(FindObjectsSortMode.None))
-            {
-                var face = mini.GetComponent<CharacterFace>();
-                Assert.IsNotNull(face, mini.name);
-                Assert.IsNotNull(face.Visual, $"{mini.name} squashes a child, not the root the orbit scales");
-                Assert.IsTrue(face.EyeL.IsChildOf(face.Visual) && face.Smile.IsChildOf(face.Visual), mini.name);
-            }
+                AssertAlive(mini, mini.GetComponent<CharacterFace>(), awake: false); // parked in the hub
+            foreach (var ball in Object.FindObjectsByType<Ball>(FindObjectsSortMode.None))
+                AssertAlive(ball, ball.GetComponent<CharacterFace>(), awake: false); // the launcher wakes the one it hands out
             var director = Object.FindFirstObjectByType<CharacterDirector>();
             Assert.IsNotNull(director, "CharacterDirector in scene");
         }
@@ -547,7 +559,8 @@ namespace RoomOrchestra.Tests
             {
                 Assert.IsNotNull(ball.Rim, $"{ball.name} rim");
                 Assert.AreEqual(3, ball.FaceParts.Count, $"{ball.name} eyes and smile");
-                Assert.AreEqual("Bop_Body", ball.GetComponent<MeshFilter>().sharedMesh.name);
+                Assert.AreEqual("Bop_Body", ball.transform.Find("Visual").GetComponent<MeshFilter>().sharedMesh.name);
+                Assert.IsNull(ball.GetComponent<MeshRenderer>(), $"{ball.name}: the look lives on the wobbling child only");
                 var faceColor = ball.FaceParts[0].sharedMaterial.GetColor("_BaseColor");
                 var expected = OrbCatalog.Get(ball.Orb).Face;
                 Assert.Less(Mathf.Abs(faceColor.r - expected.R) + Mathf.Abs(faceColor.g - expected.G) + Mathf.Abs(faceColor.b - expected.B), 1e-3f,

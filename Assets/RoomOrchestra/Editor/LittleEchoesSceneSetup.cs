@@ -548,13 +548,15 @@ namespace RoomOrchestra.EditorTools
                 float diameter = so.FindProperty("diameter").floatValue;
                 so.ApplyModifiedPropertiesWithoutUndo();
                 ball.transform.localScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * diameter;
-                var renderer = ball.GetComponent<Renderer>();
-                if (renderer != null) renderer.sharedMaterial = flutter;
                 if (CharacterArt.Has(OrbType.Bop))
                 {
-                    var (rim, face) = CharacterArt.DressBall(ball.gameObject, OrbType.Flutter);
-                    ball.ConfigureCharacter(rim, face);
+                    var (look, rim, face) = CharacterArt.DressBall(ball.gameObject, OrbType.Flutter);
+                    ball.ConfigureCharacter(rim, face, look);
                     EditorUtility.SetDirty(ball);
+                }
+                else if (ball.TryGetComponent<Renderer>(out var renderer))
+                {
+                    renderer.sharedMaterial = flutter;
                 }
                 var body = ball.GetComponent<Rigidbody>();
                 if (body != null) body.mass = profile.Mass;

@@ -87,8 +87,8 @@ namespace RoomOrchestra
         {
             new OrbProfile(OrbType.Flutter, "Flutter", "tall droplet", "sparkle",
                 mass: 0.6f, bounciness: 0.35f, maxLaunchSpeed: 9f,
-                scaleX: 0.85f, scaleY: 1.25f, scaleZ: 0.85f, r: 0.61f, g: 0.89f, b: 0.90f,
-                rim: new Rgb(0.30f, 0.60f, 0.65f), face: new Rgb(0.18f, 0.33f, 0.35f)),
+                scaleX: 0.85f, scaleY: 1.25f, scaleZ: 0.85f, r: 0.36f, g: 0.93f, b: 0.95f, // brighter than the reference fill, at the owner's request (2026-10-25)
+                rim: new Rgb(0.13f, 0.62f, 0.70f), face: new Rgb(0.10f, 0.32f, 0.36f)),
             new OrbProfile(OrbType.Bop, "Bop", "round orb", "dot",
                 mass: 1.0f, bounciness: 0.6f, maxLaunchSpeed: 9f,
                 scaleX: 1f, scaleY: 1f, scaleZ: 1f, r: 0.76f, g: 0.61f, b: 0.95f,

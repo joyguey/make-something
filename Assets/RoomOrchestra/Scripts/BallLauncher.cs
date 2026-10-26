@@ -94,6 +94,7 @@ namespace RoomOrchestra
         void Park(Ball ball)
         {
             ball.Hold();
+            ball.SetAlive(false);
             ball.FitForParking();
             Teleport(ball, ParkPosition, Quaternion.identity);
         }
@@ -269,6 +270,7 @@ namespace RoomOrchestra
             }
 
             next.Hold();
+            next.SetAlive(true);
             next.ApplyOrb(m_Orb);
             Teleport(next, spawnPoint.position, spawnPoint.rotation);
             m_Ready = next;

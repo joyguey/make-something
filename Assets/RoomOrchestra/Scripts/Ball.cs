@@ -21,6 +21,8 @@ namespace RoomOrchestra
         [SerializeField] OrbType orb = OrbType.Flutter;
         [Tooltip("Size of a round (Bop-proportioned) orb; other orbs stretch from this.")]
         [SerializeField, Min(0.01f)] float diameter = 0.1f;
+        [Tooltip("Body renderer (on the wobbling visual child); defaults to this object's renderer.")]
+        [SerializeField] Renderer body;
         [Tooltip("Character rim and face parts, recoloured for whichever orb this ball is.")]
         [SerializeField] Renderer rim;
         [SerializeField] Renderer[] faceParts;
@@ -43,7 +45,7 @@ namespace RoomOrchestra
         void Awake()
         {
             m_Body = GetComponent<Rigidbody>();
-            m_Renderer = GetComponent<Renderer>();
+            m_Renderer = body != null ? body : GetComponent<Renderer>();
         }
 
         /// <summary>
@@ -88,8 +90,9 @@ namespace RoomOrchestra
         }
 
         /// <summary>Wires the character parts (scene setup tool and tests).</summary>
-        public void ConfigureCharacter(Renderer rimRenderer, Renderer[] face)
+        public void ConfigureCharacter(Renderer rimRenderer, Renderer[] face, Renderer bodyRenderer = null)
         {
+            if (bodyRenderer != null) body = bodyRenderer;
             rim = rimRenderer;
             faceParts = face;
         }
@@ -131,8 +134,15 @@ namespace RoomOrchestra
             m_LaunchTime = Time.time;
         }
 
+        /// <summary>Alive (wobbling, blinking) on the stand, in the hand and in flight; at rest when parked.</summary>
+        public void SetAlive(bool alive)
+        {
+            if (TryGetComponent<JellyBody>(out var jelly)) jelly.SetAwake(alive);
+        }
+
         void OnCollisionEnter(Collision collision)
         {
+            if (TryGetComponent<JellyBody>(out var jelly)) jelly.Kick(collision.relativeVelocity.magnitude / 5f); // splat
             if (!InFlight || MusicalHitPipeline.HasFired(m_ActionId)) return;
             var target = collision.collider.GetComponentInParent<InstrumentTarget>();
             if (target == null) return;

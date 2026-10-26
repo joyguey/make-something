@@ -20,8 +20,9 @@ namespace RoomOrchestra
         public void SetSelected(bool selected)
         {
             Vector3 target = selected ? baseScale * selectedScale : baseScale;
-            if (transform.localScale != target) // only touch transforms on real changes (Spatial renderer)
-                transform.localScale = target;
+            if (transform.localScale == target) return; // only touch transforms on real changes (Spatial renderer)
+            transform.localScale = target;
+            if (selected && TryGetComponent<JellyBody>(out var body)) body.Hop(); // "pick me!"
         }
     }
 }

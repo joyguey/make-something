@@ -29,6 +29,7 @@ namespace RoomOrchestra
         readonly Dictionary<Transform, Vector3> m_BaseScale = new();
         readonly HashSet<long> m_Seen = new();
         readonly List<long> m_Stale = new();
+        double m_LastPhase = -1;
 
         public InstrumentTarget Target => target;
         public float Radius => radius;
@@ -83,6 +84,13 @@ namespace RoomOrchestra
                     if (mini == null) continue;
                     m_ByEcho[echo.StableId] = mini;
                     m_ByMini[mini] = echo.StableId;
+                    if (mini.TryGetComponent<JellyBody>(out var waking)) waking.SetAwake(true);
+                }
+                else if (Crossed(m_LastPhase, phase, echo.Step))
+                {
+                    // Its note is sounding now: a little hop and smiling eyes.
+                    if (mini.TryGetComponent<JellyBody>(out var body)) body.Hop();
+                    if (mini.TryGetComponent<CharacterFace>(out var face)) face.Beam();
                 }
                 Move(mini, PositionAt(phase, echo.Step));
                 Scale(mini, echo.StableId == selectedId ? selectedScale : 1f);
@@ -96,8 +104,10 @@ namespace RoomOrchestra
                 m_ByEcho.Remove(id);
                 m_ByMini.Remove(mini);
                 Scale(mini, 1f);
+                if (mini.TryGetComponent<JellyBody>(out var sleeping)) sleeping.SetAwake(false); // rest wholly inside the hub
                 if (parkPoint != null) Move(mini, parkPoint.position);
             }
+            m_LastPhase = phase;
         }
 
         Transform FreeMini(OrbType orb)
@@ -107,6 +117,14 @@ namespace RoomOrchestra
             foreach (var mini in pool)
                 if (mini != null && !m_ByMini.ContainsKey(mini)) return mini;
             return null;
+        }
+
+        /// <summary>True when the bar phase passed <paramref name="step"/>'s place this frame (wrapping at the bar line).</summary>
+        public static bool Crossed(double lastPhase, double phase, int step)
+        {
+            if (lastPhase < 0 || lastPhase == phase) return false;
+            double at = step / (double)MusicClock.StepsPerBar;
+            return lastPhase < phase ? at > lastPhase && at <= phase : at > lastPhase || at <= phase;
         }
 
         static void Move(Transform t, Vector3 position)

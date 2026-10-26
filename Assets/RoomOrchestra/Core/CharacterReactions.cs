@@ -11,13 +11,11 @@ namespace RoomOrchestra
 
     /// <summary>
     /// Which face a character pulls, from what the music is doing (docs/ART_AND_AUDIO_BIBLE.md:
-    /// surprise on first hit, siblings glance and smile, a busy loop bounces on the bar).
+    /// surprise on first hit, siblings glance and smile). Busy loops get livelier by themselves: every
+    /// mini hops on its own note.
     /// </summary>
     public static class CharacterReactions
     {
-        /// <summary>A loop this busy on one object counts as an exciting rhythm.</summary>
-        public const int ExcitedAt = 4;
-
         /// <summary>
         /// Reaction of the echo just planted. For a sibling, <paramref name="siblingId"/> is the most
         /// recent other echo of the same character on the same object.
@@ -34,7 +32,5 @@ namespace RoomOrchestra
             }
             return Expression.Curious;
         }
-
-        public static bool IsExcited(int echoesOnObject) => echoesOnObject >= ExcitedAt;
     }
 }

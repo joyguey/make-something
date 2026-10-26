@@ -441,8 +441,32 @@ namespace RoomOrchestra.Tests
             var second = Plant(OrbType.Flutter, InstrumentType.Erhu, 6);
             Assert.AreEqual(Expression.Sibling, CharacterReactions.OnPlanted(sequencer.Echoes, second, out long sibling));
             Assert.AreEqual(first.StableId, sibling);
-            Assert.IsFalse(CharacterReactions.IsExcited(CharacterReactions.ExcitedAt - 1));
-            Assert.IsTrue(CharacterReactions.IsExcited(CharacterReactions.ExcitedAt));
+        }
+
+        [Test]
+        public void EachCharacterMovesWithItsOwnPersonality()
+        {
+            var flutter = CharacterMotion.For(OrbType.Flutter);
+            var bop = CharacterMotion.For(OrbType.Bop);
+            var boom = CharacterMotion.For(OrbType.Boom);
+            Assert.Greater(flutter.HopHeight, boom.HopHeight, "light Flutter hops higher than heavy Boom");
+            Assert.Greater(flutter.BreatheRate, boom.BreatheRate, "Boom breathes slowly");
+            Assert.Greater(bop.Stiffness, flutter.Stiffness, "Bop is the springiest");
+            Assert.Greater(boom.Damping, bop.Damping, "Boom settles heavily, Bop keeps wobbling");
+            Assert.AreEqual(0f, CharacterMotion.HopArc(0f));
+            Assert.AreEqual(0f, CharacterMotion.HopArc(1f));
+            Assert.AreEqual(1f, CharacterMotion.HopArc(0.5f), 1e-6f);
+        }
+
+        [Test]
+        public void AMiniHopsExactlyWhenTheBarPassesItsStep()
+        {
+            Assert.IsTrue(OrbitView.Crossed(0.30, 0.32, 5), "step 5 = 0.3125");
+            Assert.IsFalse(OrbitView.Crossed(0.32, 0.34, 5), "already passed");
+            Assert.IsFalse(OrbitView.Crossed(0.30, 0.30, 5), "paused: no hop");
+            Assert.IsTrue(OrbitView.Crossed(0.98, 0.01, 0), "step 0 across the bar line");
+            Assert.IsFalse(OrbitView.Crossed(0.98, 0.01, 8), "the wrap does not catch the middle of the bar");
+            Assert.IsFalse(OrbitView.Crossed(-1, 0.5, 4), "first frame: no hop");
         }
     }
 }

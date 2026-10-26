@@ -4,10 +4,10 @@ using UnityEngine;
 namespace RoomOrchestra
 {
     /// <summary>
-    /// Turns musical events into faces: the tray character and the new echo look surprised the first
-    /// time a character lands on an object; a second one of the same kind glances at its sibling (and
-    /// the sibling glances back); a busy loop (CharacterReactions.ExcitedAt echoes or more) bounces on
-    /// each new bar. Minis are assigned by the orbits a frame after planting, so reactions wait for them.
+    /// Turns musical events into reactions: the tray character hops and says "oh"; the new echo hops
+    /// and looks surprised the first time a character lands on an object; a second one of the same
+    /// kind hops and glances at its sibling (which glances back). Minis are assigned by the orbits a
+    /// frame after planting, so reactions wait for them. (Each mini also hops when its note plays: OrbitView.)
     /// </summary>
     public class CharacterDirector : MonoBehaviour
     {
@@ -15,7 +15,6 @@ namespace RoomOrchestra
         [SerializeField] OrbToken[] tokens;
 
         readonly List<(long id, Expression expression, long siblingId)> m_Pending = new();
-        long m_LastBar = long.MinValue;
 
         public void Configure(EchoConductor echoConductor, OrbToken[] trayTokens)
         {
@@ -39,8 +38,7 @@ namespace RoomOrchestra
             m_Pending.Add((echo.StableId, expression, sibling));
             if (tokens == null) return;
             foreach (var token in tokens)
-                if (token != null && token.Orb == echo.Orb && token.TryGetComponent<CharacterFace>(out var face))
-                    face.Show(Expression.Curious);
+                if (token != null && token.Orb == echo.Orb) React(token.transform, Expression.Curious);
         }
 
         void LateUpdate()
@@ -60,29 +58,21 @@ namespace RoomOrchestra
                 if (expression == Expression.Sibling && sibling != null)
                 {
                     float side = Side(orbit, sibling.transform) - Side(orbit, mini.transform);
-                    mini.Show(Expression.Sibling, Mathf.Sign(side));
-                    sibling.Show(Expression.Sibling, -Mathf.Sign(side));
+                    React(mini.transform, Expression.Sibling, Mathf.Sign(side));
+                    React(sibling.transform, Expression.Sibling, -Mathf.Sign(side));
                 }
                 else
                 {
-                    mini.Show(Expression.Curious);
+                    React(mini.transform, Expression.Curious);
                 }
             }
+        }
 
-            long bar = conductor.Clock.BarIndex(AudioSettings.dspTime);
-            if (bar == m_LastBar) return;
-            m_LastBar = bar;
-            if (conductor.IsPaused) return;
-            foreach (var orbit in conductor.Orbits)
-            {
-                if (orbit == null || orbit.Target == null) continue;
-                if (!CharacterReactions.IsExcited(conductor.Sequencer.CountOn(orbit.Target.Instrument))) continue;
-                foreach (var echo in conductor.Sequencer.Echoes)
-                {
-                    var mini = echo.Target == orbit.Target.Instrument ? orbit.MiniFor(echo.StableId) : null;
-                    if (mini != null && mini.TryGetComponent<CharacterFace>(out var face)) face.Bounce();
-                }
-            }
+        static void React(Transform character, Expression expression, float glance = 0f)
+        {
+            if (character.TryGetComponent<CharacterFace>(out var face)) face.Show(expression, glance);
+            if (character.TryGetComponent<JellyBody>(out var body)) body.Hop();
+
         }
 
         // Left/right as the player sees the ring.
