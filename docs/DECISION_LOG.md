@@ -85,3 +85,6 @@ Use entries of form:
 - Balls share one face recoloured per character rather than swapping meshes at runtime (unverified under PICO Spatial). Orbit minis use a lighter mesh set and keep their face on a child so the orbit's selection scale and the bounce never fight.
 - Outline is an inverted hull (geometry only, standard Lit material), not a custom shader, so it survives PICO Spatial's material conversion — confirmed on the emulator for the ready ball.
 
+
+## 2026-10-26 — Owner keeps sound set A
+After listening on the emulator (phase6l = A vs phase7-synth = B), the owner prefers A, the prototype samples. A stays active. The synthesized set B stays in `Audio/Synth/` as a documented fallback. Open item: A's origin is still unknown (see docs/AUDIO_ASSET_LICENSES.md). Before any public release, either document A's origin or regenerate it with a script, so it has a known source.
