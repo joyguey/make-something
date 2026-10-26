@@ -63,6 +63,9 @@ namespace RoomOrchestra
 
         public Vector3 MarkerPosition => transform.TransformPoint(new Vector3(0f, radius, 0f));
 
+        /// <summary>The mini showing <paramref name="echoId"/>, or null (not on the ring yet).</summary>
+        public Transform MiniFor(long echoId) => m_ByEcho.TryGetValue(echoId, out var mini) ? mini : null;
+
         /// <summary>The echo id shown by a mini, or 0.</summary>
         public long EchoFor(Transform mini) => mini != null && m_ByMini.TryGetValue(mini, out long id) ? id : 0;
 

@@ -199,5 +199,15 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Owner wants core features before more accessibility UI, because headset look may differ from the emulator.
 - Tests: EditMode 130/130, PlayMode 33/33.
 
+## 2026-10-25 | Prompt 06 — Characters (Flutter, Bop, Boom) and expressions
+- Tools: Blender 4.2.1 LTS headless (`--factory-startup`), no Blender MCP connected; procedural script `ArtSource/Characters/build_characters.py`, previews `preview_character.py`; editable `ArtSource/Characters/{Flutter,Bop,Boom}.blend`; FBX meshes in `Assets/RoomOrchestra/Art/Characters/` imported mesh-only (project materials). Provenance: `Assets/RoomOrchestra/Art/Characters/LICENSES.md` (no external assets).
+- Prototype ONE first: Flutter built, imported (first export faced away from the player -> export axis fixed; test pins facing and left/right eyes), Unity render checked, then Bop and Boom batched. Boom first came out pancake-flat; raised to the reference's dome (~1.2x Bop wide, ~0.86x tall).
+- Colours sampled from the reference image (fill/rim/face/sparkle); orb body colours in OrbCatalog changed to match (paler turquoise/lavender/amber than before).
+- Where: tray tokens = full characters (~3k tris each: body, inverted-hull rim, eyes, smile, parked "oh" mouth, shine, motif sparkle/dot/ripple). Orbit echo minis (54) = light version (~600 tris: body, rim, eyes, smile), 6 cm. Throwable balls = Bop body + rim/eyes/smile recoloured per character by ApplyOrb (no runtime mesh swaps).
+- Expressions (CharacterFace + CharacterDirector, rules in Core/CharacterReactions): idle blink; first character on an object -> curious (wide eyes, "oh" mouth on tray characters) and the tray character reacts too; another of the same character on the same object -> both glance at each other; 4+ echoes on an object -> small squash bounce on each new bar. Reduced motion (static flag, no switch since Calm was removed) keeps face changes, drops blink/bounce. Nothing moves until the first reaction (startup unchanged).
+- Evidence: Unity close-ups (scratchpad tray_all2.png, ball_top.png, minis.png); PICO emulator phase6a: the ready ball on the stand renders with face/rim/eyes/smile (screenshot p6a.png), i.e. FBX meshes + project materials render under PICO Spatial. Parked minis verified per vertex inside hubs/lamp shade.
+- Tests: EditMode 135/135 (parts, facing, mirroring, parked "oh", tri budget, hidden minis, ball faces, wiring, reaction rules); PlayMode 40/40 (face poses, bounce, reduced motion, ball recolour, real-scene curious -> sibling glance).
+- NOT verified: expressions seen on PICO (needs taps), readability of 6 cm mini faces at 2 m on a headset, performance on hardware. Not done: "changed note -> puzzled nod" (bible, optional).
+
 ## Resume here (next session)
-1. Owner to choose the next prompt (06 character art / 07 sound / 08 tempo / 09 QA). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.
+1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

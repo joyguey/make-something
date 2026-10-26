@@ -287,5 +287,35 @@ namespace RoomOrchestra.Tests
             Assert.IsFalse(m_Conductor.IsPaused);
             Assert.AreEqual(1, m_Conductor.Sequencer.Echoes.Count, "the loop survives pause");
         }
+
+        // ---- Prompt 06: faces react to the music on the real scene ----
+        [UnityTest]
+        public IEnumerator CharactersReactCuriousThenSiblingsGlanceAtEachOther()
+        {
+            var hand = SeatedHand(1);
+            PitchTile Tile(int petal) => Find<PitchTile>(t => t.Target.Instrument == InstrumentType.Erhu && t.Petal == petal);
+            var orbit = m_Conductor.Orbits.First(o => o.Target.Instrument == InstrumentType.Erhu);
+            var token = Find<OrbToken>(t => t.Orb == OrbType.Flutter).GetComponent<CharacterFace>();
+
+            Tap(hand, Tile(1));
+            Assert.AreEqual(Expression.Curious, token.Current, "the tray Flutter reacts to its own note");
+            yield return null;
+            yield return null;
+            var first = m_Conductor.Sequencer.Echoes[0];
+            var firstFace = orbit.MiniFor(first.StableId).GetComponent<CharacterFace>();
+            Assert.AreEqual(Expression.Curious, firstFace.Current, "first Flutter on the lamp is curious");
+
+            yield return NextStep;
+            Tap(hand, Tile(3));
+            yield return null;
+            yield return null;
+            var second = m_Conductor.Sequencer.Echoes.First(e => e.StableId != first.StableId);
+            var secondFace = orbit.MiniFor(second.StableId).GetComponent<CharacterFace>();
+            Assert.AreEqual(Expression.Sibling, secondFace.Current);
+            Assert.AreEqual(Expression.Sibling, firstFace.Current, "the sibling glances back");
+            float a = firstFace.EyeL.localPosition.x, b = secondFace.EyeL.localPosition.x;
+            Assert.AreNotEqual(System.Math.Sign(a - firstFace.Smile.localPosition.x), System.Math.Sign(b - secondFace.Smile.localPosition.x),
+                "they look in opposite directions, toward each other");
+        }
     }
 }

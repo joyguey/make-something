@@ -419,5 +419,30 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(ReachResult.TooHigh, PostureLayout.Reach(PlayPosture.Seated).Check(0f, 1.15f + PostureLayout.StandingLift, 1.5f),
                 "the lifted layout is for standing only");
         }
+
+        [Test]
+        public void FirstCharacterOnAnObjectIsCuriousTheNextOneFindsItsSibling()
+        {
+            var clock = new MusicClock(0.0);
+            var sequencer = new EchoSequencer(clock);
+            EchoEvent Plant(OrbType orb, InstrumentType target, int step)
+            {
+                var hit = new MusicalHitEvent(step + 1, step + 1, target, orb, IntensityTier.Medium, PitchInput.FromPetal(1), InputPath.Place, clock.TimeOf(0, step));
+                Assert.AreEqual(EchoAddResult.Added, sequencer.TryAdd(hit, out var echo));
+                return echo;
+            }
+            var first = Plant(OrbType.Flutter, InstrumentType.Erhu, 0);
+            Assert.AreEqual(Expression.Curious, CharacterReactions.OnPlanted(sequencer.Echoes, first, out long none));
+            Assert.AreEqual(0, none);
+            var otherObject = Plant(OrbType.Flutter, InstrumentType.Udu, 2);
+            Assert.AreEqual(Expression.Curious, CharacterReactions.OnPlanted(sequencer.Echoes, otherObject, out _), "a sibling must be on the same object");
+            var otherKind = Plant(OrbType.Bop, InstrumentType.Erhu, 4);
+            Assert.AreEqual(Expression.Curious, CharacterReactions.OnPlanted(sequencer.Echoes, otherKind, out _), "a sibling must be the same character");
+            var second = Plant(OrbType.Flutter, InstrumentType.Erhu, 6);
+            Assert.AreEqual(Expression.Sibling, CharacterReactions.OnPlanted(sequencer.Echoes, second, out long sibling));
+            Assert.AreEqual(first.StableId, sibling);
+            Assert.IsFalse(CharacterReactions.IsExcited(CharacterReactions.ExcitedAt - 1));
+            Assert.IsTrue(CharacterReactions.IsExcited(CharacterReactions.ExcitedAt));
+        }
     }
 }

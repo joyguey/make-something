@@ -520,6 +520,27 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void EveryCharacterHasAFaceAndTheDirectorListens()
+        {
+            foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
+            {
+                var face = token.GetComponent<CharacterFace>();
+                Assert.IsNotNull(face, token.name);
+                Assert.IsNotNull(face.MouthO, $"{token.name} can say oh");
+                Assert.IsNull(face.Visual, $"{token.name}: selection size owns the token scale, no squash");
+            }
+            foreach (var mini in Object.FindObjectsByType<EchoMini>(FindObjectsSortMode.None))
+            {
+                var face = mini.GetComponent<CharacterFace>();
+                Assert.IsNotNull(face, mini.name);
+                Assert.IsNotNull(face.Visual, $"{mini.name} squashes a child, not the root the orbit scales");
+                Assert.IsTrue(face.EyeL.IsChildOf(face.Visual) && face.Smile.IsChildOf(face.Visual), mini.name);
+            }
+            var director = Object.FindFirstObjectByType<CharacterDirector>();
+            Assert.IsNotNull(director, "CharacterDirector in scene");
+        }
+
+        [Test]
         public void ThrowableBallsWearTheCharacterFace()
         {
             foreach (var ball in Object.FindObjectsByType<Ball>(FindObjectsSortMode.None))

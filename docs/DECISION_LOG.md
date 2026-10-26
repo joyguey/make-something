@@ -79,3 +79,9 @@ Use entries of form:
 ## 2026-10-25 | Owner | Calm motion removed; core features before more accessibility UI
 - Owner decision: remove Calm motion (felt unnecessary) and stop adding front-row buttons; UI clean-up later. Accessibility options still required by CLAUDE.md (motion, scale/contrast) are deferred to that clean-up, not dropped, and recorded as NOT IMPLEMENTED until then.
 
+## 2026-10-25 | Prompt 06 | Character pipeline choices
+- Blender CLI (installed 4.2.1) instead of MCP (not connected); procedural script so shapes are reproducible and editable; .blend sources kept outside Assets so Unity never needs Blender to import.
+- Separate meshes per face part + project materials (no blend shapes, no texture swaps): expressions move parts; the spare "oh" mouth parks inside the body, the pattern already proven under PICO Spatial.
+- Balls share one face recoloured per character rather than swapping meshes at runtime (unverified under PICO Spatial). Orbit minis use a lighter mesh set and keep their face on a child so the orbit's selection scale and the bounce never fight.
+- Outline is an inverted hull (geometry only, standard Lit material), not a custom shader, so it survives PICO Spatial's material conversion — confirmed on the emulator for the ready ball.
+

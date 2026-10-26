@@ -87,31 +87,40 @@ namespace RoomOrchestra.EditorTools
             renderer.sharedMaterial = body;
 
             Child(root.transform, type, "Outline", rim, Vector3.zero);
-            Child(root.transform, type, "EyeL", face, Vector3.zero);
-            Child(root.transform, type, "EyeR", face, Vector3.zero);
-            Child(root.transform, type, "Smile", face, Vector3.zero);
-            Child(root.transform, type, "Mouth_O", face, MouthParked);
+            var eyeL = Child(root.transform, type, "EyeL", face, Vector3.zero);
+            var eyeR = Child(root.transform, type, "EyeR", face, Vector3.zero);
+            var smile = Child(root.transform, type, "Smile", face, Vector3.zero);
+            var oh = Child(root.transform, type, "Mouth_O", face, MouthParked);
             Child(root.transform, type, "Highlight", shine, Vector3.zero);
             Child(root.transform, type, "Motif", motif, Vector3.zero);
+            // No squash for tray characters: the token's selection size owns their scale.
+            var characterFace = root.AddComponent<CharacterFace>();
+            characterFace.Configure(null, eyeL, eyeR, smile, oh);
+            EditorUtility.SetDirty(characterFace);
         }
 
         /// <summary>
         /// Lighter echo-mini version (body, rim, eyes, smile) on <paramref name="root"/>: 54 of these orbit
         /// the furniture, so they skip the shine, motif and spare mouth.
         /// </summary>
-        public static void DressMini(GameObject root, OrbType type, Material body)
+        public static CharacterFace DressMini(GameObject root, OrbType type, Material body)
         {
             var (rimColor, faceColor, _, _) = Palette(type);
             var rim = EnsureMaterial($"Rim_{type}", rimColor);
             var face = EnsureMaterial($"Face_{type}", faceColor);
-            if (!root.TryGetComponent<MeshFilter>(out var filter)) filter = root.AddComponent<MeshFilter>();
-            filter.sharedMesh = Part(type, "MiniBody");
-            if (!root.TryGetComponent<MeshRenderer>(out var renderer)) renderer = root.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = body;
-            Child(root.transform, type, "MiniOutline", rim, Vector3.zero);
-            Child(root.transform, type, "MiniEyeL", face, Vector3.zero);
-            Child(root.transform, type, "MiniEyeR", face, Vector3.zero);
-            Child(root.transform, type, "MiniSmile", face, Vector3.zero);
+            // The look sits on a child so the bounce can squash it while the orbit owns the root's scale.
+            var visual = new GameObject("Visual").transform;
+            visual.SetParent(root.transform, false);
+            visual.gameObject.AddComponent<MeshFilter>().sharedMesh = Part(type, "MiniBody");
+            visual.gameObject.AddComponent<MeshRenderer>().sharedMaterial = body;
+            Child(visual, type, "MiniOutline", rim, Vector3.zero);
+            var eyeL = Child(visual, type, "MiniEyeL", face, Vector3.zero);
+            var eyeR = Child(visual, type, "MiniEyeR", face, Vector3.zero);
+            var smile = Child(visual, type, "MiniSmile", face, Vector3.zero);
+            var characterFace = root.AddComponent<CharacterFace>();
+            characterFace.Configure(visual, eyeL, eyeR, smile);
+            EditorUtility.SetDirty(characterFace);
+            return characterFace;
         }
 
         /// <summary>

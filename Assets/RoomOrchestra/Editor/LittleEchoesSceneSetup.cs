@@ -100,6 +100,9 @@ namespace RoomOrchestra.EditorTools
             var conductor = root.AddComponent<EchoConductor>();
             conductor.Configure(orbits);
             EditorUtility.SetDirty(conductor);
+            var director = root.AddComponent<CharacterDirector>();
+            director.Configure(conductor, tokens);
+            EditorUtility.SetDirty(director);
             CreateUndoButton(controls, slabMaterial, motifMaterial);
             // Front row right of Undo, 0.14 m apart.
             CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.12f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
