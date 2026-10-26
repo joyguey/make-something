@@ -82,6 +82,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<UndoButton>();
             if (owner == null) owner = hit.GetComponentInParent<MusicControlButton>();
             if (owner == null) owner = hit.GetComponentInParent<RecenterButton>();
+            if (owner == null) owner = hit.GetComponentInParent<MixButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -123,6 +124,13 @@ namespace RoomOrchestra
             if (music != null)
             {
                 music.Press();
+                return true;
+            }
+
+            var mix = hit.GetComponentInParent<MixButton>();
+            if (mix != null)
+            {
+                mix.Press();
                 return true;
             }
 

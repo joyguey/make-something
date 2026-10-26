@@ -100,7 +100,7 @@ namespace RoomOrchestra.Tests
             CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<TierButton>()), "Loudness");
             CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<UndoButton>()), "Undo");
             foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
-                Assert.IsTrue(Texts(column).Any(t => t == "udu" || t == "mbira" || t == "erhu"), $"{column.name} names its instrument");
+                Assert.IsTrue(Texts(column).Any(t => new[] { "udu", "mbira", "erhu" }.Contains(t.Split('\n')[0])), $"{column.name} names its instrument");
             foreach (var text in Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None))
             {
                 Assert.IsNotNull(text.font, text.name);
@@ -306,6 +306,22 @@ namespace RoomOrchestra.Tests
                 Assert.IsTrue(mustMove.transform.IsChildOf(anchor.transform), $"{mustMove.name} moves with the stage");
             foreach (var target in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
                 Assert.IsTrue(target.transform.IsChildOf(anchor.transform), $"{target.name} moves with the stage");
+        }
+
+        [Test]
+        public void EachInstrumentHasALabeledReachableVolumeButton()
+        {
+            var mixes = Object.FindObjectsByType<MixButton>(FindObjectsSortMode.None);
+            CollectionAssert.AreEquivalent(
+                Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None),
+                mixes.Select(m => m.Target), "one volume button per instrument");
+            foreach (var mix in mixes)
+            {
+                AssertSeated(mix.name, mix.transform.position);
+                Assert.IsNotNull(mix.GetComponent<Collider>(), "tappable");
+                StringAssert.EndsWith("\nVol 100%", mix.Label.text);
+                StringAssert.StartsWith(mix.Target.Instrument.ToString().ToLowerInvariant(), mix.Label.text);
+            }
         }
 
         [Test]

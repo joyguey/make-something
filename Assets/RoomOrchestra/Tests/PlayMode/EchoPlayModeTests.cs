@@ -196,6 +196,48 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator MuteSilencesRingingAndScheduledNotesAtOnceAndKeepsTheEchoes()
+        {
+            var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);
+            var selector = MakeRig(chair);
+            var mixGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            m_Spawned.Add(mixGo);
+            var labelGo = new GameObject("MixText");
+            m_Spawned.Add(labelGo);
+            var label = labelGo.AddComponent<TMPro.TextMeshPro>();
+            var mix = mixGo.AddComponent<MixButton>();
+            mix.Configure(chair, label, "mbira");
+            yield return null;
+
+            selector.PlaceOn(chair);
+            yield return WaitUntil(() => chair.ScheduledCount > 0, (float)m_Conductor.Clock.BarDuration + 1f);
+            Assert.Greater(chair.ScheduledCount, 0, "a repeat is waiting on the audio clock");
+
+            for (int tap = 0; tap < 3; tap++)
+            {
+                yield return new WaitForSecondsRealtime(0.25f); // past the duplicate-tap debounce
+                Assert.IsTrue(InstrumentInputRouter.Activate(mixGo));
+            }
+            Assert.AreEqual("mbira\nMuted", label.text);
+            Assert.AreEqual(0f, chair.MixGain);
+            foreach (var voice in chair.GetComponents<AudioSource>())
+                Assert.AreEqual(0f, voice.volume, "ringing and scheduled voices silent at once");
+            Assert.AreEqual(1, m_Conductor.Sequencer.Echoes.Count, "echo kept while muted");
+
+            selector.PlaceOn(chair);
+            foreach (var voice in chair.GetComponents<AudioSource>())
+                Assert.AreEqual(0f, voice.volume, "new notes stay silent while muted");
+
+            yield return new WaitForSecondsRealtime(0.25f);
+            InstrumentInputRouter.Activate(mixGo);
+            Assert.AreEqual("mbira\nVol 100%", label.text);
+            Assert.AreEqual(1f, chair.MixGain);
+            bool anyAudible = false;
+            foreach (var voice in chair.GetComponents<AudioSource>()) anyAudible |= voice.volume > 0f;
+            Assert.IsTrue(anyAudible, "unmuting brings the voices back");
+        }
+
+        [UnityTest]
         public IEnumerator EchoMiniSitsOnTheMarkerAtItsStep()
         {
             var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);

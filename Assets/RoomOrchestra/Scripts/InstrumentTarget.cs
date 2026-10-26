@@ -38,6 +38,7 @@ namespace RoomOrchestra
         AudioSource[] m_Voices;
         double[] m_VoiceStart; // dsp time each voice starts (future = scheduled, not yet sounding)
         long[] m_VoiceTag;     // echo id that scheduled the voice (0 = live hit)
+        float[] m_VoiceStrength; // so a mix change can re-level voices already playing
         AudioClip[,] m_Bank; // [orb, note index] rendered voices
         readonly List<double> m_PendingFlashes = new();
 
@@ -52,6 +53,8 @@ namespace RoomOrchestra
         public Vector3 AimPosition => aimPoint != null ? aimPoint.position : transform.position;
         public int LastNoteIndex { get; private set; } = -1;
         public int PlayCount { get; private set; }
+        /// <summary>Player's mix level for this instrument (1 = full, 0 = muted).</summary>
+        public float MixGain { get; private set; } = 1f;
 
         public bool IsSounding
         {
@@ -74,6 +77,7 @@ namespace RoomOrchestra
             m_Voices = new AudioSource[voiceCount];
             m_VoiceStart = new double[voiceCount];
             m_VoiceTag = new long[voiceCount];
+            m_VoiceStrength = new float[voiceCount];
             m_Voices[0] = audioSource;
             for (int i = 1; i < voiceCount; i++)
             {
@@ -224,6 +228,15 @@ namespace RoomOrchestra
             }
         }
 
+        /// <summary>Sets this instrument's mix level; voices already sounding or scheduled follow at once.</summary>
+        public void SetMixGain(float gain)
+        {
+            MixGain = Mathf.Clamp01(gain);
+            if (m_Voices == null) return;
+            for (int i = 0; i < m_Voices.Length; i++)
+                m_Voices[i].volume = volume * m_VoiceStrength[i] * MixGain;
+        }
+
         /// <summary>Stops every voice at once (mute / reset).</summary>
         public void StopAll()
         {
@@ -278,7 +291,8 @@ namespace RoomOrchestra
             int slot = PickVoice();
             var voice = m_Voices[slot];
             voice.clip = clip;
-            voice.volume = volume * Mathf.Clamp01(strength);
+            m_VoiceStrength[slot] = Mathf.Clamp01(strength);
+            voice.volume = volume * m_VoiceStrength[slot] * MixGain;
             bool now = dspTime <= AudioSettings.dspTime + 0.005;
             m_VoiceStart[slot] = now ? AudioSettings.dspTime : dspTime;
             m_VoiceTag[slot] = tag;

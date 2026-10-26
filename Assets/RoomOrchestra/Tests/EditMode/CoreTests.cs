@@ -389,5 +389,21 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(90f, Recenter(0f, 0f, up * Vector3.forward, up * Vector3.up).YawDegrees, 1e-2f);
             Assert.IsFalse(StagePlacement.TryRecenter(0f, 0f, 0f, -1f, 0f, 0f, 0f, 0f, out _), "no heading at all: keep the stage where it is");
         }
+
+        [Test]
+        public void MixLevelsStepDownToMuteAndWrapAroundOneTapEach()
+        {
+            int level = 0;
+            var seen = new System.Collections.Generic.List<string> { MixLevels.Label(level) };
+            for (int tap = 0; tap < MixLevels.Count; tap++)
+            {
+                level = MixLevels.Next(level);
+                seen.Add(MixLevels.Label(level));
+            }
+            CollectionAssert.AreEqual(new[] { "Vol 100%", "Vol 60%", "Vol 30%", "Muted", "Vol 100%" }, seen);
+            Assert.AreEqual(0f, MixLevels.Gain(3));
+            Assert.IsTrue(MixLevels.IsMuted(3));
+            Assert.AreEqual(1f, MixLevels.Gain(0));
+        }
     }
 }

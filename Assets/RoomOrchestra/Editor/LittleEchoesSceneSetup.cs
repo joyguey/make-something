@@ -399,9 +399,18 @@ namespace RoomOrchestra.EditorTools
                 tiles[i].Configure(target, i);
                 EditorUtility.SetDirty(tiles[i]);
             }
-            var caption = Label("InstrumentLabel", InstrumentCaption(target.Instrument), go.transform, Vector3.zero, 0.035f);
-            caption.position = new Vector3(go.transform.position.x, ColumnBottom - 0.12f, go.transform.position.z);
-            caption.rotation = FacePlayer(caption.position);
+            // The instrument's name tile is also its volume button (tap steps 100/60/30%/Muted).
+            var mixTile = Primitive(PrimitiveType.Cube, "MixTile", go.transform, slab, keepCollider: true);
+            mixTile.position = new Vector3(go.transform.position.x, ColumnBottom - 0.14f, go.transform.position.z);
+            mixTile.rotation = FacePlayer(mixTile.position);
+            mixTile.localScale = new Vector3(0.16f, 0.1f, 0.03f);
+            string name = InstrumentCaption(target.Instrument);
+            var caption = Label("InstrumentLabel", MixButton.TextFor(name, 0), go.transform, Vector3.zero, 0.07f); // two lines, ~3 cm each
+            caption.position = mixTile.position - mixTile.forward * 0.02f;
+            caption.rotation = mixTile.rotation;
+            var mix = mixTile.gameObject.AddComponent<MixButton>();
+            mix.Configure(target, caption.GetComponentInChildren<TMP_Text>(), name);
+            EditorUtility.SetDirty(mix);
 
             var column = go.AddComponent<PitchColumn>();
             column.Configure(target, tiles, TileScale);
