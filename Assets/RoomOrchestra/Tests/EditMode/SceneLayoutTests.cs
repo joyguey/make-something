@@ -175,6 +175,7 @@ namespace RoomOrchestra.Tests
             if (owner == null) owner = c.GetComponentInParent<MusicControlButton>();
             if (owner == null) owner = c.GetComponentInParent<RecenterButton>();
             if (owner == null) owner = c.GetComponentInParent<MixButton>();
+            if (owner == null) owner = c.GetComponentInParent<MotionToggleButton>();
             if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
             return owner;
         }
@@ -204,12 +205,12 @@ namespace RoomOrchestra.Tests
                 foreach (var (name, origin) in PointerOrigins)
                 {
                     var toCenter = control.bounds.center - origin;
+                    // Any collider counts, not only other controls: a post or prop in the way eats the tap too.
                     var hits = Physics.RaycastAll(origin, toCenter.normalized, toCenter.magnitude + 0.1f)
-                        .Where(h => TapOwner(h.collider) != null)
                         .OrderBy(h => h.distance)
                         .ToArray();
                     if (hits.Length > 0 && TapOwner(hits[0].collider) != owner)
-                        failures.Add($"{owner.name} ({control.name}) from {name}: hits {TapOwner(hits[0].collider).name} first");
+                        failures.Add($"{owner.name} ({control.name}) from {name}: hits {hits[0].collider.name} first");
                 }
             }
             Assert.IsEmpty(failures, string.Join("\n", failures));
@@ -374,6 +375,18 @@ namespace RoomOrchestra.Tests
                 StringAssert.EndsWith("\nVol 100%", mix.Label.text);
                 StringAssert.StartsWith(mix.Target.Instrument.ToString().ToLowerInvariant(), mix.Label.text);
             }
+        }
+
+        [Test]
+        public void MotionToggleLabeledReachableAndOrbitsHaveAMarker()
+        {
+            var motion = Object.FindFirstObjectByType<MotionToggleButton>();
+            Assert.IsNotNull(motion);
+            AssertSeated(motion.name, motion.transform.position);
+            Assert.IsNotNull(motion.GetComponent<Collider>(), "tappable");
+            Assert.AreEqual("Motion\nFull", motion.Label.text, "starts in full motion: nothing changes at startup");
+            foreach (var orbit in Object.FindObjectsByType<OrbitView>(FindObjectsSortMode.None))
+                Assert.IsNotNull(orbit.Marker, $"{orbit.name} play marker wired for calm motion");
         }
 
         [Test]
