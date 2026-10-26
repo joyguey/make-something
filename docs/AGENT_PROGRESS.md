@@ -256,5 +256,10 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Room-mapping note: VineGrowth is shape-agnostic (pieces + hiding pivots); real furniture will need vines generated around the pinned leg/pole, not these hand-placed ones.
 - Tests: EditMode 140/140 (rules; everything waits hidden/as buds at startup); PlayMode 52/52 (vines creep and bloom, butterflies home -> out -> home with trail tucked, toadstools sprout and dance on the beat, each note grows its own vine, aim-dot release).
 
+## 2026-10-26 | Jungle tuning (owner)
+- Owner (emulator, phase6j): Clear-in-smoke and the jungle "all worked well"; the vine should not keep growing unless more notes are added.
+- Growth now counts only notes ADDED to the song (EchoConductor.NoteAdded on each new echo), never loop repeats. Retuned for that: full vine at 6 notes on its instrument (a full ring), ball-stand vine at 16 total, toadstools at 1/3/5/7/9/12/15 notes added. Butterflies unchanged (follow the current song). Sparkles still flare on every repeat.
+- Test: a real conductor loop repeating for over a bar adds nothing; the next new note grows the vine again.
+
 ## Resume here (next session)
 1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

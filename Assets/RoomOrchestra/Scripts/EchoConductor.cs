@@ -39,6 +39,9 @@ namespace RoomOrchestra
         public event Action<MusicalHitEvent> Refused;
         public event Action<ScheduledEcho> Scheduled;
 
+        /// <summary>A new note joined the song (not a repeat coming round): the rainforest grows.</summary>
+        public static event Action<EchoEvent> NoteAdded;
+
         /// <summary>The song was cleared (the rainforest vanishes in smoke).</summary>
         public static event Action Cleared;
 
@@ -75,6 +78,7 @@ namespace RoomOrchestra
             {
                 Debug.Log($"[RoomOrchestra] Echo planted {echo} ({m_Sequencer.CountOn(echo.Target)}/{EchoSequencer.MaxPerTarget})");
                 Planted?.Invoke(echo);
+                NoteAdded?.Invoke(echo);
             }
             else
             {

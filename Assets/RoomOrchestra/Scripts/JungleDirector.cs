@@ -3,8 +3,9 @@ using UnityEngine;
 namespace RoomOrchestra
 {
     /// <summary>
-    /// Brings the rainforest to life as music is composed (rules in Core/JungleGrowth): each note feeds
-    /// its instrument's vine (table/udu, chair/mbira, lamp/erhu; the ball-stand vine feeds on every note),
+    /// Brings the rainforest to life as music is composed (rules in Core/JungleGrowth): each note ADDED to
+    /// the song feeds its instrument's vine (table/udu, chair/mbira, lamp/erhu; the ball-stand vine feeds
+    /// on every note); the loop repeating does not grow anything,
     /// toadstools sprout from buds one by one, butterflies flutter out of the lamp while the song is
     /// layered and melodic, and with every vine grown and all butterflies out the toadstools hop in a
     /// chorus. Clear sweeps it all away in big smoke clouds and the next song grows it again. Each new
@@ -38,15 +39,13 @@ namespace RoomOrchestra
 
         void OnEnable()
         {
-            MusicalHitPipeline.Committed += OnHit;
-            OrbitView.NotePassed += OnEcho;
+            EchoConductor.NoteAdded += OnNoteAdded;
             EchoConductor.Cleared += OnCleared;
         }
 
         void OnDisable()
         {
-            MusicalHitPipeline.Committed -= OnHit;
-            OrbitView.NotePassed -= OnEcho;
+            EchoConductor.NoteAdded -= OnNoteAdded;
             EchoConductor.Cleared -= OnCleared;
         }
 
@@ -88,17 +87,12 @@ namespace RoomOrchestra
             m_Chorus = false;
         }
 
-        void OnHit(MusicalHitEvent hit) => Heard(hit.Target);
+        void OnNoteAdded(EchoEvent echo) => NoteAdded(echo.Target);
 
-        void OnEcho(InstrumentTarget target)
+        /// <summary>A note was added to the song on <paramref name="instrument"/>: the jungle grows a little.</summary>
+        public void NoteAdded(InstrumentType instrument)
         {
-            if (target != null) Heard(target.Instrument);
-        }
-
-        /// <summary>One note was heard on <paramref name="instrument"/>: the jungle grows a little.</summary>
-        public void Heard(InstrumentType instrument)
-        {
-            m_Growth.NotePlayed(instrument);
+            m_Growth.NoteAdded(instrument);
             var vine = VineFor(instrument);
             if (vine != null && vine.SetProgress(m_Growth.VineProgress(instrument)))
                 Debug.Log($"[RoomOrchestra] Jungle: {instrument} vine {vine.Shown}/{vine.SegmentCount}{(vine.Bloomed ? ", in bloom" : "")}");
