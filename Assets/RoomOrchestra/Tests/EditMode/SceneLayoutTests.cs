@@ -581,25 +581,65 @@ namespace RoomOrchestra.Tests
             }
         }
 
-        // ---- Rainforest set dressing (vines, butterflies, sparkles) ----
+        // ---- Rainforest that grows with the music (vines, butterflies, toadstools, sparkles) ----
+        static bool InsideAny(Collider[] solids, Vector3 p) => solids.Any(c => (c.ClosestPoint(p) - p).sqrMagnitude < 1e-8f);
+
         [Test]
-        public void RainforestDecorIsTapThroughLightAndStartsStill()
+        public void RainforestDecorIsTapThroughLightAndWaitsHidden()
         {
             var rainforest = GameObject.Find("Rainforest");
             Assert.IsNotNull(rainforest, "rainforest built");
             Assert.IsEmpty(rainforest.GetComponentsInChildren<Collider>(), "decoration never eats a tap or a ball");
             int triangles = rainforest.GetComponentsInChildren<MeshFilter>().Sum(f => f.sharedMesh.triangles.Length / 3);
-            Assert.Less(triangles, 40000, "light enough for a standalone headset");
-            foreach (var vine in new[] { "Vine_Lamp", "Vine_Stand", "Vine_TableL", "Vine_TableR", "Vine_Chair" })
-                Assert.IsNotNull(rainforest.transform.Find(vine), vine);
+            Assert.Less(triangles, 50000, "light enough for a standalone headset");
+            Assert.IsNotNull(rainforest.GetComponent<JungleDirector>(), "the jungle listens to the music");
+            Physics.SyncTransforms();
 
+            // Vines start folded inside their furniture: every vertex of every piece and flower is out of sight.
+            var stage = GameObject.Find("RoomOrchestra").transform;
+            var solids = stage.Find("Furniture").GetComponentsInChildren<Collider>()
+                .Concat(stage.Find("BallDispenser").GetComponentsInChildren<Collider>().Where(c => c.name == "Pedestal")).ToArray();
+            var vines = rainforest.GetComponentsInChildren<VineGrowth>();
+            Assert.AreEqual(4, vines.Length, "table (both legs), chair, lamp, ball stand");
+            foreach (var vine in vines)
+            {
+                Assert.AreEqual(0, vine.Shown, $"{vine.name} starts as a bud");
+                foreach (var piece in vine.Segments.Concat(vine.Flowers))
+                {
+                    Assert.AreEqual(VineGrowth.HiddenScale, piece.localScale.x, 1e-6f, piece.name);
+                    foreach (var filter in piece.GetComponentsInChildren<MeshFilter>())
+                        foreach (var v in filter.sharedMesh.vertices)
+                        {
+                            var p = filter.transform.TransformPoint(v);
+                            Assert.IsTrue(InsideAny(solids, p), $"{filter.name} of {piece.parent.name} shows at {p} before it has grown");
+                        }
+                }
+            }
+
+            // Butterflies (and their trails) wait inside the lamp shade.
+            var lamp = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None).First(t => t.Instrument == InstrumentType.Erhu);
+            var shade = lamp.GetComponentsInChildren<Collider>();
             var butterflies = rainforest.GetComponentsInChildren<Butterfly>();
             Assert.AreEqual(3, butterflies.Length);
             foreach (var b in butterflies)
             {
-                Assert.Less((b.transform.localPosition - b.PathAt(0f)).magnitude, 1e-4f, $"{b.name} authored where its loop starts");
                 Assert.AreEqual(8, b.Trail.Count, $"{b.name} sparkle trail");
                 Assert.Greater(b.WingL.localEulerAngles.z, 180f, $"{b.name} rests with its wings up in a V");
+                foreach (var filter in b.GetComponentsInChildren<MeshFilter>().Concat(b.Trail.SelectMany(t => t.GetComponentsInChildren<MeshFilter>())))
+                    foreach (var v in filter.sharedMesh.vertices)
+                    {
+                        var p = filter.transform.TransformPoint(v);
+                        Assert.IsTrue(InsideAny(shade, p), $"{filter.name} of {b.name} shows outside the lamp shade at {p}");
+                    }
+            }
+
+            // Toadstools wait as buds, faces toward the seat.
+            var toadstools = rainforest.GetComponentsInChildren<Toadstool>();
+            Assert.AreEqual(JungleGrowth.MushroomAt.Length, toadstools.Length);
+            foreach (var t in toadstools)
+            {
+                Assert.AreEqual(Toadstool.BudScale, t.transform.localScale.x, 1e-6f, $"{t.name} is a bud at startup");
+                Assert.Less(t.transform.position.y, 0.01f, $"{t.name} on the floor");
             }
 
             var sparkles = rainforest.GetComponentsInChildren<SparkleTwinkle>();

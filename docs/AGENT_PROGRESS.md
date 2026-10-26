@@ -241,5 +241,19 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
   - Bug found in Unity render: first wing outline doubled back on itself (no wing face); rebuilt as one simple closed lobe shape; wings first lay flat (edge-on to the player) and flapped downward -> V rest angle, sign fixed.
 - Tests: EditMode 139/139 (decor tap-through, triangle budget, vines present, butterflies at path start with wings up, 5 sparkles per instrument); PlayMode 48/48 (butterflies fly/flap/trail behind, sparkles flare only for their instrument, reduced motion still, early edge scare).
 
+## 2026-10-25 | Prompt 06 (part 6) — the jungle grows with the music
+- Owner: aim dots mismatched; shock still hard to see; vines and butterfly trails only when a harmonious song has been developed; vines creep up table legs, chair and lamp as more notes play; toadstools that sway to the beat; several easter eggs so the room comes alive as music is composed. Later: no need to fit vines perfectly to the virtual furniture (they will go on real furniture).
+- Aim dots: the held arc kept showing the last throw after that ball poofed away; now released when that ball is gone (PlayMode test).
+- Shock: logs "[RoomOrchestra] <orb>: eek! the floor is coming" when it starts (device check); slower rolls count (0.08 m/s).
+- Jungle (rules in Core/JungleGrowth, driven by JungleDirector from every note heard, live or echo):
+  - Vines in 8 pieces each, folded inside their furniture (verified per vertex) and creeping out with springy pops: table legs with udu, chair (now climbs a back leg and along the top of the back) with mbira, lamp pole with erhu, ball stand with every note (slower). 32 notes per vine; flowers bloom when a vine is full grown.
+  - Butterflies wait inside the lamp shade; 1 flutters out when two instruments play together (4+ echoes), 2 with all three (6+), 3 with a rich melodic loop (10+ echoes, 4+ different notes); they fly home when the song is cleared. Trails as before.
+  - 7 toadstools (red/pink/purple spotted caps, sleepy faces) wait as buds around the stage edge and sprout one by one (6..85 total notes), then sway and squash on every beat of the master clock.
+  - Chorus easter egg: all vines grown + 3 butterflies out -> toadstools hop on every beat.
+  - Growth is kept for the session (clearing a song does not uproot the forest). Each stage is logged ("Jungle: ...").
+- Pipeline note: FBX objects with a location import with a 180° Y turn and mirrored position while vertex data is already correct; pivots are un-turned in RainforestArt.Pivot.
+- Room-mapping note: VineGrowth is shape-agnostic (pieces + hiding pivots); real furniture will need vines generated around the pinned leg/pole, not these hand-placed ones.
+- Tests: EditMode 140/140 (rules; everything waits hidden/as buds at startup); PlayMode 52/52 (vines creep and bloom, butterflies home -> out -> home with trail tucked, toadstools sprout and dance on the beat, each note grows its own vine, aim-dot release).
+
 ## Resume here (next session)
 1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

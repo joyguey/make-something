@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -467,6 +468,43 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(OrbitView.Crossed(0.98, 0.01, 0), "step 0 across the bar line");
             Assert.IsFalse(OrbitView.Crossed(0.98, 0.01, 8), "the wrap does not catch the middle of the bar");
             Assert.IsFalse(OrbitView.Crossed(-1, 0.5, 4), "first frame: no hop");
+        }
+
+        [Test]
+        public void TheJungleGrowsWithNotesAndTheSongCallsTheButterflies()
+        {
+            var growth = new JungleGrowth();
+            Assert.AreEqual(0f, growth.VineProgress(InstrumentType.Erhu));
+            Assert.AreEqual(0, growth.MushroomsSprouted);
+            for (int i = 0; i < JungleGrowth.NotesPerVine / 2; i++) growth.NotePlayed(InstrumentType.Erhu);
+            Assert.AreEqual(0.5f, growth.VineProgress(InstrumentType.Erhu), 1e-6f, "each note creeps the vine of its own instrument");
+            Assert.AreEqual(0f, growth.VineProgress(InstrumentType.Udu), "other vines wait for their own instrument");
+            Assert.AreEqual(JungleGrowth.MushroomAt.Count(n => n <= JungleGrowth.NotesPerVine / 2), growth.MushroomsSprouted, "toadstools follow the total");
+            foreach (var type in new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu })
+                for (int i = 0; i < JungleGrowth.NotesPerVine; i++) growth.NotePlayed(type);
+            Assert.IsTrue(growth.AllVinesGrown);
+            Assert.AreEqual(1f, growth.VineProgress(InstrumentType.Erhu), "never beyond full length");
+
+            var clock = new MusicClock(0.0);
+            var loop = new EchoSequencer(clock);
+            int step = 0;
+            void Add(InstrumentType target, int note)
+            {
+                var hit = new MusicalHitEvent(step + 1, step + 1, target, OrbType.Bop, IntensityTier.Medium, PitchInput.FromPetal(note), InputPath.Place, clock.TimeOf(0, step));
+                loop.TryAdd(hit, out _);
+                step++;
+            }
+            Add(InstrumentType.Erhu, 0); Add(InstrumentType.Erhu, 1); Add(InstrumentType.Erhu, 2); Add(InstrumentType.Erhu, 3);
+            Assert.AreEqual(0, JungleGrowth.ButterfliesFor(loop.Echoes), "one instrument alone is not yet a layered song");
+            Add(InstrumentType.Mbira, 2);
+            Assert.AreEqual(1, JungleGrowth.ButterfliesFor(loop.Echoes), "two instruments together: the first butterfly");
+            Add(InstrumentType.Udu, 0);
+            Assert.AreEqual(2, JungleGrowth.ButterfliesFor(loop.Echoes), "all three instruments");
+            Add(InstrumentType.Udu, 2); Add(InstrumentType.Mbira, 4); Add(InstrumentType.Udu, 1); Add(InstrumentType.Mbira, 0);
+            Assert.AreEqual(3, JungleGrowth.ButterfliesFor(loop.Echoes), "a rich, melodic loop");
+            Assert.IsTrue(growth.Chorus(3));
+            Assert.IsFalse(growth.Chorus(2));
+            Assert.AreEqual(0, JungleGrowth.ButterfliesFor(new List<EchoEvent>()), "cleared song: they fly home");
         }
     }
 }

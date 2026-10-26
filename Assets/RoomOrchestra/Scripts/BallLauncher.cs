@@ -48,6 +48,7 @@ namespace RoomOrchestra
         Vector3 m_Facing = Vector3.forward;
         Vector3 m_AimDirection = Vector3.forward;
         bool m_ArcHeld; // arc is showing the last throw and should stay put
+        Ball m_ArcBall; // the ball whose throw the held arc shows
         OrbType m_Orb = OrbType.Flutter;
 
         public Ball ReadyBall => m_Ready;
@@ -121,6 +122,9 @@ namespace RoomOrchestra
             Preview(m_Ready.transform.position, m_AimDirection);
         }
 
+        /// <summary>True while the arc still shows the last throw (until the next aim or until that ball is gone).</summary>
+        public bool ArcHeld => m_ArcHeld;
+
         public bool IsReadyBall(GameObject go) => m_Ready != null && go != null && go.GetComponentInParent<Ball>() == m_Ready;
 
         public void BeginGrab(int interactionId, Vector3 pointerPosition)
@@ -179,7 +183,8 @@ namespace RoomOrchestra
             if (arc != null)
             {
                 arc.Show(from, velocity, duration, assisted);
-                m_ArcHeld = true; // keep the last throw's arc visible until the next aim
+                m_ArcHeld = true; // keep the last throw's arc visible until the next aim, or until that ball is gone
+                m_ArcBall = m_Ready;
             }
             Debug.Log($"[RoomOrchestra] Aim {(assisted ? "assisted -> " + target.Instrument : "free")}");
             return Throw(velocity);
@@ -281,6 +286,12 @@ namespace RoomOrchestra
             if (!m_Thrown.Remove(ball)) return;
             Park(ball);
             m_Free.Enqueue(ball);
+            // The thrown ball poofed away: its old arc would now point at nothing, so aim from the ready ball again.
+            if (ball == m_ArcBall)
+            {
+                m_ArcHeld = false;
+                m_ArcBall = null;
+            }
         }
 
         Vector3 DragVelocity()

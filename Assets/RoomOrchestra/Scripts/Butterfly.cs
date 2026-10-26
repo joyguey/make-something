@@ -3,10 +3,11 @@ using UnityEngine;
 namespace RoomOrchestra
 {
     /// <summary>
-    /// A rainforest butterfly: flaps, wanders a lazy looping path around the stage and leaves a short
-    /// trail of glowing sparkles. Everything is authored in the scene and only moved (PICO Spatial: no
-    /// runtime objects); it starts a few seconds after load, like the characters. Reduced motion holds
-    /// it still, resting with its wings open.
+    /// A rainforest butterfly: it waits hidden inside the lamp shade until the song is layered and
+    /// harmonious enough (JungleDirector), then flutters out, wanders a lazy looping path around the stage
+    /// leaving a short trail of glowing sparkles, and flies home again when the song is cleared.
+    /// Everything is authored in the scene and only moved (PICO Spatial: no runtime objects); reduced
+    /// motion holds it still.
     /// </summary>
     public class Butterfly : MonoBehaviour
     {
@@ -19,6 +20,12 @@ namespace RoomOrchestra
         [SerializeField] Vector3 centre = new Vector3(0f, 1.5f, 2.3f), size = new Vector3(1.4f, 0.25f, 0.45f);
         [SerializeField] float lapSeconds = 26f, phase;
         [SerializeField] float flapsPerSecond = 5f;
+        [Tooltip("Where it waits, hidden (stage space): inside the lamp shade.")]
+        [SerializeField] Vector3 home;
+
+        const float TravelSeconds = 3f;
+        bool m_Out, m_Parked = true;
+        float m_TravelStart = -100f;
 
         const int HistoryLength = 64;
         const float SampleSeconds = 0.05f, TrailSpacing = 2.5f; // history samples between trail dots
@@ -30,8 +37,22 @@ namespace RoomOrchestra
         public Transform WingL => wingL;
         public System.Collections.Generic.IReadOnlyList<Transform> Trail => trail;
 
-        public void Configure(Transform left, Transform right, Transform[] sparkleTrail, Vector3 loopCentre, Vector3 loopSize, float lap, float startPhase)
+        public bool IsOut => m_Out;
+        public bool AtHome => !m_Out && Time.time - m_TravelStart >= TravelSeconds;
+        public Vector3 Home => home;
+
+        /// <summary>Sends it out to its loop, or back home into the lamp.</summary>
+        public void SetOut(bool goOut)
         {
+            if (m_Out == goOut) return;
+            m_Out = goOut;
+            m_TravelStart = Time.time;
+            Debug.Log($"[RoomOrchestra] Jungle: {name} {(goOut ? "flutters out of the lamp" : "flies home")}");
+        }
+
+        public void Configure(Transform left, Transform right, Transform[] sparkleTrail, Vector3 loopCentre, Vector3 loopSize, float lap, float startPhase, Vector3 hideAt)
+        {
+            home = hideAt;
             wingL = left;
             wingR = right;
             trail = sparkleTrail;
@@ -51,10 +72,28 @@ namespace RoomOrchestra
         void Update()
         {
             if (ReducedMotion || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
-            float t = Time.time;
             var stage = transform.parent;
-            var position = stage != null ? stage.TransformPoint(PathAt(t)) : PathAt(t);
-            var ahead = stage != null ? stage.TransformPoint(PathAt(t + 0.2f)) : PathAt(t + 0.2f);
+            if (AtHome)
+            {
+                // Resting out of sight inside the lamp: settle once, then write nothing.
+                if (!m_Parked)
+                {
+                    m_Parked = true;
+                    var at = stage != null ? stage.TransformPoint(home) : home;
+                    transform.position = at;
+                    SetWings(RestAngle);
+                    ParkTrail(at);
+                }
+                return;
+            }
+            m_Parked = false;
+            float t = Time.time;
+            // Between home and the loop, glide along an eased blend so it emerges from (or returns to) the lamp.
+            float travel = Mathf.Clamp01((t - m_TravelStart) / TravelSeconds);
+            float outness = m_Out ? Smooth(travel) : 1f - Smooth(travel);
+            Vector3 Local(float at) => Vector3.Lerp(home, PathAt(at), outness);
+            var position = stage != null ? stage.TransformPoint(Local(t)) : Local(t);
+            var ahead = stage != null ? stage.TransformPoint(Local(t + 0.2f)) : Local(t + 0.2f);
             var heading = ahead - position;
             heading.y *= 0.3f; // bank gently, never nose-dive
             transform.SetPositionAndRotation(position, heading.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(heading, Vector3.up) : transform.rotation);
@@ -65,6 +104,15 @@ namespace RoomOrchestra
             SetWings(Mathf.Lerp(RestAngle - 10f, Mathf.Lerp(RestAngle + 15f, 80f, glide), beat));
 
             UpdateTrail(position, t);
+        }
+
+        static float Smooth(float u) => u * u * (3f - 2f * u);
+
+        void ParkTrail(Vector3 at)
+        {
+            if (trail == null) return;
+            m_Count = 0;
+            foreach (var dot in trail) dot.position = at;
         }
 
         /// <summary>Wing lift above flat (degrees) while resting: a V that shows the wings' faces to the player.</summary>

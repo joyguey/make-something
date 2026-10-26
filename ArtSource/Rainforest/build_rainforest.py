@@ -5,10 +5,13 @@ cute, thick-outlined 2D-game look (inspired by the feel of games like MapleStory
 no downloaded assets).
 
 Every part is a separate mesh so Unity colours it with project materials:
-  Vine_<Name>_Stem / _Leaves / _LeafRims / _Flowers / _FlowerHearts
-      a vine shaped to its furniture (built in place around the local origin):
-      Lamp, Stand (ball stand post), TableL, TableR (front table legs) spiral up a pole; Chair drapes
-      along the chair back's top edge.
+  Vine_<Name>_Seg<k>_Stem / _Leaves / _LeafRims (k = 0..7, bottom to tip), Vine_<Name>_Flowers / _FlowerHearts
+      a vine shaped to its furniture, in pieces that creep out one by one as music plays. Each piece's
+      origin is inside the furniture, so Unity hides it by shrinking it there. Lamp, Stand (ball stand
+      post), TableL, TableR (front table legs) spiral up a pole; Chair climbs a back leg and runs along
+      the top of the back.
+  Toadstool_Cap / _CapRim / _Spots / _Stem / _StemRim / _Face
+      a cute spotted toadstool with a sleepy face that grows from a bud and sways to the beat
   Butterfly_Body, Butterfly_WingL/R, Butterfly_WingRimL/R, Butterfly_SpotsL/R
       wings pivot on the body axis (Unity flaps them by rotation)
   Sparkle, Sparkle_Rim
@@ -38,7 +41,6 @@ SPIRALS = [
     ("TableL", 0.055, 0.02, 0.72, 1.75, 6, 1),
     ("TableR", 0.055, 0.02, 0.72, 1.75, 6, 1),
 ]
-CHAIR_DRAPE = dict(width=0.56, sag=0.05, tails=0.32)  # along the chair back's top edge
 
 
 def reset():
@@ -129,63 +131,154 @@ def leaf_matrix(base, along, facing):
     return m
 
 
-def build_vine(name, path, side_of, leaves_every, flower_at, stem_radius=0.009):
-    """Stem along path; leaves alternate left/right; flowers at given path fractions."""
-    stem, leaves, rims, petals, hearts = (bmesh.new() for _ in range(5))
-    tube(stem, path, stem_radius)
+SEGMENTS = 8  # each vine creeps out piece by piece as its instrument plays
+
+
+def obj_at(bm, name, pivot, smooth=True):
+    """Object whose origin is `pivot` (mesh moved to stay where it was): Unity hides a piece by
+    shrinking it toward this point, which sits inside the furniture."""
+    bmesh.ops.translate(bm, vec=-pivot, verts=bm.verts)
+    obj = obj_from(bm, name, smooth)
+    obj.location = pivot
+    return obj
+
+
+def build_vine(name, path, side_of, core_of, leaves_every, flower_at, stem_radius=0.009):
+    """Vine in SEGMENTS pieces (stem, leaves, leaf rims each) plus one flower group. Leaves alternate
+    sides; core_of(point) gives the hiding point inside the furniture nearest that point."""
     n = len(path)
-    for i in range(2, n - 1, leaves_every):
-        p, q = path[i], path[i + 1]
-        tangent = (q - p).normalized()
-        out = side_of(p)                               # away from the furniture, toward the room
-        flip = 1 if (i // leaves_every) % 2 == 0 else -1
-        sideways = tangent.cross(out).normalized() * flip
-        along = (sideways * 0.8 + out * 0.6 + Vector((0, 0, 0.35))).normalized()
-        size = 0.055 + 0.015 * ((i * 7) % 3) / 2.0
-        shape = leaf_shape(size, size * 0.62)
-        m = leaf_matrix(p + out * stem_radius, along, out + Vector((0, -0.4, 0.2)))
-        add_flat(leaves, shape, 0.004, m, cup=0.0025)
-        add_flat(rims, shape, 0.004, m, cup=0.0025, inflate=RIM)
+    bounds = [round(k * (n - 1) / SEGMENTS) for k in range(SEGMENTS + 1)]
+    for k in range(SEGMENTS):
+        lo, hi = bounds[k], bounds[k + 1]
+        stem, leaves, rims = bmesh.new(), bmesh.new(), bmesh.new()
+        tube(stem, path[lo:hi + 1], stem_radius, taper_end=1.0 if k < SEGMENTS - 1 else 0.5)
+        for i in range(max(lo, 2), min(hi, n - 1)):
+            if (i - 2) % leaves_every:
+                continue
+            p, q = path[i], path[i + 1]
+            tangent = (q - p).normalized()
+            out = side_of(p)                           # away from the furniture, toward the room
+            flip = 1 if ((i - 2) // leaves_every) % 2 == 0 else -1
+            sideways = tangent.cross(out).normalized() * flip
+            along = (sideways * 0.8 + out * 0.6 + Vector((0, 0, 0.35))).normalized()
+            size = 0.055 + 0.015 * ((i * 7) % 3) / 2.0
+            shape = leaf_shape(size, size * 0.62)
+            m = leaf_matrix(p + out * stem_radius, along, out + Vector((0, -0.4, 0.2)))
+            add_flat(leaves, shape, 0.004, m, cup=0.0025)
+            add_flat(rims, shape, 0.004, m, cup=0.0025, inflate=RIM)
+        bmesh.ops.reverse_faces(rims, faces=rims.faces)  # inverted hull: only the rim shows
+        pivot = core_of(path[(lo + hi) // 2])
+        obj_at(stem, f"Vine_{name}_Seg{k}_Stem", pivot.copy())
+        obj_at(leaves, f"Vine_{name}_Seg{k}_Leaves", pivot.copy(), smooth=False)
+        obj_at(rims, f"Vine_{name}_Seg{k}_LeafRims", pivot.copy(), smooth=False)
+    petals, hearts = bmesh.new(), bmesh.new()
     for f in flower_at:
         i = min(int(f * (n - 1)), n - 2)
         flower(petals, hearts, path[i] + side_of(path[i]) * 0.02, side_of(path[i]) + Vector((0, -0.3, 0.2)), 0.045)
-    bmesh.ops.reverse_faces(rims, faces=rims.faces)    # inverted hull: only the rim shows
-    obj_from(stem, f"Vine_{name}_Stem")
-    obj_from(leaves, f"Vine_{name}_Leaves", smooth=False)
-    obj_from(rims, f"Vine_{name}_LeafRims", smooth=False)
-    obj_from(petals, f"Vine_{name}_Flowers")
-    obj_from(hearts, f"Vine_{name}_FlowerHearts")
+    pivot = core_of(path[n // 2])
+    obj_at(petals, f"Vine_{name}_Flowers", pivot.copy())
+    obj_at(hearts, f"Vine_{name}_FlowerHearts", pivot.copy())
+
+
+def spiral_path(radius, bottom, top, turns, axis=None):
+    axis = axis if axis is not None else Vector((0, 0, 0))
+    steps = int(turns * 24)
+    r = radius + 0.012
+    # Start on the player's side (-Y) so the first leaves face the room.
+    return [axis + Vector((r * math.sin(2 * math.pi * turns * k / steps), -r * math.cos(2 * math.pi * turns * k / steps),
+                           bottom + (top - bottom) * k / steps)) for k in range(steps + 1)]
+
+
+def curl(path):
+    """A curly tip that unwinds outward: the cartoon-vine signature."""
+    tip = path[-1]
+    for k in range(1, 9):
+        a = k * 0.7
+        path.append(tip + Vector((0.025 * math.sin(a) * (1 + k * 0.15), -0.025 * (1 - math.cos(a)), 0.012 * k)))
+    return path
+
+
+def radial(axis):
+    def side(p):
+        d = Vector((p.x - axis.x, p.y - axis.y, 0))
+        return d.normalized() if d.length > 1e-4 else Vector((0, -1, 0))
+    return side
 
 
 def spiral_vines():
     for name, radius, bottom, top, turns, per_turn, flowers in SPIRALS:
-        steps = int(turns * 24)
-        r = radius + 0.012
-        # Start on the player's side (-Y) so the first leaves face the room.
-        path = [Vector((r * math.sin(2 * math.pi * turns * k / steps), -r * math.cos(2 * math.pi * turns * k / steps),
-                        bottom + (top - bottom) * k / steps)) for k in range(steps + 1)]
-        # A curly tip that unwinds outward at the top, the cartoon-vine signature.
-        tip = path[-1]
-        for k in range(1, 9):
-            a = k * 0.7
-            path.append(tip + Vector((0.025 * math.sin(a) * (1 + k * 0.15), -0.025 * (1 - math.cos(a)), 0.012 * k)))
-        side = lambda p: Vector((p.x, p.y, 0)).normalized() if Vector((p.x, p.y, 0)).length > 1e-4 else Vector((0, -1, 0))
-        build_vine(name, path, side, max(2, int(24 / per_turn)),
+        path = curl(spiral_path(radius, bottom, top, turns))
+        core = lambda p, b=bottom, t=top: Vector((0, 0, min(max(p.z, b), t)))  # on the pole axis
+        build_vine(name, path, radial(Vector((0, 0, 0))), core, max(2, int(24 / per_turn)),
                    [0.25 + 0.6 * j / max(flowers - 1, 1) for j in range(flowers)] if flowers > 1 else [0.55])
 
 
-def chair_drape():
-    w, sag, tails = CHAIR_DRAPE["width"], CHAIR_DRAPE["sag"], CHAIR_DRAPE["tails"]
-    path = []
-    # Down the left side, across the top with a gentle sag, down the right side, curling at both tips.
-    for k in range(10):
-        path.append(Vector((-w / 2 - 0.015, -0.03, -tails * (1 - k / 9.0))))
-    for k in range(1, 24):
-        u = k / 24.0
-        path.append(Vector((-w / 2 + w * u, -0.03 - 0.01 * math.sin(math.pi * u), 0.02 - sag * 0.2 * math.sin(math.pi * u))))
-    for k in range(10):
-        path.append(Vector((w / 2 + 0.015, -0.03, -tails * k / 9.0)))
-    build_vine("Chair", path, lambda p: Vector((0, -1, 0.3)).normalized(), 3, [0.12, 0.5, 0.88])
+def chair_vine():
+    """Climbs the chair's back-left leg and the back's left edge, then runs along the top of the back
+    (local origin = the chair's centre line at floor level, on the back's mid-plane)."""
+    axis = Vector((-0.22, 0, 0))
+    path = spiral_path(0.03, 0.02, 1.0, 4.0, axis)
+    top = path[-1]
+    for k in range(1, 8):  # up and over the corner
+        path.append(top.lerp(Vector((-0.2, -0.04, 1.1)), k / 7.0))
+    for k in range(1, 22):  # along the top edge with a gentle sag
+        u = k / 21.0
+        path.append(Vector((-0.2 + 0.46 * u, -0.04 - 0.008 * math.sin(math.pi * u), 1.1 - 0.02 * math.sin(math.pi * u))))
+    path = curl(path)
+    spiral_side = radial(axis)
+    side = lambda p: spiral_side(p) if p.z < 1.0 else Vector((0, -1, 0.3)).normalized()
+    # Hide inside the leg (below the seat) or the back slab (above it): the slab top is at 1.08.
+    core = lambda p: Vector((axis.x, 0, max(p.z, 0.02))) if p.z < 1.0 else Vector((min(max(p.x, -0.24), 0.24), 0, 1.02))
+    build_vine("Chair", path, side, core, 3, [0.3, 0.62, 0.9])
+
+
+def toadstool():
+    """A cute toadstool: domed cap with white spots, chunky stem with a sleepy face, all outlined.
+    Origin at the foot of the stem; about 25 cm tall."""
+    cap, rim_cap, spots = bmesh.new(), bmesh.new(), bmesh.new()
+
+    def dome(bm, inflate):
+        g = bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=1.0)
+        for v in g["verts"]:
+            x, y, z = v.co
+            z = z * 0.62 if z > 0 else z * 0.18           # flat underside, round top
+            v.co = Vector((x * (0.13 + inflate), y * (0.13 + inflate), 0.16 + z * (0.13 + inflate)))
+
+    dome(cap, 0.0)
+    dome(rim_cap, RIM * 1.5)
+    bmesh.ops.reverse_faces(rim_cap, faces=rim_cap.faces)
+    for a, el, r in ((0.3, 0.55, 0.028), (2.0, 0.35, 0.022), (3.6, 0.6, 0.025), (5.0, 0.3, 0.02),
+                     (1.2, 0.95, 0.024), (4.3, 0.9, 0.02), (2.9, 0.85, 0.018)):
+        n = Vector((math.cos(a) * math.cos(el), math.sin(a) * math.cos(el), math.sin(el)))
+        at = Vector((n.x * 0.131, n.y * 0.131, 0.16 + n.z * 0.131 * 0.62))
+        g = bmesh.ops.create_uvsphere(spots, u_segments=8, v_segments=5, radius=1.0)
+        rot = Vector((0, 0, 1)).rotation_difference(Vector((n.x, n.y, n.z * 1.6)).normalized()).to_matrix().to_4x4()
+        bmesh.ops.transform(spots, matrix=Matrix.Translation(at) @ rot @ Matrix.Diagonal((r, r, 0.004, 1)), verts=g["verts"])
+
+    stem, rim_stem, face = bmesh.new(), bmesh.new(), bmesh.new()
+
+    def column(bm, inflate):
+        g = bmesh.ops.create_cone(bm, cap_ends=True, segments=14, radius1=0.055 + inflate, radius2=0.045 + inflate, depth=0.17)
+        for v in g["verts"]:
+            v.co.z += 0.085
+            bulge = 1.0 + 0.18 * math.sin(math.pi * min(max(v.co.z / 0.17, 0), 1))
+            v.co.x *= bulge
+            v.co.y *= bulge
+
+    column(stem, 0.0)
+    column(rim_stem, RIM * 1.5)
+    bmesh.ops.reverse_faces(rim_stem, faces=rim_stem.faces)
+    for sx in (-1, 1):  # sleepy dot eyes on the stem, facing the player (-Y)
+        g = bmesh.ops.create_uvsphere(face, u_segments=8, v_segments=5, radius=1.0)
+        bmesh.ops.transform(face, matrix=Matrix.Translation(Vector((sx * 0.02, -0.06, 0.09))) @ Matrix.Diagonal((0.008, 0.004, 0.011, 1)), verts=g["verts"])
+    smile_pts = [Vector((0.012 * math.sin(a), -0.062, 0.068 - 0.006 * math.cos(a))) for a in [math.pi * (-0.5 + j / 6) for j in range(7)]]
+    tube(face, smile_pts, 0.0025, sides=4, taper_end=1.0)
+    obj_from(cap, "Toadstool_Cap")
+    obj_from(rim_cap, "Toadstool_CapRim")
+    obj_from(spots, "Toadstool_Spots")
+    obj_from(stem, "Toadstool_Stem")
+    obj_from(rim_stem, "Toadstool_StemRim")
+    obj_from(face, "Toadstool_Face")
 
 
 def butterfly():
@@ -248,9 +341,10 @@ def sparkle():
 def main():
     reset()
     spiral_vines()
-    chair_drape()
+    chair_vine()
     butterfly()
     sparkle()
+    toadstool()
     os.makedirs(os.path.dirname(EXPORT), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Rainforest.blend"))
     bpy.ops.object.select_all(action="SELECT")

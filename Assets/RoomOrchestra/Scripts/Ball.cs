@@ -173,7 +173,7 @@ namespace RoomOrchestra
         static bool IsGround(Collider c) => c.GetComponentInParent<GroundSurface>() != null;
 
         /// <summary>Rolling slower than this (m/s) never worries; drops lower than this (m) are not scary.</summary>
-        public const float EdgeMinSpeed = 0.15f, EdgeMinDrop = 0.15f;
+        public const float EdgeMinSpeed = 0.08f, EdgeMinDrop = 0.15f;
         static readonly float[] EdgeLookAheadSeconds = { 0.15f, 0.3f, 0.5f };
         float m_LastSurfaceContact = -10f;
 
@@ -243,7 +243,9 @@ namespace RoomOrchestra
                 Expired?.Invoke(this);
                 return;
             }
+            bool wasScared = FallingToTheFloor;
             FallingToTheFloor = InFlight && IsFallingToTheFloor();
+            if (FallingToTheFloor && !wasScared) Debug.Log($"[RoomOrchestra] {orb}: eek! the floor is coming");
             if (FallingToTheFloor)
             {
                 if (TryGetComponent<CharacterFace>(out var face)) face.Show(Expression.Scared, hold: 0.3f); // relaxes soon if it lands safely

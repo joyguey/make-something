@@ -231,6 +231,33 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator AimDotsReturnToTheReadyBallOnceTheThrownBallIsGone()
+        {
+            var spawn = Track(new GameObject("Spawn").transform);
+            spawn.position = new Vector3(0f, 1f, 0f);
+            var balls = new[] { MakeBall(OrbType.Flutter, Vector3.down * 3f), MakeBall(OrbType.Flutter, Vector3.down * 3f) };
+            var launcher = Track(new GameObject("Launcher").AddComponent<BallLauncher>());
+            launcher.Configure(spawn, balls);
+            var arcGo = Track(new GameObject("Arc").AddComponent<AimArc>());
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var dots = new Transform[4];
+            for (int i = 0; i < dots.Length; i++) dots[i] = Track(new GameObject($"Dot{i}").transform);
+            typeof(AimArc).GetField("dots", flags).SetValue(arcGo, dots);
+            typeof(AimArc).GetField("landingMarker", flags).SetValue(arcGo, Track(new GameObject("Landing").transform));
+            var arcField = typeof(BallLauncher).GetField("arc", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            arcField.SetValue(launcher, arcGo);
+            yield return null;
+
+            var thrown = launcher.ThrowAssisted(spawn.position, Vector3.forward, new Vector3(0f, 2f, 3f));
+            Assert.IsTrue(launcher.ArcHeld, "the throw's arc stays up while that ball is in play");
+            thrown.transform.position = Vector3.down * 10f; // gone (as after a poof)
+            thrown.GetComponent<Rigidbody>().position = Vector3.down * 10f;
+            yield return null;
+            yield return null;
+            Assert.IsFalse(launcher.ArcHeld, "the dots aim from the ready ball again, not at a ball that is gone");
+        }
+
+        [UnityTest]
         public IEnumerator ChangingCharacterRecoloursTheBallsFaceAndRim()
         {
             var ball = MakeBall(OrbType.Flutter, Vector3.down * 3f);
