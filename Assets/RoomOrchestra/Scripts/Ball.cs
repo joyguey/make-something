@@ -14,6 +14,10 @@ namespace RoomOrchestra
     public class Ball : MonoBehaviour
     {
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
+        /// <summary>Character bodies glow softly in their own colour (share of the base colour).</summary>
+        public const float GlowStrength = 0.35f;
 
         [SerializeField, Min(1f)] float lifetime = 15f;
         [Tooltip("Impacts slower than this (m/s) are ignored, so rolling balls don't spam notes.")]
@@ -84,6 +88,7 @@ namespace RoomOrchestra
             {
                 if (m_Material == null) m_Material = m_Renderer.material;
                 m_Material.SetColor(BaseColorId, color);
+                if (m_Material.HasProperty(EmissionColorId)) m_Material.SetColor(EmissionColorId, color * GlowStrength);
             }
             if (rim != null) Recolor(new[] { rim }, ref m_RimMaterial, profile.Rim);
             if (faceParts != null && faceParts.Length > 0) Recolor(faceParts, ref m_FaceMaterial, profile.Face);

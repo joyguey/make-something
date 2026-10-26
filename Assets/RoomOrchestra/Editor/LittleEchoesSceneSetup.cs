@@ -50,7 +50,7 @@ namespace RoomOrchestra.EditorTools
             if (old != null) Object.DestroyImmediate(old.gameObject);
 
             var orbMaterials = OrbCatalog.All
-                .Select(p => EnsureMaterial($"Orb_{p.Type}", "Ball", new Color(p.R, p.G, p.B)))
+                .Select(p => Glow(EnsureMaterial($"Orb_{p.Type}", "Ball", new Color(p.R, p.G, p.B)), new Color(p.R, p.G, p.B)))
                 .ToArray();
             var motifMaterial = EnsureMaterial("OrbMotif", "Ball", new Color(0.12f, 0.14f, 0.18f));
             var focusMaterial = EnsureMaterial("FocusMarker", "AimRing", new Color(1f, 0.95f, 0.6f));
@@ -575,6 +575,18 @@ namespace RoomOrchestra.EditorTools
             }
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
             if (material.HasProperty("_Color")) material.SetColor("_Color", color);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        // A soft self-glow in the body colour so characters stay bright in a dim room (owner: "brighter").
+        static Material Glow(Material material, Color color)
+        {
+            if (!material.HasProperty("_EmissionColor")) return material;
+            material.EnableKeyword("_EMISSION");
+            // URP re-validates materials and keeps _EMISSION only when the GI flags say emissive.
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            material.SetColor("_EmissionColor", color * Ball.GlowStrength);
             EditorUtility.SetDirty(material);
             return material;
         }
