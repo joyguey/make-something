@@ -498,6 +498,43 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void UnusedEchoCharactersHideWhollyInsideTheirParkingSpot()
+        {
+            // PICO Spatial draws everything, so unused minis must be fully inside the hub (or the lamp shade).
+            Physics.SyncTransforms();
+            foreach (var orbit in Object.FindObjectsByType<OrbitView>(FindObjectsSortMode.None))
+            {
+                var hub = orbit.transform.Find("Hub");
+                var shade = orbit.Target.GetComponentsInChildren<Collider>();
+                foreach (var mini in orbit.GetComponentsInChildren<EchoMini>())
+                    foreach (var filter in mini.GetComponentsInChildren<MeshFilter>())
+                        foreach (var v in filter.sharedMesh.vertices)
+                        {
+                            var p = filter.transform.TransformPoint(v);
+                            bool hidden = hub != null
+                                ? (p - hub.position).magnitude <= hub.lossyScale.x * 0.5f + 1e-4f
+                                : shade.Any(c => (c.ClosestPoint(p) - p).sqrMagnitude < 1e-8f);
+                            Assert.IsTrue(hidden, $"{filter.name} of {mini.name} on {orbit.name} shows at {p}");
+                        }
+            }
+        }
+
+        [Test]
+        public void ThrowableBallsWearTheCharacterFace()
+        {
+            foreach (var ball in Object.FindObjectsByType<Ball>(FindObjectsSortMode.None))
+            {
+                Assert.IsNotNull(ball.Rim, $"{ball.name} rim");
+                Assert.AreEqual(3, ball.FaceParts.Count, $"{ball.name} eyes and smile");
+                Assert.AreEqual("Bop_Body", ball.GetComponent<MeshFilter>().sharedMesh.name);
+                var faceColor = ball.FaceParts[0].sharedMaterial.GetColor("_BaseColor");
+                var expected = OrbCatalog.Get(ball.Orb).Face;
+                Assert.Less(Mathf.Abs(faceColor.r - expected.R) + Mathf.Abs(faceColor.g - expected.G) + Mathf.Abs(faceColor.b - expected.B), 1e-3f,
+                    $"{ball.name} authored with its character's face colour, so startup changes nothing");
+            }
+        }
+
+        [Test]
         public void UndoButtonReachableSeated()
         {
             var undo = Object.FindFirstObjectByType<UndoButton>();

@@ -258,7 +258,7 @@ namespace RoomOrchestra.EditorTools
 
         static readonly Vector3 PlayerEye = new Vector3(0f, 1.15f, 0f); // seated eye height at the start position
         const float OrbitRadius = 0.3f;
-        const float MiniDiameter = 0.05f;
+        const float MiniDiameter = 0.06f; // character minis: faces readable on the ring
 
         // A clock face facing the player: lamp ring around the shade; chair/table rings float above.
         static OrbitView CreateOrbit(InstrumentTarget target, Transform root, Material[] orbMaterials,
@@ -287,7 +287,7 @@ namespace RoomOrchestra.EditorTools
             if (lift > 0f)
             {
                 park = Primitive(PrimitiveType.Sphere, "Hub", go.transform, hub, keepCollider: false);
-                park.localScale = Vector3.one * 0.09f;
+                park.localScale = Vector3.one * 0.1f; // holds the widest unused mini (Boom) out of sight
             }
             else
             {
@@ -303,9 +303,22 @@ namespace RoomOrchestra.EditorTools
                 pools[o] = new Transform[EchoSequencer.MaxPerTarget];
                 for (int m = 0; m < pools[o].Length; m++)
                 {
-                    var mini = Primitive(PrimitiveType.Sphere, $"Echo_{profile.Type}_{m}", go.transform, orbMaterials[o], keepCollider: true);
+                    Transform mini;
+                    if (CharacterArt.Has(profile.Type))
+                    {
+                        // A tiny version of the character, facing the player like its ring.
+                        mini = new GameObject($"Echo_{profile.Type}_{m}").transform;
+                        mini.SetParent(go.transform, false);
+                        CharacterArt.DressMini(mini.gameObject, profile.Type, orbMaterials[o]);
+                        mini.gameObject.AddComponent<SphereCollider>().radius = 0.5f;
+                        mini.localScale = Vector3.one * MiniDiameter;
+                    }
+                    else
+                    {
+                        mini = Primitive(PrimitiveType.Sphere, $"Echo_{profile.Type}_{m}", go.transform, orbMaterials[o], keepCollider: true);
+                        mini.localScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * MiniDiameter;
+                    }
                     mini.position = park.position;
-                    mini.localScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * MiniDiameter;
                     mini.gameObject.AddComponent<EchoMini>().Configure(view);
                     EditorUtility.SetDirty(mini.GetComponent<EchoMini>());
                     pools[o][m] = mini;
@@ -534,6 +547,12 @@ namespace RoomOrchestra.EditorTools
                 ball.transform.localScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * diameter;
                 var renderer = ball.GetComponent<Renderer>();
                 if (renderer != null) renderer.sharedMaterial = flutter;
+                if (CharacterArt.Has(OrbType.Bop))
+                {
+                    var (rim, face) = CharacterArt.DressBall(ball.gameObject, OrbType.Flutter);
+                    ball.ConfigureCharacter(rim, face);
+                    EditorUtility.SetDirty(ball);
+                }
                 var body = ball.GetComponent<Rigidbody>();
                 if (body != null) body.mass = profile.Mass;
             }

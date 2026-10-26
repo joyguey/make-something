@@ -229,5 +229,44 @@ namespace RoomOrchestra.Tests
             Assert.Greater(ready.transform.localScale.x, ready.transform.localScale.y, "Boom is wide");
             Assert.AreEqual(OrbCatalog.Get(OrbType.Boom).Mass, ready.GetComponent<Rigidbody>().mass, 1e-4f);
         }
+
+        [UnityTest]
+        public IEnumerator ChangingCharacterRecoloursTheBallsFaceAndRim()
+        {
+            var ball = MakeBall(OrbType.Flutter, Vector3.down * 3f);
+            var shader = ball.GetComponent<Renderer>().sharedMaterial.shader;
+            Renderer Part(string name, Rgb rgb)
+            {
+                var part = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                part.name = name;
+                Object.DestroyImmediate(part.GetComponent<Collider>());
+                part.transform.SetParent(ball.transform, false);
+                var material = new Material(shader);
+                material.SetColor("_BaseColor", new Color(rgb.R, rgb.G, rgb.B));
+                part.GetComponent<Renderer>().sharedMaterial = material;
+                return part.GetComponent<Renderer>();
+            }
+            var flutter = OrbCatalog.Get(OrbType.Flutter);
+            var rim = Part("Outline", flutter.Rim);
+            var face = new[] { Part("EyeL", flutter.Face), Part("EyeR", flutter.Face), Part("Smile", flutter.Face) };
+            var authored = face[0].sharedMaterial;
+            ball.ConfigureCharacter(rim, face);
+            yield return null;
+
+            ball.ApplyOrb(OrbType.Flutter);
+            Assert.AreSame(authored, face[0].sharedMaterial, "same character: nothing is touched");
+
+            ball.ApplyOrb(OrbType.Boom);
+            var boom = OrbCatalog.Get(OrbType.Boom);
+            foreach (var part in face)
+            {
+                var c = part.sharedMaterial.GetColor("_BaseColor");
+                Assert.AreEqual(boom.Face.R, c.r, 1e-3f, part.name);
+                Assert.AreEqual(boom.Face.G, c.g, 1e-3f, part.name);
+            }
+            Assert.AreSame(face[0].sharedMaterial, face[2].sharedMaterial, "one face material per ball");
+            Assert.AreEqual(boom.Rim.R, rim.sharedMaterial.GetColor("_BaseColor").r, 1e-3f);
+            Assert.AreNotSame(authored, face[0].sharedMaterial, "the shared asset material is never edited");
+        }
     }
 }

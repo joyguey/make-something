@@ -21,7 +21,7 @@ namespace RoomOrchestra
         [SerializeField] Transform[] bopMinis;
         [SerializeField] Transform[] boomMinis;
         [SerializeField, Min(1f)] float selectedScale = 1.5f;
-        [Tooltip("The play marker at the top; in calm motion it steps to the current beat.")]
+        [Tooltip("The play marker at the top of the ring.")]
         [SerializeField] Transform marker;
 
         readonly Dictionary<long, Transform> m_ByEcho = new();

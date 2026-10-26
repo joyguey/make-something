@@ -15,13 +15,20 @@ namespace RoomOrchestra.EditorTools
         public const string Dir = "Assets/RoomOrchestra/Art/Characters";
         const string MaterialDir = "Assets/RoomOrchestra/Materials";
 
-        /// <summary>Rim, face (eyes/smile), shine and motif colours sampled from the reference (sRGB).</summary>
-        static (Color rim, Color face, Color shine, Color motif) Palette(OrbType type) => type switch
+        static Color ToColor(Rgb c) => new Color(c.R, c.G, c.B);
+
+        /// <summary>Rim and face come from the orb catalog (runtime recolours balls with them); shine and motif are art-only.</summary>
+        static (Color rim, Color face, Color shine, Color motif) Palette(OrbType type)
         {
-            OrbType.Flutter => (new Color(0.30f, 0.60f, 0.65f), new Color(0.18f, 0.33f, 0.35f), new Color(0.86f, 0.96f, 0.97f), new Color(0.93f, 0.80f, 0.40f)),
-            OrbType.Bop => (new Color(0.55f, 0.39f, 0.78f), new Color(0.28f, 0.20f, 0.43f), new Color(0.90f, 0.84f, 0.98f), new Color(0.55f, 0.39f, 0.78f)),
-            _ => (new Color(0.75f, 0.53f, 0.26f), new Color(0.44f, 0.28f, 0.15f), new Color(0.96f, 0.86f, 0.66f), new Color(0.75f, 0.53f, 0.26f)),
-        };
+            var profile = OrbCatalog.Get(type);
+            var (shine, motif) = type switch
+            {
+                OrbType.Flutter => (new Color(0.86f, 0.96f, 0.97f), new Color(0.93f, 0.80f, 0.40f)), // reference sparkle
+                OrbType.Bop => (new Color(0.90f, 0.84f, 0.98f), ToColor(profile.Rim)),
+                _ => (new Color(0.96f, 0.86f, 0.66f), ToColor(profile.Rim)),
+            };
+            return (ToColor(profile.Rim), ToColor(profile.Face), shine, motif);
+        }
 
         static string FbxPath(OrbType type) => $"{Dir}/{type}.fbx";
 
@@ -86,6 +93,51 @@ namespace RoomOrchestra.EditorTools
             Child(root.transform, type, "Mouth_O", face, MouthParked);
             Child(root.transform, type, "Highlight", shine, Vector3.zero);
             Child(root.transform, type, "Motif", motif, Vector3.zero);
+        }
+
+        /// <summary>
+        /// Lighter echo-mini version (body, rim, eyes, smile) on <paramref name="root"/>: 54 of these orbit
+        /// the furniture, so they skip the shine, motif and spare mouth.
+        /// </summary>
+        public static void DressMini(GameObject root, OrbType type, Material body)
+        {
+            var (rimColor, faceColor, _, _) = Palette(type);
+            var rim = EnsureMaterial($"Rim_{type}", rimColor);
+            var face = EnsureMaterial($"Face_{type}", faceColor);
+            if (!root.TryGetComponent<MeshFilter>(out var filter)) filter = root.AddComponent<MeshFilter>();
+            filter.sharedMesh = Part(type, "MiniBody");
+            if (!root.TryGetComponent<MeshRenderer>(out var renderer)) renderer = root.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = body;
+            Child(root.transform, type, "MiniOutline", rim, Vector3.zero);
+            Child(root.transform, type, "MiniEyeL", face, Vector3.zero);
+            Child(root.transform, type, "MiniEyeR", face, Vector3.zero);
+            Child(root.transform, type, "MiniSmile", face, Vector3.zero);
+        }
+
+        /// <summary>
+        /// Throwable ball: Bop's round body (the ball's scale gives each orb its silhouette) with a rim,
+        /// eyes and smile that the ball recolours for whichever character it currently is. Re-running
+        /// replaces the parts from a previous run (balls live outside the rebuilt Little Echoes root).
+        /// </summary>
+        public static (Renderer rim, Renderer[] face) DressBall(GameObject ball, OrbType current)
+        {
+            foreach (var part in new[] { "Outline", "EyeL", "EyeR", "Smile" })
+            {
+                var old = ball.transform.Find(part);
+                if (old != null) Object.DestroyImmediate(old.gameObject);
+            }
+            var (rimColor, faceColor, _, _) = Palette(current);
+            var rim = EnsureMaterial($"Rim_{current}", rimColor);
+            var face = EnsureMaterial($"Face_{current}", faceColor);
+            ball.GetComponent<MeshFilter>().sharedMesh = Part(OrbType.Bop, "Body");
+            var outline = Child(ball.transform, OrbType.Bop, "Outline", rim, Vector3.zero);
+            var parts = new[]
+            {
+                Child(ball.transform, OrbType.Bop, "EyeL", face, Vector3.zero).GetComponent<Renderer>(),
+                Child(ball.transform, OrbType.Bop, "EyeR", face, Vector3.zero).GetComponent<Renderer>(),
+                Child(ball.transform, OrbType.Bop, "Smile", face, Vector3.zero).GetComponent<Renderer>(),
+            };
+            return (outline.GetComponent<Renderer>(), parts);
         }
 
         /// <summary>Offset that sinks the "oh" mouth (built on the face at z ~ -0.41) wholly inside the body.</summary>

@@ -11,6 +11,7 @@ materials and move face parts for expressions (no blend shapes, no runtime objec
   <Name>_Mouth_O    small round "oh" mouth for surprise (Unity parks it inside the body until used)
   <Name>_Highlight  soft shine, upper left
   <Name>_Motif      Flutter sparkle / Bop dot / Boom ripple, floating at the upper left (shape ID beyond colour)
+  <Name>_Mini*      lighter Body/Outline/EyeL/EyeR/Smile for the 5 cm echo minis on the orbits (54 in the scene)
 
 Units: a round Bop is 1.0 wide; Unity scales the whole character by the orb diameter.
 Axes: modelled with the face toward Blender -Y, Z up; exported so the face points to Unity -Z (toward the player), Y up.
@@ -67,10 +68,10 @@ def new_object(name, bm, mat, smooth=True):
     return obj
 
 
-def blob(spec, inflate=0.0):
+def blob(spec, inflate=0.0, segments=(28, 18)):
     """UV sphere reshaped into the character's silhouette; inflate pushes it out along the normals."""
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=28, v_segments=18, radius=0.5)
+    bmesh.ops.create_uvsphere(bm, u_segments=segments[0], v_segments=segments[1], radius=0.5)
     w, h = spec["width"], spec["height"]
     for v in bm.verts:
         x, y, z = v.co
@@ -95,8 +96,8 @@ def blob(spec, inflate=0.0):
     return bm
 
 
-def outline(spec, mat, name):
-    bm = blob(spec, inflate=OUTLINE)
+def outline(spec, mat, name, segments=(28, 18)):
+    bm = blob(spec, inflate=OUTLINE, segments=segments)
     # Inverted hull: flip the faces so only the back shows, drawn as a rim around the body.
     bmesh.ops.reverse_faces(bm, faces=bm.faces)
     return new_object(name, bm, mat)
@@ -147,15 +148,15 @@ def tube_along(name, mat, points, radius, sides=8):
     return new_object(name, bm, mat)
 
 
-def smile(name, mat, tree, cx, cz, half_width, depth, radius):
+def smile(name, mat, tree, cx, cz, half_width, depth, radius, count=9, sides=8):
     points = []
-    for i in range(9):
-        u = -1.0 + 2.0 * i / 8
+    for i in range(count):
+        u = -1.0 + 2.0 * i / (count - 1)
         x = cx + u * half_width
         z = cz - depth * (1.0 - u * u)  # U-shaped smile
         point, normal = surface_point(tree, x, z)
         points.append(point - normal * (FACE_EMBED * 0.5))
-    return tube_along(name, mat, points, radius)
+    return tube_along(name, mat, points, radius, sides)
 
 
 def mouth_o(name, mat, tree, cx, cz, r, thickness):
@@ -242,6 +243,15 @@ def build(name):
         dot(f"{name}_Motif", m_motif, motif_centre, 0.08)
     else:
         ripple(f"{name}_Motif", m_motif, motif_centre, 0.18)
+    # Echo minis: same silhouette and face at a fraction of the triangles.
+    mini_bm = blob(spec, segments=(14, 9))
+    mini_tree = BVHTree.FromBMesh(mini_bm)
+    new_object(f"{name}_MiniBody", mini_bm, m_body)
+    outline(spec, m_rim, f"{name}_MiniOutline", segments=(14, 9))
+    mini_eye = (0.13, 0.07, 0.2)  # a little bigger: they are read from 2 m away
+    oriented_ellipsoid(f"{name}_MiniEyeL", m_face, mini_tree, -eye_x, eye_z, mini_eye, segments=(6, 4))
+    oriented_ellipsoid(f"{name}_MiniEyeR", m_face, mini_tree, eye_x, eye_z, mini_eye, segments=(6, 4))
+    smile(f"{name}_MiniSmile", m_face, mini_tree, 0.0, -0.12 * h, 0.13 * min(w, 1.0), 0.06, 0.04, count=5, sides=4)
     return body
 
 

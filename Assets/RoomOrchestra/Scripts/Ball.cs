@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RoomOrchestra
@@ -20,6 +21,10 @@ namespace RoomOrchestra
         [SerializeField] OrbType orb = OrbType.Flutter;
         [Tooltip("Size of a round (Bop-proportioned) orb; other orbs stretch from this.")]
         [SerializeField, Min(0.01f)] float diameter = 0.1f;
+        [Tooltip("Character rim and face parts, recoloured for whichever orb this ball is.")]
+        [SerializeField] Renderer rim;
+        [SerializeField] Renderer[] faceParts;
+        Material m_RimMaterial, m_FaceMaterial;
         Rigidbody m_Body;
         Renderer m_Renderer;
         Material m_Material; // instanced only when the orb's color first has to change
@@ -78,6 +83,32 @@ namespace RoomOrchestra
                 if (m_Material == null) m_Material = m_Renderer.material;
                 m_Material.SetColor(BaseColorId, color);
             }
+            if (rim != null) Recolor(new[] { rim }, ref m_RimMaterial, profile.Rim);
+            if (faceParts != null && faceParts.Length > 0) Recolor(faceParts, ref m_FaceMaterial, profile.Face);
+        }
+
+        /// <summary>Wires the character parts (scene setup tool and tests).</summary>
+        public void ConfigureCharacter(Renderer rimRenderer, Renderer[] face)
+        {
+            rim = rimRenderer;
+            faceParts = face;
+        }
+
+        public Renderer Rim => rim;
+        public IReadOnlyList<Renderer> FaceParts => faceParts;
+
+        // One material instance per ball and role, made only when the colour first has to change.
+        static void Recolor(Renderer[] parts, ref Material instance, Rgb rgb)
+        {
+            var color = new Color(rgb.R, rgb.G, rgb.B);
+            var current = instance != null ? instance : parts[0].sharedMaterial;
+            if (current == null || !current.HasProperty(BaseColorId) || current.GetColor(BaseColorId) == color) return;
+            if (instance == null)
+            {
+                instance = new Material(parts[0].sharedMaterial);
+                foreach (var part in parts) part.sharedMaterial = instance;
+            }
+            instance.SetColor(BaseColorId, color);
         }
 
         /// <summary>Holds the ball still (in the dispenser or while being dragged).</summary>

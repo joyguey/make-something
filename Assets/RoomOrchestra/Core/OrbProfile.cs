@@ -10,6 +10,21 @@ namespace RoomOrchestra
         Boom     // wide amber, ripple motif, heavy
     }
 
+    /// <summary>A colour as 0-1 sRGB components (Core has no engine types).</summary>
+    public readonly struct Rgb
+    {
+        public float R { get; }
+        public float G { get; }
+        public float B { get; }
+
+        public Rgb(float r, float g, float b)
+        {
+            R = r;
+            G = g;
+            B = b;
+        }
+    }
+
     /// <summary>
     /// Data for one orb character: how it looks without relying on color, and its virtual weight.
     /// Weight is an affordance (mass, bounce, speed clamp); no orb needs a harder throw to work.
@@ -35,11 +50,17 @@ namespace RoomOrchestra
         public float R { get; }
         public float G { get; }
         public float B { get; }
+        /// <summary>Darker rim (outline) colour, from the approved reference.</summary>
+        public Rgb Rim { get; }
+        /// <summary>Eyes and smile colour, from the approved reference.</summary>
+        public Rgb Face { get; }
 
         public OrbProfile(OrbType type, string displayName, string silhouette, string motif,
             float mass, float bounciness, float maxLaunchSpeed,
-            float scaleX, float scaleY, float scaleZ, float r, float g, float b)
+            float scaleX, float scaleY, float scaleZ, float r, float g, float b, Rgb rim = default, Rgb face = default)
         {
+            Rim = rim;
+            Face = face;
             Type = type;
             DisplayName = displayName;
             Silhouette = silhouette;
@@ -66,13 +87,16 @@ namespace RoomOrchestra
         {
             new OrbProfile(OrbType.Flutter, "Flutter", "tall droplet", "sparkle",
                 mass: 0.6f, bounciness: 0.35f, maxLaunchSpeed: 9f,
-                scaleX: 0.85f, scaleY: 1.25f, scaleZ: 0.85f, r: 0.61f, g: 0.89f, b: 0.90f),
+                scaleX: 0.85f, scaleY: 1.25f, scaleZ: 0.85f, r: 0.61f, g: 0.89f, b: 0.90f,
+                rim: new Rgb(0.30f, 0.60f, 0.65f), face: new Rgb(0.18f, 0.33f, 0.35f)),
             new OrbProfile(OrbType.Bop, "Bop", "round orb", "dot",
                 mass: 1.0f, bounciness: 0.6f, maxLaunchSpeed: 9f,
-                scaleX: 1f, scaleY: 1f, scaleZ: 1f, r: 0.76f, g: 0.61f, b: 0.95f),
+                scaleX: 1f, scaleY: 1f, scaleZ: 1f, r: 0.76f, g: 0.61f, b: 0.95f,
+                rim: new Rgb(0.55f, 0.39f, 0.78f), face: new Rgb(0.28f, 0.20f, 0.43f)),
             new OrbProfile(OrbType.Boom, "Boom", "wide dumpling", "ripple",
                 mass: 1.6f, bounciness: 0.15f, maxLaunchSpeed: 9f,
-                scaleX: 1.3f, scaleY: 0.8f, scaleZ: 1.3f, r: 0.91f, g: 0.73f, b: 0.42f),
+                scaleX: 1.3f, scaleY: 0.8f, scaleZ: 1.3f, r: 0.91f, g: 0.73f, b: 0.42f,
+                rim: new Rgb(0.75f, 0.53f, 0.26f), face: new Rgb(0.44f, 0.28f, 0.15f)),
         };
 
         public static IReadOnlyList<OrbProfile> All => s_All;
