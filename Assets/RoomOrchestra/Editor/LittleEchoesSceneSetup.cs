@@ -113,6 +113,8 @@ namespace RoomOrchestra.EditorTools
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
             if (dispenser != null) dispenser.position = DispenserPosition;
             if (parent != null && !parent.TryGetComponent<StageAnchor>(out _)) parent.AddComponent<StageAnchor>();
+            MarkGround();
+            CreatePoofClouds(root.transform);
 
             var selector = root.AddComponent<OrbSelector>();
             var so = new SerializedObject(selector);
@@ -577,6 +579,39 @@ namespace RoomOrchestra.EditorTools
             if (material.HasProperty("_Color")) material.SetColor("_Color", color);
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        // The room floor: thrown characters that land on it vanish in a poof.
+        static void MarkGround()
+        {
+            var floor = GameObject.Find("FloorCollider");
+            if (floor != null && !floor.TryGetComponent<GroundSurface>(out _)) floor.AddComponent<GroundSurface>();
+        }
+
+        // Three poof clouds of seven puffs, waiting inside the ball stand's post until a character lands.
+        const int PoofClouds = 3, PuffsPerCloud = 7;
+        const float PuffSize = 0.035f;
+        static readonly Vector3 PoofParkHeight = new Vector3(0f, 0.2f, 0f); // below the parked balls, inside the post
+
+        static void CreatePoofClouds(Transform root)
+        {
+            var puffMaterial = Glow(EnsureMaterial("Poof", "Ball", new Color(0.97f, 0.97f, 0.95f)), new Color(0.97f, 0.97f, 0.95f));
+            var park = Holder("PoofPark", root, Vector3.zero);
+            park.position = DispenserPosition + PoofParkHeight;
+            for (int c = 0; c < PoofClouds; c++)
+            {
+                var cloud = Holder($"PoofCloud{c}", root, Vector3.zero);
+                cloud.position = park.position;
+                var puffs = new Transform[PuffsPerCloud];
+                for (int i = 0; i < puffs.Length; i++)
+                {
+                    puffs[i] = Primitive(PrimitiveType.Sphere, $"Puff{i}", cloud, puffMaterial, keepCollider: false);
+                    puffs[i].localScale = Vector3.one * PuffSize;
+                }
+                var poof = cloud.gameObject.AddComponent<PoofCloud>();
+                poof.Configure(puffs, park);
+                EditorUtility.SetDirty(poof);
+            }
         }
 
         // A soft self-glow in the body colour so characters stay bright in a dim room (owner: "brighter").

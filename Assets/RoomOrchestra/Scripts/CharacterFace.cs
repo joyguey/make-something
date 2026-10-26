@@ -4,7 +4,8 @@ namespace RoomOrchestra
 {
     /// <summary>
     /// A character's face: it blinks every few seconds, opens wide eyes and an "oh" mouth when
-    /// surprised, glances sideways at a sibling, and squints happily when its own note plays. Face
+    /// surprised, glances sideways at a sibling, squints happily when its own note plays, and looks
+    /// down at the drop, wide-eyed, when it is falling to the floor. Face
     /// parts only move (the "oh" mouth waits inside the body), so PICO Spatial never has to show,
     /// hide or create anything. Like JellyBody it starts a few seconds after load (startup pose race).
     /// Reduced motion keeps the expressions but drops blinks.
@@ -13,7 +14,7 @@ namespace RoomOrchestra
     {
         public const float HoldSeconds = 1.6f;
         const float BlinkSeconds = 0.13f, HappySeconds = 0.25f;
-        const float GlanceOffset = 0.07f, WideEyes = 1.45f;
+        const float GlanceOffset = 0.07f, WideEyes = 1.45f, LookDown = 0.05f;
         static readonly Vector3 Parked = new Vector3(0f, 0f, 0.25f); // sinks a mouth wholly into the body
 
         public static bool ReducedMotion { get; set; }
@@ -53,12 +54,12 @@ namespace RoomOrchestra
         }
 
         /// <summary>Pulls <paramref name="expression"/> for a moment. <paramref name="glance"/>: -1 left, +1 right (player's view).</summary>
-        public void Show(Expression expression, float glance = 0f)
+        public void Show(Expression expression, float glance = 0f, float hold = HoldSeconds)
         {
             Capture();
             Current = expression;
             m_Glance = Mathf.Clamp(glance, -1f, 1f);
-            m_Until = Time.time + HoldSeconds;
+            m_Until = Time.time + hold;
             Apply();
         }
 
@@ -90,14 +91,17 @@ namespace RoomOrchestra
             bool happy = now - m_HappyStart < HappySeconds;
 
             var eyeScale = m_EyeScale;
-            if (Current == Expression.Curious) eyeScale *= WideEyes;
+            bool scared = Current == Expression.Scared;
+            if (Current == Expression.Curious || scared) eyeScale *= WideEyes;
             if (blinking) eyeScale.y *= 0.15f;
             else if (happy && Current != Expression.Curious) eyeScale.y *= 0.45f; // smiling eyes
-            var shift = Current == Expression.Sibling ? Vector3.right * (m_Glance * GlanceOffset) : Vector3.zero;
+            var shift = Current == Expression.Sibling ? Vector3.right * (m_Glance * GlanceOffset)
+                : scared ? Vector3.down * LookDown // eyes on the drop below
+                : Vector3.zero;
             Set(eyeL, m_EyeLHome + shift, eyeScale);
             Set(eyeR, m_EyeRHome + shift, eyeScale);
 
-            bool oh = Current == Expression.Curious && mouthO != null;
+            bool oh = (Current == Expression.Curious || scared) && mouthO != null;
             SetPosition(smile, oh ? m_SmileHome + Parked : m_SmileHome);
             if (mouthO != null) SetPosition(mouthO, oh ? m_MouthParked - Parked : m_MouthParked);
         }

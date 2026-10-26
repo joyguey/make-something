@@ -27,7 +27,7 @@ namespace RoomOrchestra
         Vector3 m_LastPosition, m_Velocity;
         Vector2 m_Lean, m_LeanVelocity;     // degrees about the root's x (forward/back) and z (sideways)
         float m_Squash, m_SquashVelocity;   // + squashed, - stretched
-        float m_HopStart = -10f, m_Phase;
+        float m_HopStart = -10f, m_Phase, m_TrembleUntil = -10f;
         bool m_ResetMotion = true;
 
         public Transform Visual => visual;
@@ -75,6 +75,14 @@ namespace RoomOrchestra
             if (ReducedMotion || !awake) return;
             m_HopStart = Time.time;
             m_SquashVelocity += 3f;
+        }
+
+        /// <summary>Shivers for a moment (scared); call again to keep it going.</summary>
+        public void Tremble(float seconds = 0.2f)
+        {
+            Capture();
+            if (ReducedMotion || !awake) return;
+            m_TrembleUntil = Time.time + seconds;
         }
 
         /// <summary>A splat or poke: <paramref name="strength"/> 0..1 squashes and sets the jelly wobbling.</summary>
@@ -131,6 +139,7 @@ namespace RoomOrchestra
             float t = now + m_Phase;
             float breathe = Mathf.Sin(t * 2f * Mathf.PI * m_Motion.BreatheRate) * m_Motion.BreatheAmount;
             float sway = Mathf.Sin(t * 2f * Mathf.PI * m_Motion.BreatheRate * 0.5f) * m_Motion.SwayDegrees;
+            if (now < m_TrembleUntil) sway += Mathf.Sin(now * 2f * Mathf.PI * 16f) * 7f; // nervous shiver
 
             float hopT = (now - m_HopStart) / m_Motion.HopSeconds;
             float lift = CharacterMotion.HopArc(hopT) * m_Motion.HopHeight;

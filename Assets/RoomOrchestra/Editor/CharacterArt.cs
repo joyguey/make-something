@@ -141,7 +141,7 @@ namespace RoomOrchestra.EditorTools
             // Earlier runs: the look lived on the root, or on a Visual child.
             var oldVisual = ball.transform.Find("Visual");
             if (oldVisual != null) Object.DestroyImmediate(oldVisual.gameObject);
-            foreach (var part in new[] { "Outline", "EyeL", "EyeR", "Smile" })
+            foreach (var part in new[] { "Outline", "EyeL", "EyeR", "Smile", "Mouth_O" })
             {
                 var old = ball.transform.Find(part);
                 if (old != null) Object.DestroyImmediate(old.gameObject);
@@ -160,8 +160,9 @@ namespace RoomOrchestra.EditorTools
             var eyeL = Child(visual, OrbType.Bop, "EyeL", face, Vector3.zero);
             var eyeR = Child(visual, OrbType.Bop, "EyeR", face, Vector3.zero);
             var smile = Child(visual, OrbType.Bop, "Smile", face, Vector3.zero);
-            Alive(ball, visual, current, awake: false, eyeL, eyeR, smile); // the launcher wakes the ball it hands out
-            var parts = new[] { eyeL.GetComponent<Renderer>(), eyeR.GetComponent<Renderer>(), smile.GetComponent<Renderer>() };
+            var oh = Child(visual, OrbType.Bop, "Mouth_O", face, MouthParked); // for the scared fall to the floor
+            Alive(ball, visual, current, awake: false, eyeL, eyeR, smile, oh); // the launcher wakes the ball it hands out
+            var parts = new[] { eyeL.GetComponent<Renderer>(), eyeR.GetComponent<Renderer>(), smile.GetComponent<Renderer>(), oh.GetComponent<Renderer>() };
             return (visual.GetComponent<Renderer>(), outline.GetComponent<Renderer>(), parts);
         }
 

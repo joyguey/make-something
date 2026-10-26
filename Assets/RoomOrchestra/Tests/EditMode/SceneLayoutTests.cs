@@ -553,12 +553,42 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void FloorPoofsAndTheCloudsHideInsideTheBallStand()
+        {
+            var floor = GameObject.Find("FloorCollider");
+            Assert.IsNotNull(floor);
+            Assert.IsNotNull(floor.GetComponent<GroundSurface>(), "landing on the floor poofs");
+            var clouds = Object.FindObjectsByType<PoofCloud>(FindObjectsSortMode.None);
+            Assert.GreaterOrEqual(clouds.Length, 3, "a few clouds, so quick falls each get one");
+            var post = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser").GetComponentsInChildren<Collider>()
+                .First(c => c.name == "Pedestal");
+            Physics.SyncTransforms();
+            foreach (var cloud in clouds)
+            {
+                Assert.AreEqual(7, cloud.Puffs.Count, cloud.name);
+                foreach (var puff in cloud.Puffs)
+                {
+                    Assert.IsNull(puff.GetComponent<Collider>(), "puffs never block a tap or a ball");
+                    foreach (var v in puff.GetComponent<MeshFilter>().sharedMesh.vertices)
+                    {
+                        var p = puff.TransformPoint(v);
+                        Assert.Less((post.ClosestPoint(p) - p).sqrMagnitude, 1e-8f, $"{puff.name} of {cloud.name} shows outside the stand at {p}");
+                    }
+                }
+            }
+        }
+
+        [Test]
         public void ThrowableBallsWearTheCharacterFace()
         {
             foreach (var ball in Object.FindObjectsByType<Ball>(FindObjectsSortMode.None))
             {
                 Assert.IsNotNull(ball.Rim, $"{ball.name} rim");
-                Assert.AreEqual(3, ball.FaceParts.Count, $"{ball.name} eyes and smile");
+                Assert.AreEqual(4, ball.FaceParts.Count, $"{ball.name} eyes, smile and the scared oh-mouth");
+                var oh = ball.FaceParts[3].bounds;
+                var look = ball.transform.Find("Visual").GetComponent<Renderer>().bounds;
+                var inner = new Bounds(look.center, look.size * 0.85f);
+                Assert.IsTrue(inner.Contains(oh.min) && inner.Contains(oh.max), $"{ball.name} oh-mouth parked inside the body");
                 Assert.AreEqual("Bop_Body", ball.transform.Find("Visual").GetComponent<MeshFilter>().sharedMesh.name);
                 Assert.IsNull(ball.GetComponent<MeshRenderer>(), $"{ball.name}: the look lives on the wobbling child only");
                 var faceColor = ball.FaceParts[0].sharedMaterial.GetColor("_BaseColor");

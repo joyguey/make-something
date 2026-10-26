@@ -216,5 +216,13 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Emulator evidence: three screenshots 0.4 s apart: ready ball region changed 744 and 1333 of 16500 sampled pixels while a static wall/bed region changed 0 (animation renders under PICO Spatial). Ball colour measured #7EA9A9 (before) -> #A0C3C4 (glow) -> #A5C6C7 (matte). The emulator mutes every colour (chair #C72E33 renders #935252), so true brightness needs a headset.
 - Tests: EditMode 137/137, PlayMode 42/42 (blink + breathing on their own, dragged jelly leans then wobbles past upright and settles, visible hop, asleep = authored pose, reduced motion holds still, note-crossing maths).
 
+## 2026-10-25 | Prompt 06 (part 3) — scared fall and poof (owner request)
+- Owner loved the alive characters; asked: a ball rolling off a surface looks a little scared, then vanishes in a poof cloud when it hits the ground.
+- Scared: while in flight, falling (> 0.8 m/s down) and the first thing along its path is the floor (`GroundSurface` on FloorCollider): wide eyes looking down at the drop, "oh" mouth (balls now carry Bop's parked oh-mouth), nervous shiver. Relaxes 0.3 s after a safe landing (short drops onto furniture are not scary).
+- Poof: first floor contact -> a PoofCloud bursts at the contact point (big middle puff billows up, six puffs ring it, big/small in turn, swell then shrink, 0.6 s) and the ball returns to the stand at once. 3 clouds x 7 puffs authored in the scene, parked inside the ball stand's post (verified per vertex); no runtime objects. Log line "[RoomOrchestra] <orb> landed on the floor: poof".
+- Before: balls rolled on the floor until their 15 s lifetime.
+- Tests: EditMode 138/138 (ground marked, clouds hidden in the post, ball oh-mouth parked); PlayMode 44/44 (real physics: rolls off a table -> scared -> expires on the floor -> poof where it landed -> cloud back in the stand; dropping onto furniture is neither scary nor a poof). Unity render of the cloud mid-burst checked (scratchpad poof2.png).
+- NOT verified on PICO yet (needs a throw on the emulator). No poof sound (no licensed asset; Prompt 07).
+
 ## Resume here (next session)
 1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

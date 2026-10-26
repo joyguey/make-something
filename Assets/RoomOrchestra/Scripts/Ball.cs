@@ -140,6 +140,18 @@ namespace RoomOrchestra
         }
 
         /// <summary>Alive (wobbling, blinking) on the stand, in the hand and in flight; at rest when parked.</summary>
+        bool IsFallingToTheFloor()
+        {
+            if (m_Body == null || m_Body.isKinematic) return false;
+            var velocity = m_Body.linearVelocity;
+            if (velocity.y > -ScaredFallSpeed) return false;
+            return Physics.Raycast(transform.position, velocity.normalized, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)
+                && hit.collider.GetComponentInParent<GroundSurface>() != null;
+        }
+
+        /// <summary>Falling faster than this (m/s) toward the floor looks scared; it looks this far ahead (m).</summary>
+        public const float ScaredFallSpeed = 0.8f, ScaredLookAhead = 3f;
+
         public void SetAlive(bool alive)
         {
             if (TryGetComponent<JellyBody>(out var jelly)) jelly.SetAwake(alive);
@@ -148,6 +160,16 @@ namespace RoomOrchestra
         void OnCollisionEnter(Collision collision)
         {
             if (TryGetComponent<JellyBody>(out var jelly)) jelly.Kick(collision.relativeVelocity.magnitude / 5f); // splat
+            if (InFlight && collision.collider.GetComponentInParent<GroundSurface>() != null)
+            {
+                // Down on the floor: a poof, and the character is gone (back to the stand).
+                var point = collision.contactCount > 0 ? collision.GetContact(0).point : transform.position;
+                PoofCloud.PoofAt(point);
+                Debug.Log($"[RoomOrchestra] {orb} landed on the floor: poof");
+                InFlight = false;
+                Expired?.Invoke(this);
+                return;
+            }
             if (!InFlight || MusicalHitPipeline.HasFired(m_ActionId)) return;
             var target = collision.collider.GetComponentInParent<InstrumentTarget>();
             if (target == null) return;
@@ -161,8 +183,20 @@ namespace RoomOrchestra
                 Hits++;
         }
 
+        /// <summary>
+        /// True while falling and the first thing in its path is the floor (rolled off a table, or a throw
+        /// that missed): the face looks down at the drop, scared.
+        /// </summary>
+        public bool FallingToTheFloor { get; private set; }
+
         void Update()
         {
+            FallingToTheFloor = InFlight && IsFallingToTheFloor();
+            if (FallingToTheFloor)
+            {
+                if (TryGetComponent<CharacterFace>(out var face)) face.Show(Expression.Scared, hold: 0.3f); // relaxes soon if it lands safely
+                if (TryGetComponent<JellyBody>(out var jelly)) jelly.Tremble();
+            }
             if (InFlight && (Time.time - m_LaunchTime > lifetime || transform.position.y < -5f))
             {
                 InFlight = false;
