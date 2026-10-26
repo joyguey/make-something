@@ -56,20 +56,23 @@ namespace RoomOrchestra
         }
     }
 
-    /// <summary>The fixed set of orb profiles. Values follow docs/INTERACTION_AND_MUSIC_SYSTEM.md.</summary>
+    /// <summary>
+    /// The fixed set of orb profiles. Values follow docs/INTERACTION_AND_MUSIC_SYSTEM.md; body colours are
+    /// sampled from the owner-approved reference (docs/reference/Flutter_Bop_Boom_USER_APPROVED_REFERENCE.png).
+    /// </summary>
     public static class OrbCatalog
     {
         static readonly OrbProfile[] s_All =
         {
             new OrbProfile(OrbType.Flutter, "Flutter", "tall droplet", "sparkle",
                 mass: 0.6f, bounciness: 0.35f, maxLaunchSpeed: 9f,
-                scaleX: 0.85f, scaleY: 1.25f, scaleZ: 0.85f, r: 0.25f, g: 0.82f, b: 0.78f),
+                scaleX: 0.85f, scaleY: 1.25f, scaleZ: 0.85f, r: 0.61f, g: 0.89f, b: 0.90f),
             new OrbProfile(OrbType.Bop, "Bop", "round orb", "dot",
                 mass: 1.0f, bounciness: 0.6f, maxLaunchSpeed: 9f,
-                scaleX: 1f, scaleY: 1f, scaleZ: 1f, r: 0.68f, g: 0.58f, b: 0.92f),
+                scaleX: 1f, scaleY: 1f, scaleZ: 1f, r: 0.76f, g: 0.61f, b: 0.95f),
             new OrbProfile(OrbType.Boom, "Boom", "wide dumpling", "ripple",
                 mass: 1.6f, bounciness: 0.15f, maxLaunchSpeed: 9f,
-                scaleX: 1.3f, scaleY: 0.8f, scaleZ: 1.3f, r: 0.96f, g: 0.64f, b: 0.25f),
+                scaleX: 1.3f, scaleY: 0.8f, scaleZ: 1.3f, r: 0.91f, g: 0.73f, b: 0.42f),
         };
 
         public static IReadOnlyList<OrbProfile> All => s_All;

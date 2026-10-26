@@ -164,6 +164,9 @@ namespace RoomOrchestra.EditorTools
         static OrbToken CreateToken(OrbProfile profile, Transform tray, Vector3 localPosition,
             Material body, Material motif, bool selected)
         {
+            if (CharacterArt.Has(profile.Type))
+                return CreateCharacterToken(profile, tray, localPosition, body, selected);
+
             var baseScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * TokenDiameter;
             var t = Primitive(PrimitiveType.Sphere, $"Token_{profile.Type}", tray, body, keepCollider: true);
             t.localPosition = localPosition;
@@ -194,6 +197,27 @@ namespace RoomOrchestra.EditorTools
             }
 
             var token = t.gameObject.AddComponent<OrbToken>();
+            var so = new SerializedObject(token);
+            so.FindProperty("orb").enumValueIndex = (int)profile.Type;
+            so.FindProperty("baseScale").vector3Value = baseScale;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return token;
+        }
+
+        // The character itself (Blender mesh: body, rim, face, shine, motif), turned to face the player.
+        // Its mesh carries the proportions, so it scales evenly.
+        static OrbToken CreateCharacterToken(OrbProfile profile, Transform tray, Vector3 localPosition, Material body, bool selected)
+        {
+            var go = new GameObject($"Token_{profile.Type}");
+            go.transform.SetParent(tray, false);
+            go.transform.localPosition = localPosition;
+            go.transform.rotation = FacePlayer(go.transform.position);
+            var baseScale = Vector3.one * TokenDiameter;
+            go.transform.localScale = selected ? baseScale * 1.3f : baseScale;
+            CharacterArt.Dress(go, profile.Type, body);
+            go.AddComponent<SphereCollider>().radius = 0.5f;
+
+            var token = go.AddComponent<OrbToken>();
             var so = new SerializedObject(token);
             so.FindProperty("orb").enumValueIndex = (int)profile.Type;
             so.FindProperty("baseScale").vector3Value = baseScale;

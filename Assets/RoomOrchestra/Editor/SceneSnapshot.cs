@@ -47,5 +47,41 @@ namespace RoomOrchestra.EditorTools
             Object.DestroyImmediate(rt);
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
+
+        /// <summary>
+        /// Close-up of part of the open scene (e.g. the blob tray) from <paramref name="eye"/>, with a
+        /// temporary camera that is destroyed afterwards (never saved). Unity's renderer, not PICO's.
+        /// </summary>
+        public static void CaptureCloseUp(string path, Vector3 eye, Vector3 lookAt, float fieldOfView = 30f)
+        {
+            var go = new GameObject("SnapshotCloseUpCamera") { hideFlags = HideFlags.HideAndDontSave };
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                camera.fieldOfView = fieldOfView;
+                camera.nearClipPlane = 0.02f;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.12f, 0.12f, 0.12f);
+                go.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(lookAt - eye));
+                const int width = 1200, height = 800;
+                var rt = new RenderTexture(width, height, 24);
+                camera.targetTexture = rt;
+                camera.Render();
+                RenderTexture.active = rt;
+                var image = new Texture2D(width, height, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                image.Apply();
+                camera.targetTexture = null;
+                RenderTexture.active = null;
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Object.DestroyImmediate(rt);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
     }
 }

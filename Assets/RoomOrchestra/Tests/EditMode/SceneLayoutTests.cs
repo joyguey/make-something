@@ -459,6 +459,44 @@ namespace RoomOrchestra.Tests
             }
         }
 
+        // ---- Prompt 06: tray characters built from the approved reference (Blender meshes) ----
+        [Test]
+        public void TrayTokensAreTheThreeCharactersFacingThePlayer()
+        {
+            string[] parts = { "Outline", "EyeL", "EyeR", "Smile", "Mouth_O", "Highlight", "Motif" };
+            foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
+            {
+                var body = token.GetComponent<MeshFilter>();
+                Assert.IsNotNull(body, $"{token.name} has a character body");
+                Assert.AreEqual($"{token.Orb}_Body", body.sharedMesh.name);
+                int triangles = body.sharedMesh.triangles.Length / 3;
+                foreach (var part in parts)
+                {
+                    var child = token.transform.Find(part);
+                    Assert.IsNotNull(child, $"{token.name} has {part}");
+                    var mesh = child.GetComponent<MeshFilter>().sharedMesh;
+                    Assert.AreEqual($"{token.Orb}_{part}", mesh.name);
+                    triangles += mesh.triangles.Length / 3;
+                }
+                Assert.Less(triangles, 3500, $"{token.name} stays low-poly (3 tray characters; orbit minis use a lighter set)");
+
+                // Face toward the seated player: the eyes are nearer the eye than the body centre.
+                var eye = new Vector3(0f, 1.15f, 0f);
+                var eyes = token.transform.Find("EyeL").GetComponent<Renderer>().bounds.center;
+                Assert.Less(Vector3.Distance(eye, eyes), Vector3.Distance(eye, token.transform.position) - 0.02f, $"{token.name} faces the player");
+                // The player's left eye is on the player's left.
+                var right = Vector3.Cross(Vector3.up, token.transform.position - eye).normalized;
+                Assert.Less(Vector3.Dot(token.transform.Find("EyeL").GetComponent<Renderer>().bounds.center - token.transform.position, right),
+                    Vector3.Dot(token.transform.Find("EyeR").GetComponent<Renderer>().bounds.center - token.transform.position, right), $"{token.name} eyes not mirrored");
+
+                // The surprised mouth waits wholly inside the body (PICO Spatial draws inactive objects).
+                var mouth = token.transform.Find("Mouth_O").GetComponent<Renderer>().bounds;
+                var bodyBounds = token.GetComponent<Renderer>().bounds;
+                var inner = new Bounds(bodyBounds.center, bodyBounds.size * 0.8f);
+                Assert.IsTrue(inner.Contains(mouth.min) && inner.Contains(mouth.max), $"{token.name} oh-mouth parked inside the body");
+            }
+        }
+
         [Test]
         public void UndoButtonReachableSeated()
         {
