@@ -26,7 +26,7 @@ namespace RoomOrchestra.EditorTools
 
         // Front-left, where the old loop station stood: inside the default view, and seated/standing
         // sight lines to all three targets pass clear of it (checked by SceneLayoutTests).
-        static readonly Vector3 DispenserPosition = new Vector3(0.72f, 0f, 1.25f); // clear of every pointer line (strict ray test)
+        static readonly Vector3 DispenserPosition = new Vector3(0.62f, 0f, 1.15f); // clear of every pointer line (strict ray test)
         static readonly Vector3 TrayCenter = new Vector3(-0.55f, 0.5f, 1.1f); // low enough that hand pointer rays to every tile pass over the front row
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]

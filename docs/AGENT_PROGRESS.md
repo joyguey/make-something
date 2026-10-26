@@ -164,7 +164,7 @@ Known / follow-ups:
 ## 2026-10-25 | Prompt 05 (part 4) — Calm motion (A11Y-04)
 - Background auto-pause (part 3): owner reports music did not pause; log shows PICO never sent the app to the background in that test (no onPause), so the path did not run. Still UNVERIFIED on device.
 - Motion toggle at the end of the front row ("Motion / Full" <-> "Motion / Calm", three-dot icon). Calm: furniture never flashes; echo minis hold still at their step's place on the ring (clockwise from the top), and the top marker steps once per beat (4 per bar), so pattern and beat stay readable with no sweeping motion. Full is default (startup unchanged).
-- Ball stand moved to (0.72, 0, 1.25) to make room. The pointer-ray test is now strict (ANY collider in the way counts, e.g. the stand's post); a tried position (0.8, 1.45) failed it (post blocked erhu tiles from the left hand) and was rejected.
+- Ball stand moved to (0.62, 0, 1.15) to make room ((0.72, 1.25) passed tests but hid part of the erhu volume tile from the emulator camera). The pointer-ray test is now strict (ANY collider in the way counts, e.g. the stand's post); a tried position (0.8, 1.45) failed it (post blocked erhu tiles from the left hand) and was rejected.
 - Tests: EditMode 127/127, PlayMode 25/25 (calm: minis still, marker on beat 1/3 only on beats, no flash; back to full restores travel/flash).
 - NOT done in calm mode yet: aim-arc dots and ball flight (only while the player throws), the focus marker; no per-orbit beat meter beyond the stepping marker.
 
