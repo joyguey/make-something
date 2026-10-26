@@ -17,7 +17,7 @@ namespace RoomOrchestra
         static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
         /// <summary>Character bodies glow softly in their own colour (share of the base colour).</summary>
-        public const float GlowStrength = 0.35f;
+        public const float GlowStrength = 0.5f;
 
         [SerializeField, Min(1f)] float lifetime = 15f;
         [Tooltip("Impacts slower than this (m/s) are ignored, so rolling balls don't spam notes.")]

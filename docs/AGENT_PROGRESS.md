@@ -209,5 +209,12 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Tests: EditMode 135/135 (parts, facing, mirroring, parked "oh", tri budget, hidden minis, ball faces, wiring, reaction rules); PlayMode 40/40 (face poses, bounce, reduced motion, ball recolour, real-scene curious -> sibling glance).
 - NOT verified: expressions seen on PICO (needs taps), readability of 6 cm mini faces at 2 m on a headset, performance on hardware. Not done: "changed note -> puzzled nod" (bible, optional).
 
+## 2026-10-25 | Prompt 06 (part 2) — owner feedback: "completely static", brighter turquoise
+- Owner (emulator, phase6b): no visible expression changes; wants brighter turquoise and livelier characters (wobble when dragging the ball). Log showed the reactions did run (echoes planted by throws and taps): they were too small/short to notice and nothing moved between events.
+- Added JellyBody (personality per character in Core/CharacterMotion: Flutter light/floaty, Bop springy, Boom slow/heavy): idle breathing + sway, damped-spring lean and jiggle from drag/flight/orbit motion, impact splat, hops. Each orbit mini hops and beams (smiling eyes) when its own note plays; tray characters hop when chosen and when their note lands; reactions bigger/longer (wide eyes 1.45x, 1.6 s). Faces blink on their own. All life starts 3 s after load (Spatial startup pose race); parked balls/minis sleep in their authored pose (stay hidden).
+- Flutter colour brighter (#5CEDF2 body, rim #219EB3); character bodies get a soft self-glow (URP emission; needs emissive GI flags or URP strips the keyword) and a matte finish.
+- Emulator evidence: three screenshots 0.4 s apart: ready ball region changed 744 and 1333 of 16500 sampled pixels while a static wall/bed region changed 0 (animation renders under PICO Spatial). Ball colour measured #7EA9A9 (before) -> #A0C3C4 (glow) -> #A5C6C7 (matte). The emulator mutes every colour (chair #C72E33 renders #935252), so true brightness needs a headset.
+- Tests: EditMode 137/137, PlayMode 42/42 (blink + breathing on their own, dragged jelly leans then wobbles past upright and settles, visible hop, asleep = authored pose, reduced motion holds still, note-crossing maths).
+
 ## Resume here (next session)
 1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

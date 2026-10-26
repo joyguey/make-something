@@ -587,6 +587,9 @@ namespace RoomOrchestra.EditorTools
             // URP re-validates materials and keeps _EMISSION only when the GI flags say emissive.
             material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             material.SetColor("_EmissionColor", color * Ball.GlowStrength);
+            // Matte, like the reference: a glossy finish mirrored the grey room and washed the colour out.
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.1f);
+            if (material.HasProperty("_EnvironmentReflections")) material.SetFloat("_EnvironmentReflections", 0f);
             EditorUtility.SetDirty(material);
             return material;
         }
