@@ -114,6 +114,9 @@ namespace RoomOrchestra.EditorTools
             if (dispenser != null) dispenser.position = DispenserPosition;
             if (parent != null && !parent.TryGetComponent<StageAnchor>(out _)) parent.AddComponent<StageAnchor>();
             MarkGround();
+            // Safety limiter on the final mix (dense songs never clip the output).
+            var listener = Object.FindFirstObjectByType<AudioListener>();
+            if (listener != null && !listener.TryGetComponent<MasterLimiter>(out _)) listener.gameObject.AddComponent<MasterLimiter>();
             CreatePoofClouds(root.transform);
             RainforestArt.Build(root.transform, targets);
 
