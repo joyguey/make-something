@@ -58,6 +58,25 @@ namespace RoomOrchestra
             return changed;
         }
 
+        /// <summary>Folds every piece and flower back inside the furniture at once (cleared, under the smoke).</summary>
+        public void ResetGrowth()
+        {
+            m_Shown = 0;
+            m_Bloomed = false;
+            var hidden = Vector3.one * HiddenScale;
+            if (segments != null) foreach (var s in segments) if (s != null) s.localScale = hidden;
+            if (flowers != null) foreach (var f in flowers) if (f != null) f.localScale = hidden;
+        }
+
+        /// <summary>Middle of the grown part, for the smoke cloud.</summary>
+        public Vector3 GrownCentre()
+        {
+            if (segments == null || m_Shown == 0) return transform.position;
+            var sum = Vector3.zero;
+            for (int i = 0; i < m_Shown; i++) sum += segments[i].position;
+            return sum / m_Shown;
+        }
+
         void Update()
         {
             if (segments == null || m_GrowStart == null) return;

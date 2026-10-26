@@ -182,6 +182,66 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator ClearSweepsTheJungleAwayInSmoke()
+        {
+            var conductorGo = new GameObject("Conductor");
+            conductorGo.transform.SetParent(m_Root.transform, false);
+            var conductor = conductorGo.AddComponent<EchoConductor>();
+            var clouds = new PoofCloud[6];
+            for (int c = 0; c < clouds.Length; c++)
+            {
+                var cloudGo = new GameObject($"Cloud{c}");
+                cloudGo.transform.SetParent(m_Root.transform, false);
+                var puffs = new Transform[7];
+                for (int i = 0; i < puffs.Length; i++) puffs[i] = Child($"Puff{i}", cloudGo.transform);
+                clouds[c] = cloudGo.AddComponent<PoofCloud>();
+                clouds[c].Configure(puffs, null);
+            }
+            var vine = MakeVine(8, out var pieces, out var bloom);
+            var shroomGo = new GameObject("Toadstool").transform;
+            shroomGo.SetParent(m_Root.transform, false);
+            shroomGo.localScale = Vector3.one * Toadstool.BudScale;
+            var shroom = shroomGo.gameObject.AddComponent<Toadstool>();
+            shroom.Configure(Child("Visual", shroomGo), 1f);
+            var flier = MakeButterfly();
+            var director = m_Root.AddComponent<JungleDirector>();
+            director.Configure(vine, null, null, null, new[] { shroom }, new[] { flier });
+
+            for (int i = 0; i < JungleGrowth.NotesPerVine; i++) director.Heard(InstrumentType.Udu);
+            // A layered song (two instruments, four echoes) calls the butterfly out.
+            for (int i = 0; i < 4; i++)
+            {
+                var hit = new MusicalHitEvent(i + 1, i + 1, i < 2 ? InstrumentType.Udu : InstrumentType.Erhu, OrbType.Bop,
+                    IntensityTier.Medium, PitchInput.FromPetal(i), InputPath.Place, conductor.Clock.TimeOf(0, i * 3));
+                conductor.Sequencer.TryAdd(hit, out _);
+            }
+            yield return new WaitForSeconds(3.5f);
+            Assert.AreEqual(8, vine.Shown);
+            Assert.IsTrue(shroom.Sprouted);
+            Assert.IsFalse(flier.AtHome);
+
+            conductor.Clear();
+            int playing = System.Linq.Enumerable.Count(clouds, c => c.Playing);
+            Assert.GreaterOrEqual(playing, 3, "a cloud over the vine, the toadstool and the butterfly");
+            Assert.Greater(System.Linq.Enumerable.Max(clouds, c => c.transform.localScale.x), 2f, "big smoke, not a little landing poof");
+            Assert.AreEqual(8, vine.Shown, "still there for a moment, under the smoke");
+
+            yield return new WaitForSeconds(JungleDirector.VanishDelay + 0.1f);
+            Assert.AreEqual(0, vine.Shown, "vine folded away");
+            foreach (var p in pieces) Assert.AreEqual(VineGrowth.HiddenScale, p.localScale.x, 1e-6f, p.name);
+            Assert.AreEqual(VineGrowth.HiddenScale, bloom.localScale.x, 1e-6f, "flowers gone too");
+            Assert.IsFalse(shroom.Sprouted);
+            Assert.AreEqual(Toadstool.BudScale, shroomGo.localScale.x, 1e-6f, "back to a bud");
+            yield return null;
+            Assert.IsTrue(flier.AtHome);
+            Assert.Less((flier.transform.position - Home).magnitude, 1e-4f, "butterfly vanished home into the lamp");
+            Assert.AreEqual(0, director.Growth.TotalNotes, "the next song grows a new jungle");
+
+            yield return new WaitForSeconds(PoofCloud.Seconds);
+            foreach (var c in clouds) Assert.AreEqual(Vector3.one, c.transform.localScale, "clouds shrink back to fit inside the stand");
+        }
+
+        [UnityTest]
         public IEnumerator SparklesFlareOnlyForTheirOwnInstrument()
         {
             InstrumentTarget Target(InstrumentType type)

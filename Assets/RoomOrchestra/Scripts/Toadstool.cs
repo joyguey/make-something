@@ -41,6 +41,20 @@ namespace RoomOrchestra
             Debug.Log($"[RoomOrchestra] Jungle: {name} sprouts");
         }
 
+        /// <summary>Back to a bud at once (cleared, under the smoke).</summary>
+        public void Unsprout()
+        {
+            m_SproutStart = -1f;
+            Chorus = false;
+            transform.localScale = Vector3.one * BudScale;
+            if (visual != null && m_Captured)
+            {
+                visual.localPosition = m_VisualHome;
+                visual.localRotation = Quaternion.identity;
+                visual.localScale = Vector3.one;
+            }
+        }
+
         void Update()
         {
             if (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds || visual == null) return;

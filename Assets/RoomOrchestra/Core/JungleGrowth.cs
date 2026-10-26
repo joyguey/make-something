@@ -9,8 +9,7 @@ namespace RoomOrchestra
     /// it stands now (layered instruments, varied notes); the chorus needs everything at once.
     /// The scale is pentatonic, so any combination is consonant: "harmonious and developed" here
     /// means layered (several instruments) with melodic variety, sustained over time.
-    /// Growth is kept for the session (clearing a song does not uproot the forest); butterflies leave
-    /// when the song they followed is cleared.
+    /// Clearing the song clears the jungle too (in a cloud of smoke): each song grows its own forest.
     /// </summary>
     public sealed class JungleGrowth
     {

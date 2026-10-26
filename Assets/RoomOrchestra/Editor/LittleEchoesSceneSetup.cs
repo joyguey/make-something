@@ -589,8 +589,8 @@ namespace RoomOrchestra.EditorTools
             if (floor != null && !floor.TryGetComponent<GroundSurface>(out _)) floor.AddComponent<GroundSurface>();
         }
 
-        // Three poof clouds of seven puffs, waiting inside the ball stand's post until a character lands.
-        const int PoofClouds = 3, PuffsPerCloud = 7;
+        // Poof clouds of seven puffs, waiting inside the ball stand's post until a character lands.
+        const int PoofClouds = 16, PuffsPerCloud = 7; // landings plus Clear's smoke over vines, toadstools and butterflies
         const float PuffSize = 0.035f;
         static readonly Vector3 PoofParkHeight = new Vector3(0f, 0.2f, 0f); // below the parked balls, inside the post
 

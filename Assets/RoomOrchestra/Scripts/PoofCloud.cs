@@ -35,20 +35,24 @@ namespace RoomOrchestra
         void OnEnable() => s_All.Add(this);
         void OnDisable() => s_All.Remove(this);
 
-        /// <summary>Plays a free cloud at <paramref name="position"/>; false if every cloud is busy.</summary>
-        public static bool PoofAt(Vector3 position)
+        /// <summary>
+        /// Plays a free cloud at <paramref name="position"/>, <paramref name="size"/> times the landing poof
+        /// (Clear uses big ones); false if every cloud is busy.
+        /// </summary>
+        public static bool PoofAt(Vector3 position, float size = 1f)
         {
             foreach (var cloud in s_All)
                 if (!cloud.Playing)
                 {
-                    cloud.Play(position);
+                    cloud.Play(position, size);
                     return true;
                 }
             return false;
         }
 
-        public void Play(Vector3 position)
+        public void Play(Vector3 position, float size = 1f)
         {
+            transform.localScale = Vector3.one * size;
             if (m_Directions == null)
             {
                 m_PuffScale = puffs[0].localScale;
@@ -86,6 +90,7 @@ namespace RoomOrchestra
                 puffs[i].localPosition = Vector3.zero;
                 puffs[i].localScale = m_PuffScale;
             }
+            transform.localScale = Vector3.one; // back to the size that fits inside the stand
             if (parkPoint != null) transform.position = parkPoint.position;
         }
 

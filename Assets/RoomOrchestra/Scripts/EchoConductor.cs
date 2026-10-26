@@ -39,6 +39,9 @@ namespace RoomOrchestra
         public event Action<MusicalHitEvent> Refused;
         public event Action<ScheduledEcho> Scheduled;
 
+        /// <summary>The song was cleared (the rainforest vanishes in smoke).</summary>
+        public static event Action Cleared;
+
         void Awake()
         {
             Instance = this;
@@ -201,6 +204,7 @@ namespace RoomOrchestra
             Resync();
             SelectedEchoId = 0;
             Debug.Log("[RoomOrchestra] Echoes cleared (undo restores them)");
+            Cleared?.Invoke();
         }
 
         public void TogglePause()

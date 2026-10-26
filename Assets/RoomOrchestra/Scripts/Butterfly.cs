@@ -41,6 +41,14 @@ namespace RoomOrchestra
         public bool AtHome => !m_Out && Time.time - m_TravelStart >= TravelSeconds;
         public Vector3 Home => home;
 
+        /// <summary>Vanishes home into the lamp at once (cleared, under the smoke).</summary>
+        public void SendHomeNow()
+        {
+            m_Out = false;
+            m_TravelStart = -100f;
+            m_Parked = false; // the next update settles it (and its trail) inside the lamp
+        }
+
         /// <summary>Sends it out to its loop, or back home into the lamp.</summary>
         public void SetOut(bool goOut)
         {

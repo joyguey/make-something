@@ -251,6 +251,7 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
   - 7 toadstools (red/pink/purple spotted caps, sleepy faces) wait as buds around the stage edge and sprout one by one (6..85 total notes), then sway and squash on every beat of the master clock.
   - Chorus easter egg: all vines grown + 3 butterflies out -> toadstools hop on every beat.
   - Growth is kept for the session (clearing a song does not uproot the forest). Each stage is logged ("Jungle: ...").
+  - UPDATE (owner): Clear now sweeps the whole jungle away in big smoke clouds (4x the landing poof, over each grown vine, sprouted toadstool and butterfly out); under the smoke (0.2 s) vines fold away, toadstools become buds, butterflies vanish into the lamp, growth resets. 16 pooled clouds in the ball stand.
 - Pipeline note: FBX objects with a location import with a 180° Y turn and mirrored position while vertex data is already correct; pivots are un-turned in RainforestArt.Pivot.
 - Room-mapping note: VineGrowth is shape-agnostic (pieces + hiding pivots); real furniture will need vines generated around the pinned leg/pole, not these hand-placed ones.
 - Tests: EditMode 140/140 (rules; everything waits hidden/as buds at startup); PlayMode 52/52 (vines creep and bloom, butterflies home -> out -> home with trail tucked, toadstools sprout and dance on the beat, each note grows its own vine, aim-dot release).

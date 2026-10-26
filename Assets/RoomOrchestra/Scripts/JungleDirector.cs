@@ -7,7 +7,8 @@ namespace RoomOrchestra
     /// its instrument's vine (table/udu, chair/mbira, lamp/erhu; the ball-stand vine feeds on every note),
     /// toadstools sprout from buds one by one, butterflies flutter out of the lamp while the song is
     /// layered and melodic, and with every vine grown and all butterflies out the toadstools hop in a
-    /// chorus. Each new stage is logged so it can be checked on a device.
+    /// chorus. Clear sweeps it all away in big smoke clouds and the next song grows it again. Each new
+    /// stage is logged so it can be checked on a device.
     /// </summary>
     public class JungleDirector : MonoBehaviour
     {
@@ -15,8 +16,12 @@ namespace RoomOrchestra
         [SerializeField] Toadstool[] toadstools;
         [SerializeField] Butterfly[] butterflies;
 
-        readonly JungleGrowth m_Growth = new();
+        JungleGrowth m_Growth = new();
         bool m_Chorus;
+        float m_VanishAt = -1f;
+
+        /// <summary>How long after Clear the jungle vanishes: when the smoke is at its thickest.</summary>
+        public const float VanishDelay = 0.2f;
 
         public JungleGrowth Growth => m_Growth;
         public bool InChorus => m_Chorus;
@@ -35,12 +40,52 @@ namespace RoomOrchestra
         {
             MusicalHitPipeline.Committed += OnHit;
             OrbitView.NotePassed += OnEcho;
+            EchoConductor.Cleared += OnCleared;
         }
 
         void OnDisable()
         {
             MusicalHitPipeline.Committed -= OnHit;
             OrbitView.NotePassed -= OnEcho;
+            EchoConductor.Cleared -= OnCleared;
+        }
+
+        /// <summary>
+        /// The song was cleared: big smoke clouds burst over everything that has grown, and under them the
+        /// jungle goes back to bare buds (vines folded, toadstools buds, butterflies home). The next song
+        /// grows it again from the start.
+        /// </summary>
+        void OnCleared()
+        {
+            int clouds = 0;
+            foreach (var vine in new[] { udu, mbira, erhu, stand })
+                if (vine != null && vine.Shown > 0 && PoofCloud.PoofAt(vine.GrownCentre(), ClearSmokeSize)) clouds++;
+            if (toadstools != null)
+                foreach (var t in toadstools)
+                    if (t != null && t.Sprouted && PoofCloud.PoofAt(t.transform.position, ClearSmokeSize * 0.6f)) clouds++;
+            if (butterflies != null)
+                foreach (var b in butterflies)
+                    if (b != null && !b.AtHome && PoofCloud.PoofAt(b.transform.position, ClearSmokeSize * 0.5f)) clouds++;
+            m_VanishAt = Time.time + VanishDelay;
+            Debug.Log($"[RoomOrchestra] Jungle: cleared in a cloud of smoke ({clouds} clouds)");
+        }
+
+        /// <summary>Clear's smoke clouds, as a multiple of a ball's landing poof.</summary>
+        public const float ClearSmokeSize = 4f;
+
+        void Vanish()
+        {
+            m_VanishAt = -1f;
+            m_Growth = new JungleGrowth();
+            foreach (var vine in new[] { udu, mbira, erhu, stand })
+                if (vine != null) vine.ResetGrowth();
+            if (toadstools != null)
+                foreach (var t in toadstools)
+                    if (t != null) t.Unsprout();
+            if (butterflies != null)
+                foreach (var b in butterflies)
+                    if (b != null) b.SendHomeNow();
+            m_Chorus = false;
         }
 
         void OnHit(MusicalHitEvent hit) => Heard(hit.Target);
@@ -72,6 +117,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            if (m_VanishAt > 0f && Time.time >= m_VanishAt) Vanish();
             var conductor = EchoConductor.Instance;
             if (conductor == null || butterflies == null) return;
             int wanted = JungleGrowth.ButterfliesFor(conductor.Sequencer.Echoes);

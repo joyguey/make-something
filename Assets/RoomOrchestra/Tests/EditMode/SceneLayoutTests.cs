@@ -562,7 +562,7 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(floor);
             Assert.IsNotNull(floor.GetComponent<GroundSurface>(), "landing on the floor poofs");
             var clouds = Object.FindObjectsByType<PoofCloud>(FindObjectsSortMode.None);
-            Assert.GreaterOrEqual(clouds.Length, 3, "a few clouds, so quick falls each get one");
+            Assert.GreaterOrEqual(clouds.Length, 16, "enough for quick falls and for Clear's smoke over everything that grew");
             var post = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser").GetComponentsInChildren<Collider>()
                 .First(c => c.name == "Pedestal");
             Physics.SyncTransforms();
