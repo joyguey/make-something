@@ -75,12 +75,13 @@ namespace RoomOrchestra.Tests
             ball.Launch(new Vector3(1.2f, 0f, 0f)); // rolls along the table top and off the edge
             ball.transform.position = new Vector3(0.1f, 0.78f, 0f);
 
-            bool wasScared = false, sawFloorPause = false;
+            bool wasScared = false, sawFloorPause = false, scaredBeforeTheEdge = false;
             Vector3 landedNear = Vector3.zero;
             for (float end = Time.time + 3f; Time.time < end && !expired;)
             {
                 yield return new WaitForFixedUpdate();
                 if (face.Current == Expression.Scared && !ball.OnTheFloor) wasScared = true;
+                if (face.Current == Expression.Scared && ball.transform.position.x < 0.3f) scaredBeforeTheEdge = true; // table edge at x 0.3
                 if (ball.OnTheFloor)
                 {
                     sawFloorPause = true;
@@ -90,6 +91,7 @@ namespace RoomOrchestra.Tests
                 landedNear = ball.transform.position;
             }
             Assert.IsTrue(wasScared, "looked scared on the way down");
+            Assert.IsTrue(scaredBeforeTheEdge, "the shock starts while still rolling toward the edge, not after it falls");
             Assert.IsTrue(sawFloorPause, "sat startled on the floor for a moment");
             Assert.IsTrue(expired, "gone once it hit the floor");
             Assert.IsTrue(cloud.Playing, "poof!");

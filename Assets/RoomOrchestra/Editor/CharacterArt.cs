@@ -161,8 +161,7 @@ namespace RoomOrchestra.EditorTools
             var eyeR = Child(visual, OrbType.Bop, "EyeR", face, Vector3.zero);
             var smile = Child(visual, OrbType.Bop, "Smile", face, Vector3.zero);
             var oh = Child(visual, OrbType.Bop, "Mouth_O", face, MouthParked); // for the scared fall to the floor
-            // The launcher wakes the ball it hands out; a tumbling ball keeps its face turned to the player.
-            Alive(ball, visual, current, awake: false, eyeL, eyeR, smile, oh, faceViewer: true);
+            Alive(ball, visual, current, awake: false, eyeL, eyeR, smile, oh); // the launcher wakes the ball it hands out
             var parts = new[] { eyeL.GetComponent<Renderer>(), eyeR.GetComponent<Renderer>(), smile.GetComponent<Renderer>(), oh.GetComponent<Renderer>() };
             return (visual.GetComponent<Renderer>(), outline.GetComponent<Renderer>(), parts);
         }

@@ -231,5 +231,15 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Fall made readable: scared starts at 0.3 m/s downward; thrown/rolling balls keep the face turned to the player (Viewer: headset pose on device, camera in Editor, seated eye otherwise); on the floor the character sits squashed and startled for 0.35 s, then poofs.
 - Tests: EditMode 138/138; PlayMode 45/45 (eye grows in place, no thicker, scared eyes look down; roll-off -> scared -> startled pause on the floor -> poof).
 
+## 2026-10-25 | Prompt 06 (part 5) — earlier shock, magical rainforest (first pass)
+- Owner: faces need not always face the player (balls may roll freely); the shock should start well before the edge. Ball facing reverted. New: while rolling on furniture, the ball looks 0.15/0.3/0.5 s ahead along its roll; if a spot ahead has only the floor beneath (drop > 15 cm), it is scared already. Only while touching a surface (a ball flying at a target never panics). Test: scared while still on the table, before the edge.
+- Owner: start butterfly trails, sparkles and vines to turn the room into a magical rainforest, imagery similar to MapleStory. Built ORIGINAL procedural assets in that bright, chunky, outlined style (nothing copied; `Assets/RoomOrchestra/Art/Rainforest/LICENSES.md`): `ArtSource/Rainforest/build_rainforest.py` -> Rainforest.fbx (~9k faces).
+  - Vines with outlined leaves, pink flowers and curly tips, shaped to the furniture: lamp pole, ball stand post, both front table legs, draped over the chair back.
+  - 3 butterflies (pink, sky, lemon; ~22 cm) in lazy figure-eight loops behind/above the furniture, wings in a flapping V with white spots, each trailing 8 glowing sparkles.
+  - 15 twinkling four-point sparkles, 5 around each instrument, that flare when that instrument plays (live hit or an echo passing the top of its ring: new OrbitView.NotePassed event).
+  - Decoration only: no colliders (taps/balls pass through), starts 3 s after load, authored at its start pose, reduced-motion flags freeze it.
+  - Bug found in Unity render: first wing outline doubled back on itself (no wing face); rebuilt as one simple closed lobe shape; wings first lay flat (edge-on to the player) and flapped downward -> V rest angle, sign fixed.
+- Tests: EditMode 139/139 (decor tap-through, triangle budget, vines present, butterflies at path start with wings up, 5 sparkles per instrument); PlayMode 48/48 (butterflies fly/flap/trail behind, sparkles flare only for their instrument, reduced motion still, early edge scare).
+
 ## Resume here (next session)
 1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

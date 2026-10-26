@@ -145,9 +145,41 @@ namespace RoomOrchestra
         {
             if (m_Body == null || m_Body.isKinematic) return false;
             var velocity = m_Body.linearVelocity;
-            if (velocity.y > -ScaredFallSpeed) return false;
-            return Physics.Raycast(transform.position, velocity.normalized, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)
-                && hit.collider.GetComponentInParent<GroundSurface>() != null;
+            if (velocity.y <= -ScaredFallSpeed)
+                return Physics.Raycast(transform.position, velocity.normalized, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)
+                    && IsGround(hit.collider);
+            return IsRollingTowardAnEdge(velocity);
+        }
+
+        // Rolling on furniture: look ahead along the roll; if a spot it will reach soon has only the floor
+        // beneath it, the edge is coming. Only while touching a surface, so a ball flying toward a target
+        // never panics mid-throw.
+        bool IsRollingTowardAnEdge(Vector3 velocity)
+        {
+            if (Time.time - m_LastSurfaceContact > 0.1f) return false;
+            var flat = new Vector3(velocity.x, 0f, velocity.z);
+            if (flat.magnitude < EdgeMinSpeed) return false;
+            float radius = transform.lossyScale.y * 0.5f;
+            foreach (float seconds in EdgeLookAheadSeconds)
+            {
+                var ahead = transform.position + flat * seconds;
+                if (!Physics.Raycast(ahead + Vector3.up * radius, Vector3.down, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)) continue;
+                if (hit.collider.attachedRigidbody == m_Body) continue;
+                if (IsGround(hit.collider) && transform.position.y - hit.point.y > radius + EdgeMinDrop) return true;
+            }
+            return false;
+        }
+
+        static bool IsGround(Collider c) => c.GetComponentInParent<GroundSurface>() != null;
+
+        /// <summary>Rolling slower than this (m/s) never worries; drops lower than this (m) are not scary.</summary>
+        public const float EdgeMinSpeed = 0.15f, EdgeMinDrop = 0.15f;
+        static readonly float[] EdgeLookAheadSeconds = { 0.15f, 0.3f, 0.5f };
+        float m_LastSurfaceContact = -10f;
+
+        void OnCollisionStay(Collision collision)
+        {
+            if (!IsGround(collision.collider)) m_LastSurfaceContact = Time.time;
         }
 
         /// <summary>Falling faster than this (m/s) toward the floor looks scared; it looks this far ahead (m).</summary>
@@ -161,7 +193,8 @@ namespace RoomOrchestra
         void OnCollisionEnter(Collision collision)
         {
             if (TryGetComponent<JellyBody>(out var jelly)) jelly.Kick(collision.relativeVelocity.magnitude / 5f); // splat
-            if (InFlight && collision.collider.GetComponentInParent<GroundSurface>() != null)
+            if (!IsGround(collision.collider)) m_LastSurfaceContact = Time.time;
+            if (InFlight && IsGround(collision.collider))
             {
                 // Down on the floor: a squashed, startled moment where it landed, then a poof and it is
                 // gone (back to the stand).

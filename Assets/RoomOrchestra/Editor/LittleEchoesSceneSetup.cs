@@ -115,6 +115,7 @@ namespace RoomOrchestra.EditorTools
             if (parent != null && !parent.TryGetComponent<StageAnchor>(out _)) parent.AddComponent<StageAnchor>();
             MarkGround();
             CreatePoofClouds(root.transform);
+            RainforestArt.Build(root.transform, targets);
 
             var selector = root.AddComponent<OrbSelector>();
             var so = new SerializedObject(selector);

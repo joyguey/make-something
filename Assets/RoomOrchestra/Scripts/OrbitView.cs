@@ -31,6 +31,9 @@ namespace RoomOrchestra
         readonly List<long> m_Stale = new();
         double m_LastPhase = -1;
 
+        /// <summary>An echo just passed the top marker (its note is sounding): rainforest sparkles flare.</summary>
+        public static event System.Action<InstrumentTarget> NotePassed;
+
         public InstrumentTarget Target => target;
         public float Radius => radius;
 
@@ -91,6 +94,7 @@ namespace RoomOrchestra
                     // Its note is sounding now: a little hop and smiling eyes.
                     if (mini.TryGetComponent<JellyBody>(out var body)) body.Hop();
                     if (mini.TryGetComponent<CharacterFace>(out var face)) face.Beam();
+                    NotePassed?.Invoke(target);
                 }
                 Move(mini, PositionAt(phase, echo.Step));
                 Scale(mini, echo.StableId == selectedId ? selectedScale : 1f);

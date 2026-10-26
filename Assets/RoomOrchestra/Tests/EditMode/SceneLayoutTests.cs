@@ -549,7 +549,7 @@ namespace RoomOrchestra.Tests
             foreach (var ball in Object.FindObjectsByType<Ball>(FindObjectsSortMode.None))
             {
                 AssertAlive(ball, ball.GetComponent<CharacterFace>(), awake: false); // the launcher wakes the one it hands out
-                Assert.IsTrue(ball.GetComponent<JellyBody>().FacesViewer, $"{ball.name} keeps its face to the player while it tumbles");
+                Assert.IsFalse(ball.GetComponent<JellyBody>().FacesViewer, $"{ball.name} rolls and tumbles freely (owner)");
             }
             var director = Object.FindFirstObjectByType<CharacterDirector>();
             Assert.IsNotNull(director, "CharacterDirector in scene");
@@ -579,6 +579,33 @@ namespace RoomOrchestra.Tests
                     }
                 }
             }
+        }
+
+        // ---- Rainforest set dressing (vines, butterflies, sparkles) ----
+        [Test]
+        public void RainforestDecorIsTapThroughLightAndStartsStill()
+        {
+            var rainforest = GameObject.Find("Rainforest");
+            Assert.IsNotNull(rainforest, "rainforest built");
+            Assert.IsEmpty(rainforest.GetComponentsInChildren<Collider>(), "decoration never eats a tap or a ball");
+            int triangles = rainforest.GetComponentsInChildren<MeshFilter>().Sum(f => f.sharedMesh.triangles.Length / 3);
+            Assert.Less(triangles, 40000, "light enough for a standalone headset");
+            foreach (var vine in new[] { "Vine_Lamp", "Vine_Stand", "Vine_TableL", "Vine_TableR", "Vine_Chair" })
+                Assert.IsNotNull(rainforest.transform.Find(vine), vine);
+
+            var butterflies = rainforest.GetComponentsInChildren<Butterfly>();
+            Assert.AreEqual(3, butterflies.Length);
+            foreach (var b in butterflies)
+            {
+                Assert.Less((b.transform.localPosition - b.PathAt(0f)).magnitude, 1e-4f, $"{b.name} authored where its loop starts");
+                Assert.AreEqual(8, b.Trail.Count, $"{b.name} sparkle trail");
+                Assert.Greater(b.WingL.localEulerAngles.z, 180f, $"{b.name} rests with its wings up in a V");
+            }
+
+            var sparkles = rainforest.GetComponentsInChildren<SparkleTwinkle>();
+            Assert.AreEqual(15, sparkles.Length);
+            foreach (var instrument in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
+                Assert.AreEqual(5, sparkles.Count(sp => sp.Instrument == instrument), $"sparkles around {instrument.name}");
         }
 
         [Test]
