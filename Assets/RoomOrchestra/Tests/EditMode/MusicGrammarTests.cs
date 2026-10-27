@@ -225,6 +225,30 @@ namespace RoomOrchestra.Tests
             foreach (var v in new[] { flutter, bop, boom })
                 Assert.LessOrEqual(v.Max(x => Math.Abs(x)), VoiceDesign.MaxPeak + 1e-4f);
         }
+
+        // Loudness of the first 200 ms (what the ear hears as the note's level), in dB.
+        static float OnsetDb(float[] v, int rate)
+        {
+            int n = Math.Min(v.Length, rate / 5);
+            double energy = 0;
+            for (int i = 0; i < n; i++) energy += v[i] * v[i];
+            return 10f * (float)Math.Log10(Math.Max(energy / n, 1e-12));
+        }
+
+        [TestCaseSource(nameof(s_Files))]
+        public void WeightChangesTimbreNotLoudness(string file)
+        {
+            var (instrument, index) = Parse(file);
+            float[] source = Load($"Assets/RoomOrchestra/Audio/{file}.wav", out int rate);
+            float f0 = NoteMapping.FrequencyHz(instrument, index);
+            bool bowed = instrument == InstrumentType.Erhu;
+            float Db(OrbType orb) => OnsetDb(VoiceDesign.Render(source, rate, VoiceDesign.ForOrb(orb, VoiceSpec.Plain, f0, bowed)), rate);
+
+            float flutter = Db(OrbType.Flutter), bop = Db(OrbType.Bop), boom = Db(OrbType.Boom);
+            TestContext.WriteLine($"{file}: onset loudness F {flutter:F1} dB, Bop {bop:F1} dB, Boom {boom:F1} dB");
+            Assert.GreaterOrEqual(flutter, bop - 4f, "Flutter is lighter, not lost in the mix");
+            Assert.LessOrEqual(boom, bop + 1f, "Boom is heavier in sound, not just louder");
+        }
     }
 
     public class PetalSelectionTests

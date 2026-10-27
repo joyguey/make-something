@@ -297,5 +297,23 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
   - System-language detection on a PICO headset set to Chinese.
   - Native-speaker review of the wording.
 
+## 2026-10-27 | Prompt 07 (part 2) — even weight levels, poof sound
+- **Weights:**
+  - Every voice was set to the same peak, so short Flutter blips sounded about 6 dB quieter than Bop over the first 200 ms, and Boom about 2 dB louder.
+  - Weight should change timbre; strength changes loudness. Flutter now decays more slowly (0.12 to 0.2 s) and peaks a little higher. Boom on udu and mbira peaks 20% lower; erhu Boom is unchanged because a bowed note already swells in softly.
+  - Measured on the real voices after the change: Flutter is 1–3.4 dB below Bop; mbira Boom is level with Bop. Lengths are unchanged.
+  - New test: `WeightChangesTimbreNotLoudness` (7 notes). The densest-loop mix safety test still passes (-0.9 dBFS after the limiter).
+- **Poof sound:**
+  - `ArtSource/Audio/gen_poof.py` makes `Audio/Effects/Poof.wav` (a soft puff, 0.45 s) and `Smoke.wav` (Clear's smoky whoosh, 1.2 s, swells in). Both are deterministic and listed in the ledger.
+  - Each of the 16 poof clouds has a 2D AudioSource at volume 0.45 that goes through the master limiter.
+  - Clouds that burst within 0.15 s of each other share one sound, so Clear plays one whoosh instead of a stack.
+  - Three small pitch steps take turns, so repeated poofs don't sound identical.
+- **Tests:** EditMode 159/159 (new: poof sound wiring and clip peak/onset, weight loudness). PlayMode 58/58 (new: `PoofSoundPlayModeTests`).
+- **Build:** `Builds/RoomOrchestra-v2-poof.apk` (66 MB, versionName 0.2.0 / versionCode 2), installed and launched on the PICO Emulator 6.1. Voice banks loaded, no app exceptions.
+- **NOT verified:**
+  - How either change sounds; this needs the owner's listening.
+  - Poof sound on the emulator or a headset (needs a throw onto the floor).
+  - The limiter on PICO.
+
 ## Resume here (next session)
-1. Owner emulator check of the language toggle (`Builds/RoomOrchestra-lang.apk`). Roaming tray: waiting on the PICO team. Rest of Prompt 07: fine-tune sounds, poof sound, limiter on device. Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.
+1. Owner emulator check of the language toggle (`Builds/RoomOrchestra-lang.apk`). Roaming tray: waiting on the PICO team. Prompt 07 left: owner listening check of the weight levels and the poof (`Builds/RoomOrchestra-v2-poof.apk`), limiter on device. Then Prompt 08. Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

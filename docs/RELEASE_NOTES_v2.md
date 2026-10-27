@@ -36,9 +36,11 @@ Clear sweeps it all away in clouds of smoke.
 ### Sound
 - The instrument sounds are synthesized by the project's own documented script. They are inspired by the udu, mbira and erhu, not recordings of them.
 - A safety limiter keeps dense songs from clipping.
+- Flutter, Bop and Boom now differ in timbre rather than volume: Flutter is no longer much quieter.
+- A soft puff when a character lands on the floor, and a smoky whoosh when Clear sweeps the rainforest away.
 
 ## Still open
 - Roaming controls that follow a walking player: waiting on PICO's advice (options A–E).
 - A native-speaker review of the Chinese wording.
-- Real-furniture mapping, wall ripples, UI clean-up, poof sound.
+- Real-furniture mapping, wall ripples, UI clean-up.
 - Headset testing.

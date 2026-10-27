@@ -582,6 +582,45 @@ namespace RoomOrchestra.Tests
             }
         }
 
+        [Test]
+        public void EveryPoofHasAGentleSound()
+        {
+            var poof = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RoomOrchestra/Audio/Effects/Poof.wav");
+            var smoke = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RoomOrchestra/Audio/Effects/Smoke.wav");
+            Assert.IsNotNull(poof);
+            Assert.IsNotNull(smoke);
+            foreach (var cloud in Object.FindObjectsByType<PoofCloud>(FindObjectsSortMode.None))
+            {
+                var so = new UnityEditor.SerializedObject(cloud);
+                var source = (AudioSource)so.FindProperty("voice").objectReferenceValue;
+                Assert.IsNotNull(source, cloud.name);
+                Assert.AreSame(poof, so.FindProperty("poofSound").objectReferenceValue, cloud.name);
+                Assert.AreSame(smoke, so.FindProperty("smokeSound").objectReferenceValue, cloud.name);
+                Assert.IsFalse(source.playOnAwake, "silent until it bursts");
+                Assert.AreEqual(0f, source.spatialBlend, "2D like the instruments");
+                Assert.LessOrEqual(source.volume, 0.5f, "quieter than the music");
+            }
+            // Peak and onset measured on the clips: soft, and the big smoke swells rather than bangs.
+            float PeakSeconds(AudioClip clip, out float peak)
+            {
+                clip.LoadAudioData();
+                var data = new float[clip.samples * clip.channels];
+                clip.GetData(data, 0);
+                int at = 0;
+                peak = 0f;
+                for (int i = 0; i < data.Length; i++)
+                    if (Mathf.Abs(data[i]) > peak) { peak = Mathf.Abs(data[i]); at = i; }
+                Assert.Less(Mathf.Abs(data[data.Length - 1]), 1e-3f, $"{clip.name} ends without a click");
+                return at / (float)clip.frequency;
+            }
+            PeakSeconds(poof, out float poofPeak);
+            float smokeOnset = PeakSeconds(smoke, out float smokePeak);
+            Assert.LessOrEqual(poofPeak, 0.55f);
+            Assert.LessOrEqual(smokePeak, 0.55f);
+            Assert.Greater(smokeOnset, 0.03f, "Clear's smoke swells in, never a bang");
+            Assert.Less(poof.length, 0.6f, "a quick puff");
+        }
+
         // ---- Rainforest that grows with the music (vines, butterflies, toadstools, sparkles) ----
         static bool InsideAny(Collider[] solids, Vector3 p) => solids.Any(c => (c.ClosestPoint(p) - p).sqrMagnitude < 1e-8f);
 

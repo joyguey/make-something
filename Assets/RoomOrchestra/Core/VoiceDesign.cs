@@ -41,6 +41,9 @@ namespace RoomOrchestra
     /// The placeholder samples are close to pure tones, so orb identity rests mainly on shape in
     /// time (which survives any sample) and only secondarily on tone colour:
     /// Flutter = short light blip, Bop = the plain plucked note, Boom = dark, soft-edged, echoing.
+    /// Weight changes timbre, not loudness (strength does that): voices share one peak, so a short
+    /// blip sounds quieter and a long dark one louder. Flutter is lifted and Boom lowered until each is
+    /// within a few dB of Bop over its first 200 ms (Prompt 07 measurement in MusicGrammarTests).
     /// </summary>
     public static class VoiceDesign
     {
@@ -60,14 +63,14 @@ namespace RoomOrchestra
                     spec.Drive = Math.Max(spec.Drive, 3f);
                     spec.ShelfHz = Math.Max(2f * f0, 600f);
                     spec.Brightness = Math.Min(1f, spec.Brightness + 0.6f);
-                    spec.DecaySeconds = 0.12f;
+                    spec.DecaySeconds = 0.2f;
                     spec.LengthSeconds = spec.LengthSeconds > 0f ? Math.Min(spec.LengthSeconds, 0.5f) : 0.5f;
                     if (bowed)
                     {
                         spec.StartSeconds = 0.4f;
                         spec.AttackSeconds = Math.Max(spec.AttackSeconds, 0.01f);
                     }
-                    spec.PeakLevel *= 0.9f;
+                    spec.PeakLevel *= 1.1f; // Render caps it at MaxPeak
                     break;
                 case OrbType.Boom:
                     float cutoff = Math.Max(1.5f * f0, 150f);
@@ -75,6 +78,7 @@ namespace RoomOrchestra
                     spec.AttackSeconds = Math.Max(spec.AttackSeconds, 0.04f);
                     spec.EchoMix = 0.5f;
                     spec.FadeSeconds = Math.Max(spec.FadeSeconds, 0.15f);
+                    if (!bowed) spec.PeakLevel *= 0.8f; // a bowed Boom already swells in softly
                     break;
             }
             return spec;

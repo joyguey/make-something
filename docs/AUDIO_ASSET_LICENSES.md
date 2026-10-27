@@ -51,3 +51,11 @@ In game, each instrument's volume is trimmed by the measured average-to-peak rat
 | Assets/RoomOrchestra/Audio/Synth/Erhu/Erhu_3_A5.wav | synthesized (erhu-inspired) | this project: ArtSource/Audio/synthesize_instruments.py | project-owned, no third-party material | yes (own work) | aa26fe9f613e9f15… (sha256, full in script output) | ALTERNATIVE — not used |
 | Assets/RoomOrchestra/Audio/Synth/Erhu/Erhu_4_B5.wav | synthesized (erhu-inspired) | this project: ArtSource/Audio/synthesize_instruments.py | project-owned, no third-party material | yes (own work) | 2fb7b8520a8ef97b… (sha256, full in script output) | ALTERNATIVE — not used |
 
+
+## Sound effects (2026-10-27, Prompt 07)
+Made by `ArtSource/Audio/gen_poof.py`: filtered noise plus a gliding sine, with fixed seeds. Two runs gave identical bytes.
+
+| File | Type | Source | License | Commercial OK | sha256 | Status |
+|---|---|---|---|---|---|---|
+| Assets/RoomOrchestra/Audio/Effects/Poof.wav | synthesized effect (landing puff, 0.45 s) | this project: ArtSource/Audio/gen_poof.py | project-owned, no third-party material | yes (own work) | b928dc9db04ced598bb9159ff7f86259c1fbd4df43eb464f9a9461643303e806 | ACTIVE |
+| Assets/RoomOrchestra/Audio/Effects/Smoke.wav | synthesized effect (Clear's smoke, 1.2 s, swells in over 57 ms) | this project: ArtSource/Audio/gen_poof.py | project-owned, no third-party material | yes (own work) | 694d3629a4d6e7c07f033a54e85c1db0c8815e30c3c0f93b6f8a88bcb981faea | ACTIVE |

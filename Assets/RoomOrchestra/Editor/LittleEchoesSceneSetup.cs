@@ -612,6 +612,9 @@ namespace RoomOrchestra.EditorTools
         // Poof clouds of seven puffs, waiting inside the ball stand's post until a character lands.
         const int PoofClouds = 16, PuffsPerCloud = 7; // landings plus Clear's smoke over vines, toadstools and butterflies
         const float PuffSize = 0.035f;
+        const string PoofSoundPath = "Assets/RoomOrchestra/Audio/Effects/Poof.wav";
+        const string SmokeSoundPath = "Assets/RoomOrchestra/Audio/Effects/Smoke.wav";
+        const float PoofVolume = 0.45f;
         static readonly Vector3 PoofParkHeight = new Vector3(0f, 0.2f, 0f); // below the parked balls, inside the post
 
         static void CreatePoofClouds(Transform root)
@@ -619,6 +622,9 @@ namespace RoomOrchestra.EditorTools
             var puffMaterial = Glow(EnsureMaterial("Poof", "Ball", new Color(0.97f, 0.97f, 0.95f)), new Color(0.97f, 0.97f, 0.95f));
             var park = Holder("PoofPark", root, Vector3.zero);
             park.position = DispenserPosition + PoofParkHeight;
+            var poofSound = AssetDatabase.LoadAssetAtPath<AudioClip>(PoofSoundPath);
+            var smokeSound = AssetDatabase.LoadAssetAtPath<AudioClip>(SmokeSoundPath);
+            if (poofSound == null || smokeSound == null) Debug.LogWarning("[RoomOrchestra] Poof sounds missing: run ArtSource/Audio/gen_poof.py");
             for (int c = 0; c < PoofClouds; c++)
             {
                 var cloud = Holder($"PoofCloud{c}", root, Vector3.zero);
@@ -631,6 +637,12 @@ namespace RoomOrchestra.EditorTools
                 }
                 var poof = cloud.gameObject.AddComponent<PoofCloud>();
                 poof.Configure(puffs, park);
+                // Plain 2D like the instruments, so the limiter on the listener covers it too; quiet next to the music.
+                var source = cloud.gameObject.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.spatialBlend = 0f;
+                source.volume = PoofVolume;
+                poof.ConfigureSound(source, poofSound, smokeSound);
                 EditorUtility.SetDirty(poof);
             }
         }

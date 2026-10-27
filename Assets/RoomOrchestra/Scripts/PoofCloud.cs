@@ -6,17 +6,29 @@ namespace RoomOrchestra
     /// A little cloud of puffs that bursts where a character lands on the floor. The puffs are authored
     /// in the scene and wait inside the ball stand's post (PICO Spatial: no runtime objects, and inactive
     /// objects still draw, so hidden means parked out of sight). A few clouds share the work.
+    /// Each burst plays a soft puff (Audio/Effects, ArtSource/Audio/gen_poof.py); big clouds play the
+    /// smoky whoosh. Clouds that burst together (Clear) share one sound so the smoke never gets loud.
     /// </summary>
     public class PoofCloud : MonoBehaviour
     {
         public const float Seconds = 0.6f;
         const float Spread = 0.12f, Rise = 0.06f, Grow = 3.2f;
+        /// <summary>Clouds at least this big (Clear's smoke) play the whoosh instead of the puff.</summary>
+        public const float SmokeSize = 2f;
+        /// <summary>Bursts closer together than this share one sound.</summary>
+        public const float SoundGapSeconds = 0.15f;
+        // Small pitch steps in turn, so repeated poofs are not identical.
+        static readonly float[] s_Pitches = { 1f, 1.07f, 0.94f };
+        static float s_LastSound = -10f;
+        static int s_Variant;
 
         static readonly System.Collections.Generic.List<PoofCloud> s_All = new();
 
         [SerializeField] Transform[] puffs;
         [Tooltip("Where the cloud waits, wholly inside the ball stand.")]
         [SerializeField] Transform parkPoint;
+        [SerializeField] AudioSource voice;
+        [SerializeField] AudioClip poofSound, smokeSound;
 
         Vector3[] m_Directions;
         float[] m_Sizes;
@@ -26,10 +38,28 @@ namespace RoomOrchestra
         public bool Playing => Time.time - m_Start < Seconds;
         public System.Collections.Generic.IReadOnlyList<Transform> Puffs => puffs;
 
+        /// <summary>The sound the last burst started, or null if it shared another cloud's.</summary>
+        public AudioClip LastSound { get; private set; }
+
         public void Configure(Transform[] cloudPuffs, Transform park)
         {
             puffs = cloudPuffs;
             parkPoint = park;
+        }
+
+        public void ConfigureSound(AudioSource source, AudioClip poof, AudioClip smoke)
+        {
+            voice = source;
+            poofSound = poof;
+            smokeSound = smoke;
+        }
+
+        // Fresh each play session, even with domain reload off.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetSound()
+        {
+            s_LastSound = -10f;
+            s_Variant = 0;
         }
 
         void OnEnable() => s_All.Add(this);
@@ -72,6 +102,19 @@ namespace RoomOrchestra
             transform.position = position;
             m_Start = Time.time;
             Animate(0f);
+            PlaySound(size);
+        }
+
+        void PlaySound(float size)
+        {
+            LastSound = null;
+            var clip = size >= SmokeSize ? smokeSound : poofSound;
+            if (voice == null || clip == null || Time.time - s_LastSound < SoundGapSeconds) return;
+            s_LastSound = Time.time;
+            voice.pitch = s_Pitches[s_Variant++ % s_Pitches.Length];
+            voice.clip = clip;
+            voice.Play();
+            LastSound = clip;
         }
 
         void Update()
