@@ -36,7 +36,9 @@ namespace RoomOrchestra
         Bend,
         Tap,
         /// <summary>The language button's label: names the language a tap switches to, in that language.</summary>
-        SwitchLanguage
+        SwitchLanguage,
+        /// <summary>The key above a jianpu note column ("1=D"); Chinese only, English tiles name the notes.</summary>
+        KeyOfD
     }
 
     /// <summary>
@@ -71,7 +73,11 @@ namespace RoomOrchestra
             { UiTerm.Bend, ("Bend", "滑音") },
             { UiTerm.Tap, ("Tap", "轻敲") },
             { UiTerm.SwitchLanguage, ("中文", "English") },
+            { UiTerm.KeyOfD, ("", "1=D") },
         };
+
+        /// <summary>Terms shown only in Chinese (blank in English).</summary>
+        public static bool ChineseOnly(UiTerm term) => term == UiTerm.KeyOfD;
 
         // Chinese shows the notes in numbered notation (jianpu) with 1 = D, as erhu music is usually written.
         static readonly string[] s_JianpuDegrees = { "1", "2", "3", "5", "6" };

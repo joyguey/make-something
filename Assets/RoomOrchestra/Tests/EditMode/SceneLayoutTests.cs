@@ -105,10 +105,17 @@ namespace RoomOrchestra.Tests
             {
                 Assert.IsNotNull(text.font, text.name);
                 Assert.IsInstanceOf<TextMeshPro>(text, "world-space TMP (PICO Spatial syncs TMP, not TextMesh)");
+                // A Chinese-only label (1=D) is blank in English: measure it in Chinese.
+                var localized = text.GetComponentInParent<LocalizedLabel>();
+                string authored = text.text;
+                if (string.IsNullOrEmpty(authored) && localized != null) text.text = localized.TextFor(UiLanguage.Chinese);
                 text.ForceMeshUpdate(true, true);
-                Assert.Greater(text.textBounds.size.y, 0.015f, $"{text.transform.parent.name} is readable size");
+                float height = text.textBounds.size.y;
+                text.text = authored;
+                text.ForceMeshUpdate(true, true);
+                Assert.Greater(height, 0.015f, $"{text.transform.parent.name} is readable size");
                 Assert.Less(text.transform.localPosition.sqrMagnitude, 1e-8f, "text sits at its holder's origin");
-                Assert.IsFalse(string.IsNullOrWhiteSpace(text.text), text.name);
+                Assert.IsFalse(string.IsNullOrWhiteSpace(text.text) && localized == null, $"{text.name} has text (blank only for a Chinese-only label)");
                 var toLabel = text.transform.position - new Vector3(0f, 1.15f, 0f);
                 Assert.Greater(Vector3.Dot(text.transform.forward, toLabel.normalized), 0.5f, $"{text.name} faces the player");
             }

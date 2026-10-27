@@ -13,6 +13,7 @@
 - **English / Chinese:**
   - Automatic from the headset's language.
   - The 中文 / English button switches and remembers the choice.
+  - In Chinese, notes show in jianpu (1 2 3 5 6) with the key, 1=D, above each note column.
 
 ### Characters
 - Flutter, Bop and Boom as 3D characters on the tray, on the echo rings and on the throwable balls.

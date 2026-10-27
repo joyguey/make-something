@@ -505,6 +505,16 @@ namespace RoomOrchestra.EditorTools
                 tiles[i].Configure(target, i);
                 EditorUtility.SetDirty(tiles[i]);
             }
+            // Jianpu shows its key above the music: "1=D" over the note tiles, in Chinese only.
+            if (!new MusicalNote(target.Instrument, 0).IsPercussion)
+            {
+                // Sized from its Chinese text, then authored blank like every label's English start.
+                var key = Label("KeyLabel", UiText.Get(UiTerm.KeyOfD, UiLanguage.Chinese), go.transform, Vector3.zero, 0.045f); // as tall as the tile numbers
+                key.GetComponentInChildren<TMP_Text>().text = UiText.Get(UiTerm.KeyOfD, UiLanguage.English);
+                key.position = new Vector3(go.transform.position.x, ColumnBottom + ColumnStep * (NoteMapping.Count - 1) + 0.11f, go.transform.position.z);
+                key.rotation = FacePlayer(key.position);
+                Localize(key, UiTerm.KeyOfD);
+            }
             // The instrument's name tile is also its volume button (tap steps 100/60/30%/Muted).
             var mixTile = Primitive(PrimitiveType.Cube, "MixTile", go.transform, slab, keepCollider: true);
             mixTile.position = new Vector3(go.transform.position.x, ColumnBottom - 0.14f, go.transform.position.z);

@@ -315,5 +315,13 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
   - Poof sound on the emulator or a headset (needs a throw onto the floor).
   - The limiter on PICO.
 
+## 2026-10-27 | Jianpu key "1=D" (owner request)
+- In Chinese, a "1=D" label now sits above the mbira and erhu note columns, the way printed jianpu shows its key. English shows nothing there, because the English tiles already name the notes. The udu column has no key, since its tiles are drum sounds.
+- `UiTerm.KeyOfD` and `UiText.ChineseOnly`; the label is sized from its Chinese text to the tile numbers' height (0.045 m).
+- Unity render check: the first version was oversized and faint because it was measured from blank text; fixed and re-rendered (scratchpad keylabel4.png).
+- Tests: EditMode 159/159 (1=D only above mbira and erhu; blank allowed only for Chinese-only labels). PlayMode 58/58.
+- Build: `Builds/RoomOrchestra-v2-jianpu.apk`, installed on the emulator (opens in English, the owner's saved choice).
+- NOT verified: the label in Chinese on the emulator or a headset; native-speaker review; readability of white text without a backing against a light real wall.
+
 ## Resume here (next session)
-1. Owner emulator check of the language toggle (`Builds/RoomOrchestra-lang.apk`). Roaming tray: waiting on the PICO team. Prompt 07 left: owner listening check of the weight levels and the poof (`Builds/RoomOrchestra-v2-poof.apk`), limiter on device. Then Prompt 08. Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.
+1. Owner emulator check of the language toggle (`Builds/RoomOrchestra-lang.apk`). Roaming tray: waiting on the PICO team. Prompt 07 left: owner listening check of the weight levels and the poof (`Builds/RoomOrchestra-v2-jianpu.apk`), limiter on device. Then Prompt 08. Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.
