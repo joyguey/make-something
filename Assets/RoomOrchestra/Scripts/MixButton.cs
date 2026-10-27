@@ -14,7 +14,6 @@ namespace RoomOrchestra
     {
         [SerializeField] InstrumentTarget target;
         [SerializeField] TMP_Text label;
-        [SerializeField] string caption;
 
         int m_Level;
 
@@ -22,21 +21,29 @@ namespace RoomOrchestra
         public TMP_Text Label => label;
         public int Level => m_Level;
 
-        public void Configure(InstrumentTarget instrument, TMP_Text text, string name)
+        public void Configure(InstrumentTarget instrument, TMP_Text text)
         {
             target = instrument;
             label = text;
-            caption = name;
         }
 
-        public static string TextFor(string name, int level) => $"{name}\n{MixLevels.Label(level)}";
+        public static string TextFor(InstrumentType instrument, int level, UiLanguage language) =>
+            $"{UiText.Name(instrument, language)}\n{UiText.Volume(level, language)}";
+
+        void OnEnable() => Localization.Changed += Refresh;
+        void OnDisable() => Localization.Changed -= Refresh;
+
+        void Refresh(UiLanguage language)
+        {
+            if (label != null && target != null) label.text = TextFor(target.Instrument, m_Level, language);
+        }
 
         public void Press()
         {
             m_Level = MixLevels.Next(m_Level);
             if (target != null) target.SetMixGain(MixLevels.Gain(m_Level));
-            if (label != null) label.text = TextFor(caption, m_Level);
-            Debug.Log($"[RoomOrchestra] {caption} volume: {MixLevels.Label(m_Level)}");
+            Refresh(Localization.Current);
+            Debug.Log($"[RoomOrchestra] {(target != null ? target.Instrument.ToString() : name)} volume: {MixLevels.Label(m_Level)}");
         }
     }
 }

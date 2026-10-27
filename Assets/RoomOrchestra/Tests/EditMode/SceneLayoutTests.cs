@@ -176,6 +176,7 @@ namespace RoomOrchestra.Tests
             if (owner == null) owner = c.GetComponentInParent<RecenterButton>();
             if (owner == null) owner = c.GetComponentInParent<MixButton>();
             if (owner == null) owner = c.GetComponentInParent<HeightButton>();
+            if (owner == null) owner = c.GetComponentInParent<LanguageButton>();
             if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
             return owner;
         }

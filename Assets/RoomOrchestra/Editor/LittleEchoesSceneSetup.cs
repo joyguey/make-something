@@ -75,7 +75,8 @@ namespace RoomOrchestra.EditorTools
                 var profile = OrbCatalog.All[i];
                 tokens[i] = CreateToken(profile, tray, new Vector3(-0.19f + 0.19f * i, 0.09f, 0f),
                     orbMaterials[i], motifMaterial, selected: profile.Type == OrbType.Flutter);
-                Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.19f + 0.19f * i, 0.025f, -0.095f), 0.022f);
+                var name = Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.19f + 0.19f * i, 0.025f, -0.095f), 0.022f);
+                Localize(name, profile.Type switch { OrbType.Flutter => UiTerm.Flutter, OrbType.Bop => UiTerm.Bop, _ => UiTerm.Boom });
             }
 
             var tierButton = CreateTierButton(controls, slabMaterial, motifMaterial);
@@ -109,6 +110,8 @@ namespace RoomOrchestra.EditorTools
             CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.26f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
             CreateRecenterButton(new Vector3(0.40f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
             CreateHeightButton(new Vector3(0.54f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
+            CreateLanguageButton(new Vector3(0.68f, TrayCenter.y, 1.0f), controls, slabMaterial);
+            root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
             if (dispenser != null) dispenser.position = DispenserPosition;
@@ -255,7 +258,7 @@ namespace RoomOrchestra.EditorTools
                 barTransforms[i] = bar;
             }
 
-            Label("TierLabel", "Loudness", go.transform, new Vector3(0f, 0.025f, -0.065f), 0.02f);
+            Localize(Label("TierLabel", "Loudness", go.transform, new Vector3(0f, 0.025f, -0.065f), 0.02f), UiTerm.Loudness);
             var tier = go.AddComponent<TierButton>();
             var so = new SerializedObject(tier);
             SetArray(so.FindProperty("bars"), barTransforms);
@@ -353,7 +356,7 @@ namespace RoomOrchestra.EditorTools
             Box("UndoArrowHook", go.transform, new Vector3(0.04f, 0.04f, 0f), new Vector3(0.012f, 0.03f, 0.012f), mark, keepCollider: false);
             var head = Box("UndoArrowHead", go.transform, new Vector3(-0.025f, 0.025f, 0f), new Vector3(0.022f, 0.022f, 0.012f), mark, keepCollider: false);
             head.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            Label("UndoLabel", "Undo", go.transform, new Vector3(0f, 0.02f, -0.05f), 0.02f);
+            Localize(Label("UndoLabel", "Undo", go.transform, new Vector3(0f, 0.02f, -0.05f), 0.02f), UiTerm.Undo);
             go.AddComponent<UndoButton>();
         }
 
@@ -392,6 +395,7 @@ namespace RoomOrchestra.EditorTools
             var label = Label($"{kind}Label", kind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f);
             var button = go.AddComponent<MusicControlButton>();
             button.Configure(kind, label.GetComponentInChildren<TMP_Text>(), pauseIcon, playIcon);
+            if (kind == MusicControlButton.Kind.Clear) Localize(label, UiTerm.Clear); // Pause relabels itself (Pause / Play)
             EditorUtility.SetDirty(button);
         }
 
@@ -418,7 +422,7 @@ namespace RoomOrchestra.EditorTools
             dot.localPosition = new Vector3(0f, 0.035f, -0.006f);
             dot.localRotation = Quaternion.Euler(90f, 0f, 0f);
             dot.localScale = new Vector3(0.01f, 0.001f, 0.01f);
-            Label("RecenterLabel", "Recenter", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f);
+            Localize(Label("RecenterLabel", "Recenter", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f), UiTerm.Recenter);
             go.AddComponent<RecenterButton>();
         }
 
@@ -442,11 +446,30 @@ namespace RoomOrchestra.EditorTools
                 var right = Box($"HeightArrowHead{i}R", go.transform, new Vector3(0.006f, y, 0f), new Vector3(0.018f, 0.006f, 0.008f), mark, keepCollider: false);
                 right.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? -40f : 40f);
             }
-            var label = Label("HeightLabel", HeightButton.TextFor(PlayPosture.Seated), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.04f);
+            var label = Label("HeightLabel", HeightButton.TextFor(PlayPosture.Seated, UiLanguage.English), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.04f);
             var button = go.AddComponent<HeightButton>();
             button.Configure(label.GetComponentInChildren<TMP_Text>());
             EditorUtility.SetDirty(button);
         }
+
+        // English / 中文, at the end of the front row: the label names the language a tap switches to.
+        static void CreateLanguageButton(Vector3 position, Transform root, Material slab)
+        {
+            var go = new GameObject("LanguageButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = position;
+            go.transform.rotation = FacePlayer(position);
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.03f, 0f);
+            box.size = new Vector3(0.13f, 0.08f, 0.1f);
+            Box("LanguageSlab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            var label = Label("LanguageLabel", UiText.Get(UiTerm.SwitchLanguage, UiLanguage.English), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.026f);
+            Localize(label, UiTerm.SwitchLanguage);
+            go.AddComponent<LanguageButton>();
+        }
+
+        static void Localize(Transform labelHolder, UiTerm term) =>
+            labelHolder.gameObject.AddComponent<LocalizedLabel>().Configure(labelHolder.GetComponentInChildren<TMP_Text>(), term);
 
         // Beside each target, to its right as the player sees it: D E F# A B (or the five udu sounds)
         // from the lowest tile to the highest, so height still means pitch.
@@ -472,11 +495,12 @@ namespace RoomOrchestra.EditorTools
                 tile.rotation = FacePlayer(tile.position);
                 tile.localScale = focused && i == StartPetal ? TileScale * 1.2f : TileScale;
                 var note = new MusicalNote(target.Instrument, i);
-                string text = note.IsPercussion ? note.Articulation.ToString() : NoteMapping.NoteName(i);
+                string text = UiText.Tile(note, UiLanguage.English);
                 // Label on the tile's player-facing side, sized in world units (not stretched by the tile).
                 var label = Label($"TileLabel{i}", text, go.transform, Vector3.zero, note.IsPercussion ? 0.034f : 0.045f);
                 label.position = tile.position - tile.forward * 0.02f;
                 label.rotation = tile.rotation;
+                label.gameObject.AddComponent<LocalizedLabel>().ConfigureTile(label.GetComponentInChildren<TMP_Text>(), target.Instrument, i);
                 tiles[i] = tile.gameObject.AddComponent<PitchTile>();
                 tiles[i].Configure(target, i);
                 EditorUtility.SetDirty(tiles[i]);
@@ -486,12 +510,11 @@ namespace RoomOrchestra.EditorTools
             mixTile.position = new Vector3(go.transform.position.x, ColumnBottom - 0.14f, go.transform.position.z);
             mixTile.rotation = FacePlayer(mixTile.position);
             mixTile.localScale = new Vector3(0.16f, 0.1f, 0.03f);
-            string name = InstrumentCaption(target.Instrument);
-            var caption = Label("InstrumentLabel", MixButton.TextFor(name, 0), go.transform, Vector3.zero, 0.07f); // two lines, ~3 cm each
+            var caption = Label("InstrumentLabel", MixButton.TextFor(target.Instrument, 0, UiLanguage.English), go.transform, Vector3.zero, 0.07f); // two lines, ~3 cm each
             caption.position = mixTile.position - mixTile.forward * 0.02f;
             caption.rotation = mixTile.rotation;
             var mix = mixTile.gameObject.AddComponent<MixButton>();
-            mix.Configure(target, caption.GetComponentInChildren<TMP_Text>(), name);
+            mix.Configure(target, caption.GetComponentInChildren<TMP_Text>());
             EditorUtility.SetDirty(mix);
 
             var column = go.AddComponent<PitchColumn>();
@@ -499,13 +522,6 @@ namespace RoomOrchestra.EditorTools
             EditorUtility.SetDirty(column);
             return column;
         }
-
-        static string InstrumentCaption(InstrumentType type) => type switch
-        {
-            InstrumentType.Udu => "udu",
-            InstrumentType.Mbira => "mbira",
-            _ => "erhu",
-        };
 
         static Quaternion FacePlayer(Vector3 position)
         {
@@ -530,7 +546,7 @@ namespace RoomOrchestra.EditorTools
             var go = new GameObject("Text");
             go.transform.SetParent(holder, false);
             var tmp = go.AddComponent<TextMeshPro>();
-            tmp.font = TMP_Settings.defaultFontAsset;
+            tmp.font = LabelFont.Ensure(); // English and Chinese
             tmp.text = text;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.textWrappingMode = TextWrappingModes.NoWrap;

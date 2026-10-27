@@ -88,3 +88,20 @@ Use entries of form:
 
 ## 2026-10-26 — Owner keeps sound set A
 After listening on the emulator (phase6l = A vs phase7-synth = B), the owner prefers A, the prototype samples. A stays active. The synthesized set B stays in `Audio/Synth/` as a documented fallback. Same day, A's origin was resolved: `ArtSource/Audio/gen_world_instruments.py` was recovered from the 2026-10-15 session, and it regenerates all 15 active WAVs byte for byte. A is project-made synthesis, not a recording.
+
+## 2026-10-26 — English / Chinese controls
+- **Owner request:** both English and Chinese, as an easy toggle, built now.
+- **How the language is chosen:**
+  - The headset's system language decides on first launch (any Chinese → Chinese, everything else → English).
+  - A button at the end of the front row (`中文` / `English`) switches. It is labeled with the language a tap switches to, in that language, so a player who reads only one of them can find it.
+  - The player's choice is remembered on that headset (PlayerPrefs, local only).
+- **Startup rule:** the scene stays authored in English, and the switch happens after `JellyBody.StartDelaySeconds` (3 s). This keeps the "nothing changes at startup" rule for PICO Spatial. On a Chinese headset, labels show English for about 3 s, then switch.
+- **Chinese:**
+  - Simplified Chinese. Traditional can be added later as a third column in `Core/UiText.cs`.
+  - Mbira/erhu tiles show jianpu numbers (1 2 3 5 6, 1 = D) instead of letter names, because that is how erhu music is usually written in China.
+  - Character names: 飘飘 (Flutter), 波波 (Bop), 嘭嘭 (Boom).
+  - All the Chinese wording is the agent's draft and needs a native-speaker review before release.
+- **Font:**
+  - Noto Sans SC (SIL OFL 1.1), cut down to the 134 characters used (75 KB), as one static TextMesh Pro atlas for both languages. Every label uses it, so switching changes only text, never fonts.
+  - English labels now render in Noto's Latin letters instead of Liberation Sans.
+  - A new Chinese term needs `ArtSource/Fonts/subset_label_font.py` re-run. An EditMode test fails if any character is missing.

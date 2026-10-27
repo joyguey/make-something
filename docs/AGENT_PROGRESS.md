@@ -274,5 +274,28 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - NOT verified: limiter on PICO (OnAudioFilterRead under Spatial; watch for "Mix limiter held..." in the log); how either set sounds (owner listening).
 - Test status: EditMode 143/143. PlayMode 54/55: `PlacedHitPlantsAnEchoThatRepeatsExactlyOnTheGrid` fails ("one repeat scheduled within a bar: 0") in this session while the Editor's audio clock was observed stalling (dspTime frozen/crawling; AudioSettings.Reset restarted it briefly). The test does not touch the new code (own rig, no limiter, no scene). Then the Unity Editor closed (no crash report; log ends 13:23). Re-run the PlayMode suite after reopening the Editor before trusting it.
 
+## 2026-10-26 | Sound set decision and A's origin
+- The owner compared the two sound sets by ear on the emulator and kept **A** (the original sounds). B (`Audio/Synth/`) is kept as an unused alternative.
+- **Correction to part 1:** A's generator does exist. `ArtSource/Audio/gen_world_instruments.py` was recovered from the 2026-10-15 session log, and it regenerates all 15 WAVs byte for byte. The ledger now lists A as project-made synthesis (docs/AUDIO_ASSET_LICENSES.md).
+
+## 2026-10-26 | English / Chinese controls (owner request)
+- **What changed:** every control label can show Simplified Chinese.
+  - The text lives in `Core/UiText.cs`, one table.
+  - `Localization` holds the current language; it is remembered on the headset only.
+  - `LocalizedLabel` covers fixed labels. Pause/Play, Height and the volume tiles relabel themselves.
+  - `LanguageButton` sits at the end of the front row and is labeled `中文` / `English`.
+  - `LanguageDirector` applies the saved choice, or the headset's system language, 3 s after start.
+  - Chinese tiles show jianpu numbers (1 2 3 5 6).
+  - Editor: the L key toggles.
+  - Details in DECISION_LOG.
+- **Font:** a Noto Sans SC subset (OFL 1.1, 75 KB, `ArtSource/Fonts/subset_label_font.py`) as one static TMP atlas, `Fonts/LittleEchoesLabels SDF.asset`. License: `Fonts/LICENSES.md` and `OFL.txt`.
+- **Tests:**
+  - EditMode 151/151. New: UiTextTests and SceneLanguageTests (atlas has every character, labels authored in English, button reachable).
+  - PlayMode 57/57. New: LanguagePlayModeTests (switch and back across every label kind; saved choice applied after the delay). `PlacedHitPlantsAnEchoThatRepeatsExactlyOnTheGrid` passes again: the earlier failure was the Editor's audio stall.
+- **NOT verified:**
+  - Chinese text rendering under PICO Spatial on a headset.
+  - System-language detection on a PICO headset set to Chinese.
+  - Native-speaker review of the wording.
+
 ## Resume here (next session)
-1. Owner emulator check of characters/expressions (phase6b). Then Prompt 07 (sound). Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.
+1. Owner emulator check of the language toggle (`Builds/RoomOrchestra-lang.apk`). Roaming tray: waiting on the PICO team. Rest of Prompt 07: fine-tune sounds, poof sound, limiter on device. Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.

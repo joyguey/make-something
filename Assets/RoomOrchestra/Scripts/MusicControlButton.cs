@@ -49,6 +49,17 @@ namespace RoomOrchestra
             iconParked = DefaultIconParked;
         }
 
+        void OnEnable() => Localization.Changed += Relabel;
+        void OnDisable() => Localization.Changed -= Relabel;
+
+        // Clear's label is a LocalizedLabel; Pause's depends on the state too.
+        void Relabel(UiLanguage language)
+        {
+            if (kind == Kind.Pause && label != null) label.text = TextFor(EchoConductor.Instance != null && EchoConductor.Instance.IsPaused, language);
+        }
+
+        public static string TextFor(bool paused, UiLanguage language) => UiText.Get(paused ? UiTerm.Play : UiTerm.Pause, language);
+
         public void Press()
         {
             var conductor = EchoConductor.Instance;
@@ -66,7 +77,7 @@ namespace RoomOrchestra
         public void Refresh(bool paused)
         {
             if (kind != Kind.Pause) return;
-            string text = paused ? "Play" : "Pause";
+            string text = TextFor(paused, Localization.Current);
             if (label != null && label.text != text) label.text = text;
             Place(pauseIcon, paused ? iconParked : iconShown);
             Place(playIcon, paused ? iconShown : iconParked);

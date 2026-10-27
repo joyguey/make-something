@@ -206,7 +206,7 @@ namespace RoomOrchestra.Tests
             m_Spawned.Add(labelGo);
             var label = labelGo.AddComponent<TMPro.TextMeshPro>();
             var mix = mixGo.AddComponent<MixButton>();
-            mix.Configure(chair, label, "mbira");
+            mix.Configure(chair, label);
             yield return null;
 
             selector.PlaceOn(chair);

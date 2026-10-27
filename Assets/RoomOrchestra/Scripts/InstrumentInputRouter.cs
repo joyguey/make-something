@@ -84,6 +84,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<RecenterButton>();
             if (owner == null) owner = hit.GetComponentInParent<MixButton>();
             if (owner == null) owner = hit.GetComponentInParent<HeightButton>();
+            if (owner == null) owner = hit.GetComponentInParent<LanguageButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -139,6 +140,13 @@ namespace RoomOrchestra
             if (height != null)
             {
                 height.Press();
+                return true;
+            }
+
+            var language = hit.GetComponentInParent<LanguageButton>();
+            if (language != null)
+            {
+                language.Press();
                 return true;
             }
 
@@ -229,6 +237,7 @@ namespace RoomOrchestra
                     var height = FindFirstObjectByType<HeightButton>();
                     if (height != null) height.Press();
                 }
+                if (keyboard.lKey.wasPressedThisFrame) Localization.Toggle();
                 if (keyboard.spaceKey.wasPressedThisFrame && cam != null && launcher != null)
                     launcher.ThrowAssisted(cam.transform.position + cam.transform.forward * 0.3f, cam.transform.forward, cam.transform.forward * editorThrowSpeed + Vector3.up);
             }
