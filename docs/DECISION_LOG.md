@@ -112,3 +112,11 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Lazy follow:** it starts at 0.9 m from the seat, with a 0.5 m / 45° dead zone, a smooth glide (at most 1.5 m/s) and a 1.5 s dwell before going home. These are comfort guesses and need headset tuning.
 - **Call:** a tappable leaf, because tapping is the input that works under PICO Spatial and every controller button already has a job. Adding a controller call is an open question.
 - **Known gap:** without room mapping, the pad can't avoid walls or furniture.
+
+## 2026-10-27 — Leaf palette
+- **Owner request (with a sketch):** condense the roaming controls so they look like they sit on a leaf palette.
+- **Decision:** one green leaf carries everything. The characters and Loudness go along the back; seven small buttons go along the front, Come here first.
+  - No control was removed: pause, undo, clear, recenter, height and language stay one tap away (accessibility gate).
+  - The leaf stays left of the chair sight line where it is tall, and at least 1 m out (the PICO Spatial near-draw limit).
+- **The purple double arc in the sketch** was read as decoration and is not built. It can be added if it was meant to be a control.
+- **Controller call button:** deferred by the owner until a headset and controller are available to test with.

@@ -27,7 +27,19 @@ namespace RoomOrchestra.EditorTools
         // Front-left, where the old loop station stood: inside the default view, and seated/standing
         // sight lines to all three targets pass clear of it (checked by SceneLayoutTests).
         static readonly Vector3 DispenserPosition = new Vector3(0.62f, 0f, 1.15f); // clear of every pointer line (strict ray test)
-        static readonly Vector3 TrayCenter = new Vector3(-0.55f, 0.5f, 1.1f); // low enough that hand pointer rays to every tile pass over the front row
+        // The leaf palette (owner sketch 2026-10-27): one green leaf, the three characters and Loudness
+        // along the back, a row of small buttons along the front. Left of the chair sight line (x = 0)
+        // where it is tall, at least 1 m out, and low enough that hand pointer rays to every tile pass over it.
+        static readonly Vector3 LeafCenter = new Vector3(-0.2f, 0.49f, 1.17f);
+        static readonly Vector3 LeafSize = new Vector3(0.95f, 0.03f, 0.42f); // back edge below the standing sight line to the chair
+        static readonly Vector3 TrayCenter = new Vector3(-0.3f, 0.5f, 1.28f); // the back row
+        const float ButtonRowZ = 1.1f, ButtonY = 0.5f, ButtonStep = 0.105f;
+        static readonly Vector3 SmallSlab = new Vector3(0.09f, 0.03f, 0.07f);
+        static readonly Vector3 SmallCollider = new Vector3(0.095f, 0.08f, 0.08f);
+        static readonly Vector3 SmallLabelOffset = new Vector3(0f, 0.02f, -0.05f);
+        const float SmallLabelHeight = 0.017f;
+
+        static Vector3 FrontRow(int slot) => new Vector3(LeafCenter.x + ButtonStep * (slot - 3), ButtonY, ButtonRowZ);
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]
         public static void ApplyAndSave()
@@ -66,25 +78,26 @@ namespace RoomOrchestra.EditorTools
             // player who walks around. Pitch columns stay beside their instruments.
             var pad = Holder("LeafPad", controls, Vector3.zero);
 
-            // Orb tray
+            var veinMaterial = EnsureMaterial("CallLeafVein", "Ball", new Color(0.86f, 0.95f, 0.78f));
+            CreateLeaf(pad, veinMaterial);
+
+            // The characters along the back of the leaf
             var tray = new GameObject("OrbTray").transform;
             tray.SetParent(pad, false);
             tray.position = TrayCenter;
-            Box("TraySlab", tray, Vector3.zero, new Vector3(0.56f, 0.03f, 0.18f), slabMaterial, keepCollider: false);
-            Box("TrayPost", tray, new Vector3(0f, -TrayCenter.y / 2f, 0f), new Vector3(0.04f, TrayCenter.y, 0.04f), slabMaterial, keepCollider: false);
 
             var tokens = new OrbToken[OrbCatalog.Count];
             for (int i = 0; i < OrbCatalog.Count; i++)
             {
                 var profile = OrbCatalog.All[i];
-                tokens[i] = CreateToken(profile, tray, new Vector3(-0.19f + 0.19f * i, 0.09f, 0f),
+                tokens[i] = CreateToken(profile, tray, new Vector3(-0.17f + 0.17f * i, 0.06f, 0f), // resting on the leaf: hand rays to the udu volume tile pass over them
                     orbMaterials[i], motifMaterial, selected: profile.Type == OrbType.Flutter);
-                var name = Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.19f + 0.19f * i, 0.025f, -0.095f), 0.022f);
+                var name = Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.17f + 0.17f * i, 0.025f, -0.075f), 0.02f);
                 Localize(name, profile.Type switch { OrbType.Flutter => UiTerm.Flutter, OrbType.Bop => UiTerm.Bop, _ => UiTerm.Boom });
             }
 
             var tierButton = CreateTierButton(pad, slabMaterial, motifMaterial);
-            CreateCallButton(pad);
+            CreateCallButton(FrontRow(0), pad, slabMaterial, veinMaterial);
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -109,13 +122,13 @@ namespace RoomOrchestra.EditorTools
             var director = root.AddComponent<CharacterDirector>();
             director.Configure(conductor, tokens);
             EditorUtility.SetDirty(director);
-            CreateUndoButton(pad, slabMaterial, motifMaterial);
-            // Front row right of Undo, 0.14 m apart.
-            CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.12f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.26f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
-            CreateRecenterButton(new Vector3(0.40f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
-            CreateHeightButton(new Vector3(0.54f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
-            CreateLanguageButton(new Vector3(0.68f, TrayCenter.y, 1.0f), pad, slabMaterial);
+            // The front row of the leaf, left to right after Come here.
+            CreateUndoButton(FrontRow(1), pad, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Pause, FrontRow(2), pad, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Clear, FrontRow(3), pad, slabMaterial, motifMaterial);
+            CreateRecenterButton(FrontRow(4), pad, slabMaterial, motifMaterial);
+            CreateHeightButton(FrontRow(5), pad, slabMaterial, motifMaterial);
+            CreateLanguageButton(FrontRow(6), pad, slabMaterial);
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
@@ -251,11 +264,11 @@ namespace RoomOrchestra.EditorTools
         {
             var go = new GameObject("TierButton");
             go.transform.SetParent(root, false);
-            go.transform.position = TrayCenter + new Vector3(0.36f, 0f, 0f);
+            go.transform.position = TrayCenter + new Vector3(0.4f, 0f, 0f); // right of Boom, clear of the chair sight line
             var box = go.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, 0.04f, 0f);
-            box.size = new Vector3(0.14f, 0.12f, 0.1f);
-            Box("TierSlab", go.transform, Vector3.zero, new Vector3(0.14f, 0.03f, 0.1f), slab, keepCollider: false);
+            box.size = new Vector3(0.11f, 0.12f, 0.09f);
+            Box("TierSlab", go.transform, Vector3.zero, new Vector3(0.11f, 0.03f, 0.08f), slab, keepCollider: false);
 
             var raised = new Vector3(0.03f, 0.1f, 0.03f);
             var lowered = new Vector3(0.03f, 0.01f, 0.03f);
@@ -268,7 +281,7 @@ namespace RoomOrchestra.EditorTools
                 barTransforms[i] = bar;
             }
 
-            Localize(Label("TierLabel", "Loudness", go.transform, new Vector3(0f, 0.025f, -0.065f), 0.02f), UiTerm.Loudness);
+            Localize(Label("TierLabel", "Loudness", go.transform, new Vector3(0f, 0.025f, -0.055f), SmallLabelHeight), UiTerm.Loudness);
             var tier = go.AddComponent<TierButton>();
             var so = new SerializedObject(tier);
             SetArray(so.FindProperty("bars"), barTransforms);
@@ -352,35 +365,22 @@ namespace RoomOrchestra.EditorTools
             return view;
         }
 
-        // Undo, front row between Loudness and Pause: a slab with a hooked arrow.
-        static void CreateUndoButton(Transform root, Material slab, Material mark)
+        // Undo, on the leaf's front row: a small slab with a hooked arrow.
+        static void CreateUndoButton(Vector3 position, Transform root, Material slab, Material mark)
         {
-            var go = new GameObject("UndoButton");
-            go.transform.SetParent(root, false);
-            go.transform.position = TrayCenter + new Vector3(0.53f, 0f, -0.1f); // beside, not in front of, Loudness
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = new Vector3(0.12f, 0.08f, 0.08f);
-            Box("UndoSlab", go.transform, Vector3.zero, new Vector3(0.12f, 0.03f, 0.07f), slab, keepCollider: false);
+            var go = SmallButton("UndoButton", position, root, slab, "UndoSlab");
             Box("UndoArrowStem", go.transform, new Vector3(0.01f, 0.025f, 0f), new Vector3(0.06f, 0.012f, 0.012f), mark, keepCollider: false);
             Box("UndoArrowHook", go.transform, new Vector3(0.04f, 0.04f, 0f), new Vector3(0.012f, 0.03f, 0.012f), mark, keepCollider: false);
             var head = Box("UndoArrowHead", go.transform, new Vector3(-0.025f, 0.025f, 0f), new Vector3(0.022f, 0.022f, 0.012f), mark, keepCollider: false);
             head.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            Localize(Label("UndoLabel", "Undo", go.transform, new Vector3(0f, 0.02f, -0.05f), 0.02f), UiTerm.Undo);
+            Localize(Label("UndoLabel", "Undo", go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Undo);
             go.AddComponent<UndoButton>();
         }
 
         // Pause/Play and Clear in the front control row, right of Undo (clear of the chair sight line): a slab, an icon (pause bars / an X) and a label.
         static void CreateMusicButton(MusicControlButton.Kind kind, Vector3 position, Transform root, Material slab, Material mark)
         {
-            var go = new GameObject($"{kind}Button");
-            go.transform.SetParent(root, false);
-            go.transform.position = position;
-            go.transform.rotation = FacePlayer(position);
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = new Vector3(0.13f, 0.08f, 0.1f);
-            Box($"{kind}Slab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            var go = SmallButton($"{kind}Button", position, root, slab, $"{kind}Slab");
             Transform pauseIcon = null, playIcon = null;
             if (kind == MusicControlButton.Kind.Pause)
             {
@@ -402,7 +402,7 @@ namespace RoomOrchestra.EditorTools
                 var c = Box("ClearCrossB", go.transform, new Vector3(0f, 0.03f, 0f), new Vector3(0.045f, 0.01f, 0.01f), mark, keepCollider: false);
                 c.localRotation = Quaternion.Euler(0f, 0f, -45f);
             }
-            var label = Label($"{kind}Label", kind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f);
+            var label = Label($"{kind}Label", kind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", go.transform, SmallLabelOffset, SmallLabelHeight);
             var button = go.AddComponent<MusicControlButton>();
             button.Configure(kind, label.GetComponentInChildren<TMP_Text>(), pauseIcon, playIcon);
             if (kind == MusicControlButton.Kind.Clear) Localize(label, UiTerm.Clear); // Pause relabels itself (Pause / Play)
@@ -412,14 +412,7 @@ namespace RoomOrchestra.EditorTools
         // Recenter, at the end of the front row: a target mark (ring and dot) facing the player.
         static void CreateRecenterButton(Vector3 position, Transform root, Material slab, Material mark)
         {
-            var go = new GameObject("RecenterButton");
-            go.transform.SetParent(root, false);
-            go.transform.position = position;
-            go.transform.rotation = FacePlayer(position);
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = new Vector3(0.13f, 0.08f, 0.1f);
-            Box("RecenterSlab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            var go = SmallButton("RecenterButton", position, root, slab, "RecenterSlab");
             var ring = Primitive(PrimitiveType.Cylinder, "RecenterRing", go.transform, mark, keepCollider: false);
             ring.localPosition = new Vector3(0f, 0.035f, 0f);
             ring.localRotation = Quaternion.Euler(90f, 0f, 0f);
@@ -432,21 +425,14 @@ namespace RoomOrchestra.EditorTools
             dot.localPosition = new Vector3(0f, 0.035f, -0.006f);
             dot.localRotation = Quaternion.Euler(90f, 0f, 0f);
             dot.localScale = new Vector3(0.01f, 0.001f, 0.01f);
-            Localize(Label("RecenterLabel", "Recenter", go.transform, new Vector3(0f, 0.02f, -0.06f), 0.02f), UiTerm.Recenter);
+            Localize(Label("RecenterLabel", "Recenter", go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Recenter);
             go.AddComponent<RecenterButton>();
         }
 
         // Height (Seated / Standing), at the end of the front row: an up-down arrow, and a label with the setting.
         static void CreateHeightButton(Vector3 position, Transform root, Material slab, Material mark)
         {
-            var go = new GameObject("HeightButton");
-            go.transform.SetParent(root, false);
-            go.transform.position = position;
-            go.transform.rotation = FacePlayer(position);
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = new Vector3(0.13f, 0.08f, 0.1f);
-            Box("HeightSlab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
+            var go = SmallButton("HeightButton", position, root, slab, "HeightSlab");
             Box("HeightArrowStem", go.transform, new Vector3(0f, 0.035f, 0f), new Vector3(0.008f, 0.04f, 0.008f), mark, keepCollider: false);
             for (int i = 0; i < 2; i++)
             {
@@ -456,7 +442,7 @@ namespace RoomOrchestra.EditorTools
                 var right = Box($"HeightArrowHead{i}R", go.transform, new Vector3(0.006f, y, 0f), new Vector3(0.018f, 0.006f, 0.008f), mark, keepCollider: false);
                 right.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? -40f : 40f);
             }
-            var label = Label("HeightLabel", HeightButton.TextFor(PlayPosture.Seated, UiLanguage.English), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.04f);
+            var label = Label("HeightLabel", HeightButton.TextFor(PlayPosture.Seated, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 2f);
             var button = go.AddComponent<HeightButton>();
             button.Configure(label.GetComponentInChildren<TMP_Text>());
             EditorUtility.SetDirty(button);
@@ -465,39 +451,51 @@ namespace RoomOrchestra.EditorTools
         // English / 中文, at the end of the front row: the label names the language a tap switches to.
         static void CreateLanguageButton(Vector3 position, Transform root, Material slab)
         {
-            var go = new GameObject("LanguageButton");
+            var go = SmallButton("LanguageButton", position, root, slab, "LanguageSlab");
+            var label = Label("LanguageLabel", UiText.Get(UiTerm.SwitchLanguage, UiLanguage.English), go.transform, new Vector3(0f, 0.04f, 0f), 0.022f);
+            Localize(label, UiTerm.SwitchLanguage);
+            go.AddComponent<LanguageButton>();
+        }
+
+        // The leaf palette itself: a flat green leaf with a pale midrib, on a stalk. Decoration only: no colliders, so it never takes a tap from the buttons on it.
+        static void CreateLeaf(Transform pad, Material vein)
+        {
+            var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.42f, 0.74f, 0.4f));
+            var leaf = Primitive(PrimitiveType.Sphere, "Leaf", pad, leafMaterial, keepCollider: false);
+            leaf.position = LeafCenter;
+            leaf.localScale = LeafSize;
+            // Over the thick middle only: the leaf thins to nothing at its tips.
+            var rib = Box("LeafRib", pad, Vector3.zero, new Vector3(LeafSize.x * 0.75f, 0.004f, 0.008f), vein, keepCollider: false);
+            rib.position = new Vector3(LeafCenter.x, LeafCenter.y + LeafSize.y / 2f - 0.001f, (TrayCenter.z + ButtonRowZ) / 2f);
+            var stalk = Box("LeafStalk", pad, Vector3.zero, new Vector3(0.03f, LeafCenter.y, 0.03f), leafMaterial, keepCollider: false);
+            stalk.position = new Vector3(LeafCenter.x, LeafCenter.y / 2f, LeafCenter.z);
+        }
+
+        // One small button on the leaf's front row: a slab facing the player and a tap box a little larger.
+        static GameObject SmallButton(string name, Vector3 position, Transform root, Material slab, string slabName)
+        {
+            var go = new GameObject(name);
             go.transform.SetParent(root, false);
             go.transform.position = position;
             go.transform.rotation = FacePlayer(position);
             var box = go.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = new Vector3(0.13f, 0.08f, 0.1f);
-            Box("LanguageSlab", go.transform, Vector3.zero, new Vector3(0.13f, 0.03f, 0.09f), slab, keepCollider: false);
-            var label = Label("LanguageLabel", UiText.Get(UiTerm.SwitchLanguage, UiLanguage.English), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.026f);
-            Localize(label, UiTerm.SwitchLanguage);
-            go.AddComponent<LanguageButton>();
+            box.size = SmallCollider;
+            Box(slabName, go.transform, Vector3.zero, SmallSlab, slab, keepCollider: false);
+            return go;
         }
 
-        // The call leaf (roaming option C), left of the ball tray: a green leaf, "Come here".
-        static readonly Vector3 CallLeafPosition = new Vector3(-0.98f, 0.5f, 1.05f);
-
-        static void CreateCallButton(Transform root)
+        // The call (roaming option C), first on the front row: a small green leaf, "Come here".
+        static void CreateCallButton(Vector3 position, Transform root, Material slab, Material vein)
         {
-            var leafMaterial = EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f));
-            var go = new GameObject("CallButton");
-            go.transform.SetParent(root, false);
-            go.transform.position = CallLeafPosition;
-            go.transform.rotation = FacePlayer(CallLeafPosition);
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = new Vector3(0.15f, 0.08f, 0.11f);
-            var leaf = Primitive(PrimitiveType.Sphere, "Leaf", go.transform, leafMaterial, keepCollider: false);
-            leaf.localPosition = new Vector3(0f, 0.015f, 0f);
+            var go = SmallButton("CallButton", position, root, slab, "CallSlab");
+            var leaf = Primitive(PrimitiveType.Sphere, "CallLeaf", go.transform, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
+            leaf.localPosition = new Vector3(0f, 0.03f, 0f);
             leaf.localRotation = Quaternion.Euler(0f, 30f, 0f);
-            leaf.localScale = new Vector3(0.15f, 0.02f, 0.08f);
-            var vein = Box("LeafVein", go.transform, new Vector3(0f, 0.026f, 0f), new Vector3(0.11f, 0.003f, 0.006f), EnsureMaterial("CallLeafVein", "Ball", new Color(0.86f, 0.95f, 0.78f)), keepCollider: false);
-            vein.localRotation = Quaternion.Euler(0f, 30f, 0f);
-            Localize(Label("CallLabel", UiText.Get(UiTerm.CallTray, UiLanguage.English), go.transform, new Vector3(0f, 0.02f, -0.07f), 0.022f), UiTerm.CallTray);
+            leaf.localScale = new Vector3(0.06f, 0.012f, 0.032f);
+            var rib = Box("CallLeafVein", go.transform, new Vector3(0f, 0.036f, 0f), new Vector3(0.045f, 0.002f, 0.004f), vein, keepCollider: false);
+            rib.localRotation = Quaternion.Euler(0f, 30f, 0f);
+            Localize(Label("CallLabel", UiText.Get(UiTerm.CallTray, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.CallTray);
             go.AddComponent<TrayCallButton>();
         }
 

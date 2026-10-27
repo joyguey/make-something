@@ -358,5 +358,21 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
   - Collisions with real walls and furniture (there is no room mapping yet; the pad can go into a wall).
   - Throwing while the pad follows.
 
+## 2026-10-27 | Leaf palette: the controls condensed onto one leaf (after the v2 tag)
+- **Owner:** following works on the emulator; condense the controls so they look like they're on a leaf palette (sketch: green oval leaf, the three balls along the top, a midrib, small grey buttons along the bottom). The controller call button is deferred until the owner has a headset and controller to test with.
+- **Layout** (`LittleEchoesSceneSetup`):
+  - One flat green leaf (`Leaf`, 0.95 × 0.42 m, centred at (-0.2, 0.49, 1.17)) with a pale midrib and a green stalk. Decoration only: no colliders.
+  - Back row: Flutter, Bop, Boom resting on the leaf, then Loudness (shrunk to 0.11 m).
+  - Front row: seven small buttons (0.09 m slabs, 0.105 m apart): Come here (a small green leaf icon), Undo, Pause, Clear, Recenter, Height, 中文/English. The language label now sits on its slab. Labels are 1.7 cm tall.
+  - Everything was 1.7 m wide; it is now 0.95 m. The ball stand is unchanged and still travels with the pad.
+- **Layout fixes found by the tests:**
+  - Hand pointer rays to the udu volume tile hit Bop and Boom, so the characters now rest on the leaf (0.03 m lower).
+  - The leaf's bounding box clipped the standing sight line to the chair, so the back edge was trimmed (depth 0.48 → 0.42 m).
+- **Tests:**
+  - EditMode 167/167.
+  - PlayMode: 60/61 in the full run. `RollingOffATableLooksScaredThenPoofsOnTheFloor` failed, then passed 2 of 3 times on its own. It builds its own table scene, unrelated to this layout; it is an intermittent timing test, worth hardening later.
+- **Renders:** scratchpad `leaf-close.png` (English) and `leaf-zh.png` (Chinese).
+- **NOT verified:** label readability and tap accuracy on the small buttons on the emulator or a headset.
+
 ## Resume here (next session)
-1. Owner emulator check: roaming leaf pad (`Builds/RoomOrchestra-v2-roaming.apk`: walk away from the seat, tap "Come here"), the 1=D plate in Chinese, the weight levels and poof sounds. Version 2 is tagged `v2`; the roaming work comes after it. Open: limiter on device, a controller call button (all buttons are taken), keeping the pad clear of walls once room mapping exists. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.
+1. Owner emulator check: the leaf palette (`Builds/RoomOrchestra-v2-leaf.apk`: are the small labels readable, are the small buttons easy to tap), the 1=D plate in Chinese, the weight levels and poof sounds. Following was confirmed by the owner on the emulator. Version 2 is tagged `v2`; the roaming and leaf work comes after it. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.
