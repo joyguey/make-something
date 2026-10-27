@@ -1,6 +1,7 @@
-# Little Echoes — Version 2 (in development)
+# Little Echoes — Version 2
 
-**Status:** work in progress on branch `feat/little-echoes-core`. Not yet sent to PICO. Version 1 is tag `v1-pico-feedback` (see RELEASE_NOTES_v1.md).
+**Status:** tagged `v2` on 2026-10-27 (branch `feat/little-echoes-core`). Version 1 is tag `v1-pico-feedback` (see RELEASE_NOTES_v1.md).
+**APK:** `Builds/RoomOrchestra-v2.apk` (local, not in Git; sha256 7fd98b4f4fefbd92f48cae9d38a54f3134dc27c5df39454467dd67d4a5ff0ee0). Installs and launches on the emulator. Rebuild from the tag to reproduce.
 **App version:** 0.2.0 (Android version code 2), package `com.roomorchestra.app`.
 **Platform:** Unity 6000.3.25f1, PICO Unity SDK in PICO Spatial mode, PICO OS 6 (Project Swan).
 **Tested on:** PICO Emulator 6.1 only. Not yet tested on a headset.
@@ -13,7 +14,7 @@
 - **English / Chinese:**
   - Automatic from the headset's language.
   - The 中文 / English button switches and remembers the choice.
-  - In Chinese, notes show in jianpu (1 2 3 5 6) with the key, 1=D, above each note column.
+  - In Chinese, notes show in jianpu (1 2 3 5 6) with the key, 1=D, on a small dark plate above each note column.
 
 ### Characters
 - Flutter, Bop and Boom as 3D characters on the tray, on the echo rings and on the throwable balls.
@@ -41,7 +42,7 @@ Clear sweeps it all away in clouds of smoke.
 - A soft puff when a character lands on the floor, and a smoky whoosh when Clear sweeps the rainforest away.
 
 ## Still open
-- Roaming controls that follow a walking player: waiting on PICO's advice (options A–E).
+- Roaming controls that follow a walking player: the owner chose A + C (leaf pad plus a call button); built after this tag.
 - A native-speaker review of the Chinese wording.
 - Real-furniture mapping, wall ripples, UI clean-up.
 - Headset testing.

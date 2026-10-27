@@ -514,6 +514,15 @@ namespace RoomOrchestra.EditorTools
                 key.position = new Vector3(go.transform.position.x, ColumnBottom + ColumnStep * (NoteMapping.Count - 1) + 0.11f, go.transform.position.z);
                 key.rotation = FacePlayer(key.position);
                 Localize(key, UiTerm.KeyOfD);
+                // A small dark plate behind it (white text alone may vanish against a light wall).
+                // In English it waits inside the top tile.
+                var plate = Primitive(PrimitiveType.Cube, "KeyBacking", go.transform, slab, keepCollider: false);
+                plate.rotation = key.rotation;
+                plate.localScale = new Vector3(0.09f, 0.06f, 0.006f);
+                var shown = go.transform.InverseTransformPoint(key.position + key.forward * 0.008f);
+                var parked = go.transform.InverseTransformPoint(tiles[NoteMapping.Count - 1].transform.position);
+                plate.localPosition = parked;
+                key.gameObject.AddComponent<ChineseOnlyBacking>().Configure(plate, shown, parked);
             }
             // The instrument's name tile is also its volume button (tap steps 100/60/30%/Muted).
             var mixTile = Primitive(PrimitiveType.Cube, "MixTile", go.transform, slab, keepCollider: true);

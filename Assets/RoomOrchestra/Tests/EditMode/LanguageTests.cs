@@ -98,6 +98,20 @@ namespace RoomOrchestra.Tests
             // Jianpu key over the melodic columns only (udu tiles are drum sounds, not notes).
             var keys = labels.Where(l => l.TextFor(UiLanguage.Chinese) == "1=D").Select(l => l.transform.parent.name).OrderBy(n => n).ToArray();
             CollectionAssert.AreEqual(new[] { "PitchColumn_Erhu", "PitchColumn_Mbira" }, keys, "1=D above mbira and erhu");
+            foreach (var backing in UnityEngine.Object.FindObjectsByType<ChineseOnlyBacking>(FindObjectsSortMode.None))
+            {
+                Assert.IsFalse(backing.Shown, "authored in English: the plate waits inside the top tile");
+                Assert.IsNull(backing.Plate.GetComponent<Collider>(), "never blocks a tap");
+                var tile = backing.transform.parent.Find("PitchTile4").GetComponent<Collider>();
+                Physics.SyncTransforms();
+                var mesh = backing.Plate.GetComponent<MeshFilter>().sharedMesh;
+                foreach (var v in mesh.vertices)
+                {
+                    var p = backing.Plate.TransformPoint(v);
+                    Assert.Less((tile.ClosestPoint(p) - p).sqrMagnitude, 1e-8f, "parked wholly inside the tile");
+                }
+            }
+            Assert.AreEqual(2, UnityEngine.Object.FindObjectsByType<ChineseOnlyBacking>(FindObjectsSortMode.None).Length);
             var clear = UnityEngine.Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None).First(b => b.ButtonKind == MusicControlButton.Kind.Clear);
             Assert.IsNotNull(clear.GetComponentInChildren<LocalizedLabel>(), "Clear's label switches");
         }

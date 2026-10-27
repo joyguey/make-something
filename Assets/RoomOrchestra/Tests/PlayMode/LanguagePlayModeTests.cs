@@ -68,7 +68,13 @@ namespace RoomOrchestra.Tests
             buttonText.text = "中文";
             buttonText.gameObject.AddComponent<LocalizedLabel>().Configure(buttonText, UiTerm.SwitchLanguage);
             buttonGo.AddComponent<LanguageButton>();
+            var plate = new GameObject("KeyBacking").transform;
+            plate.SetParent(m_Root.transform, false);
+            var backing = new GameObject("KeyLabel").AddComponent<ChineseOnlyBacking>();
+            backing.transform.SetParent(m_Root.transform, false);
+            backing.Configure(plate, new Vector3(0f, 1.26f, 0f), new Vector3(0f, 1.15f, 0f));
             yield return null;
+            Assert.IsFalse(backing.Shown, "English: the 1=D plate waits in the tile");
 
             Assert.AreEqual(UiLanguage.English, Localization.Current);
             Assert.IsTrue(InstrumentInputRouter.Activate(buttonGo), "a tap on the button switches");
@@ -78,6 +84,7 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual("高度\n坐姿", heightText.text);
             Assert.AreEqual($"{UiText.Name(target.Instrument, UiLanguage.Chinese)}\n音量 100%", mixText.text);
             Assert.AreEqual("English", buttonText.text, "the button now offers English");
+            Assert.IsTrue(backing.Shown, "Chinese: the plate sits behind 1=D");
             Assert.AreEqual((int)UiLanguage.Chinese, PlayerPrefs.GetInt(Localization.PrefKey, -1), "choice remembered");
             Assert.AreEqual(UiLanguage.Chinese, Localization.Preferred(), "the saved choice wins over the system language");
 
@@ -91,6 +98,7 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual("F#", tileText.text);
             Assert.AreEqual("Height\nStanding", heightText.text);
             Assert.AreEqual("中文", buttonText.text);
+            Assert.IsFalse(backing.Shown, "back in English: parked again");
         }
 
         [UnityTest]

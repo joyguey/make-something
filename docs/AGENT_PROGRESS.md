@@ -323,5 +323,11 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Build: `Builds/RoomOrchestra-v2-jianpu.apk`, installed on the emulator (opens in English, the owner's saved choice).
 - NOT verified: the label in Chinese on the emulator or a headset; native-speaker review; readability of white text without a backing against a light real wall.
 
+## 2026-10-27 | Dark plate behind 1=D; Version 2 tagged
+- Owner: add a small dark backing behind 1=D. `ChineseOnlyBacking` moves a dark plate (9 x 6 cm, no collider) behind the label in Chinese and parks it inside the top tile in English. Unity renders checked in both languages (scratchpad backing-zh.png / backing-en.png).
+- Tests: EditMode 159/159 (plate parked wholly inside the tile, no collider, two of them); PlayMode 58/58 (plate follows the language both ways).
+- `Builds/RoomOrchestra-v2.apk` (0.2.0 / code 2, sha256 7fd98b4f…) installed and launched on the emulator; voice banks loaded.
+- Owner approved: push the branch and tag it `v2`.
+
 ## Resume here (next session)
 1. Owner emulator check of the language toggle (`Builds/RoomOrchestra-lang.apk`). Roaming tray: waiting on the PICO team. Prompt 07 left: owner listening check of the weight levels and the poof (`Builds/RoomOrchestra-v2-jianpu.apk`), limiter on device. Then Prompt 08. Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.
