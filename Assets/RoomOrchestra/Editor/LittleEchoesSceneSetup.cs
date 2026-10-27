@@ -62,9 +62,13 @@ namespace RoomOrchestra.EditorTools
             var controls = Holder("Controls", root.transform, Vector3.zero);
             controls.gameObject.AddComponent<ControlsRig>();
 
+            // The leaf pad: tray, buttons and (via RoamingTray) the ball stand travel together after a
+            // player who walks around. Pitch columns stay beside their instruments.
+            var pad = Holder("LeafPad", controls, Vector3.zero);
+
             // Orb tray
             var tray = new GameObject("OrbTray").transform;
-            tray.SetParent(controls, false);
+            tray.SetParent(pad, false);
             tray.position = TrayCenter;
             Box("TraySlab", tray, Vector3.zero, new Vector3(0.56f, 0.03f, 0.18f), slabMaterial, keepCollider: false);
             Box("TrayPost", tray, new Vector3(0f, -TrayCenter.y / 2f, 0f), new Vector3(0.04f, TrayCenter.y, 0.04f), slabMaterial, keepCollider: false);
@@ -79,7 +83,8 @@ namespace RoomOrchestra.EditorTools
                 Localize(name, profile.Type switch { OrbType.Flutter => UiTerm.Flutter, OrbType.Bop => UiTerm.Bop, _ => UiTerm.Boom });
             }
 
-            var tierButton = CreateTierButton(controls, slabMaterial, motifMaterial);
+            var tierButton = CreateTierButton(pad, slabMaterial, motifMaterial);
+            CreateCallButton(pad);
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -104,13 +109,13 @@ namespace RoomOrchestra.EditorTools
             var director = root.AddComponent<CharacterDirector>();
             director.Configure(conductor, tokens);
             EditorUtility.SetDirty(director);
-            CreateUndoButton(controls, slabMaterial, motifMaterial);
+            CreateUndoButton(pad, slabMaterial, motifMaterial);
             // Front row right of Undo, 0.14 m apart.
-            CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.12f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.26f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
-            CreateRecenterButton(new Vector3(0.40f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
-            CreateHeightButton(new Vector3(0.54f, TrayCenter.y, 1.0f), controls, slabMaterial, motifMaterial);
-            CreateLanguageButton(new Vector3(0.68f, TrayCenter.y, 1.0f), controls, slabMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Pause, new Vector3(0.12f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Clear, new Vector3(0.26f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
+            CreateRecenterButton(new Vector3(0.40f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
+            CreateHeightButton(new Vector3(0.54f, TrayCenter.y, 1.0f), pad, slabMaterial, motifMaterial);
+            CreateLanguageButton(new Vector3(0.68f, TrayCenter.y, 1.0f), pad, slabMaterial);
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
@@ -121,6 +126,11 @@ namespace RoomOrchestra.EditorTools
             var listener = Object.FindFirstObjectByType<AudioListener>();
             if (listener != null && !listener.TryGetComponent<MasterLimiter>(out _)) listener.gameObject.AddComponent<MasterLimiter>();
             CreatePoofClouds(root.transform);
+            // The ball stand and the clouds waiting in its post travel with the pad; thrown balls stay put.
+            var carried = new List<Transform> { root.transform.Find("PoofPark") };
+            if (dispenser != null) carried.Insert(0, dispenser);
+            pad.gameObject.AddComponent<RoamingTray>().Configure(root.transform, carried.ToArray(),
+                dispenser != null ? dispenser.Find("BallPool") : null, launcher);
             RainforestArt.Build(root.transform, targets);
 
             var selector = root.AddComponent<OrbSelector>();
@@ -466,6 +476,29 @@ namespace RoomOrchestra.EditorTools
             var label = Label("LanguageLabel", UiText.Get(UiTerm.SwitchLanguage, UiLanguage.English), go.transform, new Vector3(0f, 0.02f, -0.06f), 0.026f);
             Localize(label, UiTerm.SwitchLanguage);
             go.AddComponent<LanguageButton>();
+        }
+
+        // The call leaf (roaming option C), left of the ball tray: a green leaf, "Come here".
+        static readonly Vector3 CallLeafPosition = new Vector3(-0.98f, 0.5f, 1.05f);
+
+        static void CreateCallButton(Transform root)
+        {
+            var leafMaterial = EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f));
+            var go = new GameObject("CallButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = CallLeafPosition;
+            go.transform.rotation = FacePlayer(CallLeafPosition);
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.03f, 0f);
+            box.size = new Vector3(0.15f, 0.08f, 0.11f);
+            var leaf = Primitive(PrimitiveType.Sphere, "Leaf", go.transform, leafMaterial, keepCollider: false);
+            leaf.localPosition = new Vector3(0f, 0.015f, 0f);
+            leaf.localRotation = Quaternion.Euler(0f, 30f, 0f);
+            leaf.localScale = new Vector3(0.15f, 0.02f, 0.08f);
+            var vein = Box("LeafVein", go.transform, new Vector3(0f, 0.026f, 0f), new Vector3(0.11f, 0.003f, 0.006f), EnsureMaterial("CallLeafVein", "Ball", new Color(0.86f, 0.95f, 0.78f)), keepCollider: false);
+            vein.localRotation = Quaternion.Euler(0f, 30f, 0f);
+            Localize(Label("CallLabel", UiText.Get(UiTerm.CallTray, UiLanguage.English), go.transform, new Vector3(0f, 0.02f, -0.07f), 0.022f), UiTerm.CallTray);
+            go.AddComponent<TrayCallButton>();
         }
 
         static void Localize(Transform labelHolder, UiTerm term) =>

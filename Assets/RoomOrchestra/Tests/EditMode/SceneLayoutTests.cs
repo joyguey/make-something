@@ -184,6 +184,7 @@ namespace RoomOrchestra.Tests
             if (owner == null) owner = c.GetComponentInParent<MixButton>();
             if (owner == null) owner = c.GetComponentInParent<HeightButton>();
             if (owner == null) owner = c.GetComponentInParent<LanguageButton>();
+            if (owner == null) owner = c.GetComponentInParent<TrayCallButton>();
             if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
             return owner;
         }
@@ -626,6 +627,47 @@ namespace RoomOrchestra.Tests
             Assert.LessOrEqual(smokePeak, 0.55f);
             Assert.Greater(smokeOnset, 0.03f, "Clear's smoke swells in, never a bang");
             Assert.Less(poof.length, 0.6f, "a quick puff");
+        }
+
+        // ---- Roaming: the leaf pad (A) and its call leaf (C) ----
+
+        [Test]
+        public void TheLeafPadCarriesTheTrayButtonsAndBallStandButNotTheNoteColumns()
+        {
+            var pad = Object.FindFirstObjectByType<RoamingTray>();
+            Assert.IsNotNull(pad, "LeafPad with RoamingTray");
+            Assert.AreEqual(Vector3.zero, pad.transform.localPosition, "authored at home");
+            Assert.AreEqual(Quaternion.identity, pad.transform.localRotation);
+            Assert.IsTrue(Object.FindFirstObjectByType<OrbToken>().transform.IsChildOf(pad.transform), "the ball tray");
+            Assert.IsTrue(Object.FindFirstObjectByType<TierButton>().transform.IsChildOf(pad.transform));
+            Assert.IsTrue(Object.FindFirstObjectByType<UndoButton>().transform.IsChildOf(pad.transform));
+            foreach (var b in Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None)) Assert.IsTrue(b.transform.IsChildOf(pad.transform), b.name);
+            Assert.IsTrue(Object.FindFirstObjectByType<RecenterButton>().transform.IsChildOf(pad.transform));
+            Assert.IsTrue(Object.FindFirstObjectByType<HeightButton>().transform.IsChildOf(pad.transform));
+            Assert.IsTrue(Object.FindFirstObjectByType<LanguageButton>().transform.IsChildOf(pad.transform));
+            Assert.IsTrue(Object.FindFirstObjectByType<TrayCallButton>().transform.IsChildOf(pad.transform), "the call leaf");
+            foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
+                Assert.IsFalse(column.transform.IsChildOf(pad.transform), $"{column.name} stays by its instrument");
+            Assert.IsTrue(pad.transform.IsChildOf(Rig().transform), "Height still lifts the pad");
+
+            var so = new UnityEditor.SerializedObject(pad);
+            var carried = so.FindProperty("carried");
+            var names = Enumerable.Range(0, carried.arraySize).Select(i => carried.GetArrayElementAtIndex(i).objectReferenceValue.name).ToArray();
+            CollectionAssert.AreEquivalent(new[] { "BallDispenser", "PoofPark" }, names, "the ball stand and the clouds waiting in it");
+            Assert.AreEqual("BallPool", so.FindProperty("keepStill").objectReferenceValue.name, "thrown balls stay where they are");
+            Assert.IsNotNull(so.FindProperty("launcher").objectReferenceValue);
+        }
+
+        [Test]
+        public void CallLeafIsLabeledAndTappable()
+        {
+            var call = Object.FindFirstObjectByType<TrayCallButton>();
+            Assert.IsNotNull(call);
+            Assert.IsNotNull(call.GetComponent<Collider>());
+            var label = call.GetComponentInChildren<LocalizedLabel>();
+            Assert.IsNotNull(label, "labeled, and the label follows the language");
+            Assert.AreEqual("Come here", label.Text.text);
+            Assert.AreEqual("过来", label.TextFor(UiLanguage.Chinese));
         }
 
         // ---- Rainforest that grows with the music (vines, butterflies, toadstools, sparkles) ----

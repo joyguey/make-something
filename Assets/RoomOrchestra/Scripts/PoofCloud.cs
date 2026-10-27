@@ -119,6 +119,8 @@ namespace RoomOrchestra
 
         void Update()
         {
+            // Waiting: stay inside the ball stand, wherever the leaf pad has carried it.
+            if (m_Start < 0f && parkPoint != null && transform.position != parkPoint.position) transform.position = parkPoint.position;
             if (m_Directions == null || m_Start < 0f) return;
             float t = (Time.time - m_Start) / Seconds;
             if (t < 1f)

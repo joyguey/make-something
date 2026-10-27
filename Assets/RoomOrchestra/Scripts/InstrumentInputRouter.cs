@@ -17,7 +17,7 @@ namespace RoomOrchestra
     /// the cursor; Left/Right choose orb, Up/Down choose target, Enter places, Q changes intensity,
     /// P changes the pitch petal, E toggles echo edit mode (then arrows nudge/select, Enter removes,
     /// Q undoes); keys 1/2/3 place on table/chair/lamp, Space throws straight ahead, C clears echoes,
-    /// Z undoes, K pauses/resumes the music.
+    /// Z undoes, K pauses/resumes the music, G calls the leaf pad, L switches language, H height.
     /// </summary>
     public class InstrumentInputRouter : MonoBehaviour
     {
@@ -85,6 +85,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<MixButton>();
             if (owner == null) owner = hit.GetComponentInParent<HeightButton>();
             if (owner == null) owner = hit.GetComponentInParent<LanguageButton>();
+            if (owner == null) owner = hit.GetComponentInParent<TrayCallButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -147,6 +148,13 @@ namespace RoomOrchestra
             if (language != null)
             {
                 language.Press();
+                return true;
+            }
+
+            var call = hit.GetComponentInParent<TrayCallButton>();
+            if (call != null)
+            {
+                call.Press();
                 return true;
             }
 
@@ -238,6 +246,7 @@ namespace RoomOrchestra
                     if (height != null) height.Press();
                 }
                 if (keyboard.lKey.wasPressedThisFrame) Localization.Toggle();
+                if (keyboard.gKey.wasPressedThisFrame && RoamingTray.Instance != null) RoamingTray.Instance.Call();
                 if (keyboard.spaceKey.wasPressedThisFrame && cam != null && launcher != null)
                     launcher.ThrowAssisted(cam.transform.position + cam.transform.forward * 0.3f, cam.transform.forward, cam.transform.forward * editorThrowSpeed + Vector3.up);
             }

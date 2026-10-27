@@ -329,5 +329,34 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - `Builds/RoomOrchestra-v2.apk` (0.2.0 / code 2, sha256 7fd98b4f…) installed and launched on the emulator; voice banks loaded.
 - Owner approved: push the branch and tag it `v2`.
 
+## 2026-10-27 | Roaming controls: leaf pad (A) + call (C) — after the v2 tag
+- **Owner chose A + C.**
+- **Leaf pad:** a new `LeafPad` holder under Controls carries the ball tray, Loudness, the front-row buttons and a new call leaf. `RoamingTray` also carries the ball stand (BallDispenser) and the poof park.
+  - Thrown balls stay where they are: the BallPool is held still in the room while its parent moves.
+  - The ready ball and the spare balls re-seat on the stand (`BallLauncher.FollowStand`). Waiting poof clouds follow their park.
+  - Pitch columns stay beside their instruments. Height still lifts everything.
+- **Rules** (`Core/TrayFollow`, pure and unit-tested):
+  - Follow starts once the head is more than 0.9 m from the seat. The pad origin goes under the head, turned the way the player faces, so the controls sit exactly as they do at the seat.
+  - Dead zone: it only re-settles after 0.5 m of movement or a 45° turn.
+  - Back within 0.5 m of the seat for 1.5 s: it returns home. Recenter sends it home at once (new `StageAnchor.Recentered` event).
+  - Glides with SmoothDamp: 0.6 s, at most 1.5 m/s. A call is quicker (0.25 s).
+  - Nothing moves before the 3 s start delay.
+- **Call (C):** a green leaf labeled "Come here" / 过来, left of the tray (`TrayCallButton`). Tapping it from anywhere brings the pad to the player, or home if they're at the seat. Editor key: G.
+  - Every controller button is already used, so there is no controller call yet.
+  - The font subset was regenerated: 136 characters, ledger updated.
+- **Tests:**
+  - EditMode 167/167. New: `TrayFollowTests` (6); the pad carries the right things and not the note columns; the call leaf is labeled; every pointer-line reach test still passes.
+  - PlayMode 61/61. New: `RoamingTrayPlayModeTests` (the stand travels and stays on the floor, a thrown ball stays, a glide not a jump, the call is quicker, Recenter goes home).
+- **Editor Play mode on the real scene** (a test head camera):
+  - Walking to (1.8, 0.6) facing +X: the pad followed, the stand, ready ball and waiting cloud went with it, and the pool stayed.
+  - Back at the seat: home after the dwell.
+  - Turned round 0.7 m away, then a tap on the call leaf: it came, facing the player. Render in scratchpad `called.png`.
+- **Build:** `Builds/RoomOrchestra-v2-roaming.apk`, installed and launched on the emulator. No app errors, and nothing moved at startup.
+- **NOT verified:**
+  - Following on the emulator or a headset (needs the owner to walk or move the emulator view; watch for "Leaf pad:" in the log).
+  - Comfort of the follow speed.
+  - Collisions with real walls and furniture (there is no room mapping yet; the pad can go into a wall).
+  - Throwing while the pad follows.
+
 ## Resume here (next session)
-1. Owner emulator check of the language toggle (`Builds/RoomOrchestra-lang.apk`). Roaming tray: waiting on the PICO team. Prompt 07 left: owner listening check of the weight levels and the poof (`Builds/RoomOrchestra-v2-jianpu.apk`), limiter on device. Then Prompt 08. Deferred: UI clean-up (fewer front-row buttons, settings grouped), A11Y-04 motion and A11Y-08 scale/contrast options, owner emulator check of Height.
+1. Owner emulator check: roaming leaf pad (`Builds/RoomOrchestra-v2-roaming.apk`: walk away from the seat, tap "Come here"), the 1=D plate in Chinese, the weight levels and poof sounds. Version 2 is tagged `v2`; the roaming work comes after it. Open: limiter on device, a controller call button (all buttons are taken), keeping the pad clear of walls once room mapping exists. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.

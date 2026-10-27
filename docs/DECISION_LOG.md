@@ -105,3 +105,10 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
   - Noto Sans SC (SIL OFL 1.1), cut down to the 134 characters used (75 KB), as one static TextMesh Pro atlas for both languages. Every label uses it, so switching changes only text, never fonts.
   - English labels now render in Noto's Latin letters instead of Liberation Sans.
   - A new Chinese term needs `ArtSource/Fonts/subset_label_font.py` re-run. An EditMode test fails if any character is missing.
+
+## 2026-10-27 — Roaming controls: A (leaf pad follows) + C (call leaf)
+- **Decision (owner):** build the A + C mix. The PICO team's advice was not waited for.
+- **What follows:** the tray, its buttons and the ball stand travel together. The pad keeps the seated layout relative to the player, so nothing new has to be learned. The note columns stay at the instruments; they are tied to the furniture.
+- **Lazy follow:** it starts at 0.9 m from the seat, with a 0.5 m / 45° dead zone, a smooth glide (at most 1.5 m/s) and a 1.5 s dwell before going home. These are comfort guesses and need headset tuning.
+- **Call:** a tappable leaf, because tapping is the input that works under PICO Spatial and every controller button already has a job. Adding a controller call is an open question.
+- **Known gap:** without room mapping, the pad can't avoid walls or furniture.

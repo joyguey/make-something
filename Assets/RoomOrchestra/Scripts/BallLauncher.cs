@@ -109,6 +109,14 @@ namespace RoomOrchestra
             ball.transform.SetPositionAndRotation(position, rotation);
         }
 
+        /// <summary>The stand moved (the leaf pad carried it): the ready ball and the spares go with it.</summary>
+        public void FollowStand()
+        {
+            if (spawnPoint == null) return;
+            if (m_Ready != null && m_GrabId < 0) Teleport(m_Ready, spawnPoint.position, spawnPoint.rotation);
+            foreach (var ball in m_Free) Teleport(ball, ParkPosition, Quaternion.identity);
+        }
+
         void Update()
         {
             if (arc == null || m_Ready == null || m_ArcHeld) return;

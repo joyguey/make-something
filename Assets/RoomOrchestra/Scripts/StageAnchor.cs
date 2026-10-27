@@ -11,6 +11,8 @@ namespace RoomOrchestra
     public class StageAnchor : MonoBehaviour
     {
         public static StageAnchor Instance { get; private set; }
+        /// <summary>After a recenter (the seat is under the player again).</summary>
+        public static event System.Action Recentered;
 
         void Awake() => Instance = this;
 
@@ -44,6 +46,7 @@ namespace RoomOrchestra
                 body.rotation = body.transform.rotation;
             }
             Debug.Log($"[RoomOrchestra] Recentered stage to ({pose.X:F2}, {pose.Z:F2}) facing {pose.YawDegrees:F0}°");
+            Recentered?.Invoke();
             return true;
         }
 

@@ -38,7 +38,9 @@ namespace RoomOrchestra
         /// <summary>The language button's label: names the language a tap switches to, in that language.</summary>
         SwitchLanguage,
         /// <summary>The key above a jianpu note column ("1=D"); Chinese only, English tiles name the notes.</summary>
-        KeyOfD
+        KeyOfD,
+        /// <summary>The leaf that calls the ball tray and buttons to the player.</summary>
+        CallTray
     }
 
     /// <summary>
@@ -74,6 +76,7 @@ namespace RoomOrchestra
             { UiTerm.Tap, ("Tap", "轻敲") },
             { UiTerm.SwitchLanguage, ("中文", "English") },
             { UiTerm.KeyOfD, ("", "1=D") },
+            { UiTerm.CallTray, ("Come here", "过来") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>
