@@ -120,3 +120,8 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
   - The leaf stays left of the chair sight line where it is tall, and at least 1 m out (the PICO Spatial near-draw limit).
 - **The purple double arc in the sketch** was read as decoration and is not built. It can be added if it was meant to be a control.
 - **Controller call button:** deferred by the owner until a headset and controller are available to test with.
+
+## 2026-10-28 — Cloud ball stand
+- **Owner request:** the ball to launch floats on a cloud instead of a post.
+- **Decision:** the post's solid stays only as a small hidden core inside the cloud (it hides spare balls and poof clouds and stops throws). The visible cloud is collider-free puffs.
+- **Trade-off:** the rainforest vine that climbed the post is retired. A replacement on the cloud (for example a rainbow or flowers as the song grows) is possible if the owner wants one.

@@ -591,6 +591,37 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void TheReadyBallFloatsOnACloudNotAPost()
+        {
+            var stand = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser");
+            var core = stand.Find("Pedestal");
+            Physics.SyncTransforms();
+            var solid = core.GetComponent<Collider>();
+            Assert.IsNotNull(solid, "a solid cloud core hides the spares and stops throws");
+            Assert.Less(solid.bounds.size.y, 0.2f, "no post");
+            Assert.AreEqual("StandCloud", core.GetComponent<Renderer>().sharedMaterial.name);
+            var puffs = stand.Find("CloudPuffs");
+            Assert.GreaterOrEqual(puffs.childCount, 6, "puffy");
+            foreach (Transform puff in puffs) Assert.IsNull(puff.GetComponent<Collider>(), $"{puff.name} never blocks a tap or a ball");
+
+            float cloudTop = stand.GetComponentsInChildren<Renderer>().Where(r => r.transform.IsChildOf(puffs) || r.transform == core).Max(r => r.bounds.max.y);
+            float cloudBottom = stand.GetComponentsInChildren<Renderer>().Where(r => r.transform.IsChildOf(puffs) || r.transform == core).Min(r => r.bounds.min.y);
+            var spawn = Object.FindFirstObjectByType<BallLauncher>().transform.Find("SpawnPoint").position;
+            float tallestHalf = OrbCatalog.All.Max(o => o.ScaleY) * 0.5f * 0.1f; // balls are about 0.1 m
+            Assert.Greater(spawn.y - tallestHalf, cloudTop - 0.01f, "the ready ball sits on top of the cloud, not inside it");
+            Assert.Less(spawn.y - tallestHalf, cloudTop + 0.05f, "and close enough to look like it rests there");
+            Assert.Greater(cloudBottom, 0.7f, "floating: nothing reaches down to the floor");
+            // Spares are authored inside the cloud (nothing moves at startup on PICO Spatial); one ball waits on top.
+            int ready = 0;
+            foreach (var ball in stand.Find("BallPool").GetComponentsInChildren<Ball>(true))
+            {
+                if ((ball.transform.position - spawn).sqrMagnitude < 1e-6f) { ready++; continue; }
+                Assert.Less((solid.ClosestPoint(ball.transform.position) - ball.transform.position).sqrMagnitude, 1e-8f, $"{ball.name} waits inside the cloud");
+            }
+            Assert.AreEqual(1, ready, "one ball ready on the cloud");
+        }
+
+        [Test]
         public void EveryPoofHasAGentleSound()
         {
             var poof = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RoomOrchestra/Audio/Effects/Poof.wav");
@@ -689,7 +720,7 @@ namespace RoomOrchestra.Tests
             var solids = stage.Find("Furniture").GetComponentsInChildren<Collider>()
                 .Concat(stage.Find("BallDispenser").GetComponentsInChildren<Collider>().Where(c => c.name == "Pedestal")).ToArray();
             var vines = rainforest.GetComponentsInChildren<VineGrowth>();
-            Assert.AreEqual(4, vines.Length, "table (both legs), chair, lamp, ball stand");
+            Assert.AreEqual(3, vines.Length, "table (both legs), chair, lamp (the ball stand is a cloud now)");
             foreach (var vine in vines)
             {
                 Assert.AreEqual(0, vine.Shown, $"{vine.name} starts as a bud");

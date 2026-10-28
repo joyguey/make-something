@@ -374,5 +374,16 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - **Renders:** scratchpad `leaf-close.png` (English) and `leaf-zh.png` (Chinese).
 - **NOT verified:** label readability and tap accuracy on the small buttons on the emulator or a headset.
 
+## 2026-10-28 | Cloud ball stand: the ready ball floats on a cloud, not a post
+- **Owner request:** instead of a tower holding the ball to launch, it floats on top of a cloud.
+- **Built** (`LittleEchoesSceneSetup.CreateCloudStand`):
+  - The scene's `Pedestal` becomes the cloud's core: an egg 0.12 × 0.16 m at 0.915 m with a short upright capsule collider (as narrow as the old post, so hand pointer rays to the erhu notes still pass beside it). Eight flat-bottomed puffs around it, without colliders, give the cloud shape. New `StandCloud` material, soft white with a gentle glow.
+  - The ready ball sits on top (spawn point unchanged at 1.06 m). The spare balls and the waiting poof clouds hide inside the core; spares are now authored there too (they were at the old post height, 0.5 m, and would have hung in mid-air because PICO Spatial keeps startup poses).
+  - The cloud still travels with the leaf pad and still stops throws, as the post did.
+  - **Retired:** the rainforest vine that climbed the post (no post to climb). The table, chair and lamp vines are unchanged.
+- **Tests:** EditMode 168/168 (new `TheReadyBallFloatsOnACloudNotAPost`: no post, puffs never block, the ball sits just on top, nothing reaches the floor, spares wait inside the cloud). PlayMode 61/61. The first pass found the wider core blocking hand rays to three erhu tiles and the erhu volume tile; fixed by narrowing the solid core.
+- **Emulator:** `Builds/RoomOrchestra-v2-cloud.apk` installed and launched; the ready ball shows on the cloud at startup, no app errors. Screenshot in scratchpad `cloud-emu.png`.
+- **NOT verified:** on a headset; whether the lamp pole behind the cloud (from the seat) reads as a stick holding it up.
+
 ## Resume here (next session)
-1. Owner emulator check: the leaf palette (`Builds/RoomOrchestra-v2-leaf.apk`: are the small labels readable, are the small buttons easy to tap), the 1=D plate in Chinese, the weight levels and poof sounds. Following was confirmed by the owner on the emulator. Version 2 is tagged `v2`; the roaming and leaf work comes after it. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.
+1. Owner emulator check: the leaf palette and cloud stand (`Builds/RoomOrchestra-v2-cloud.apk`: are the small labels readable, are the small buttons easy to tap, does the cloud read as floating), the 1=D plate in Chinese, the weight levels and poof sounds. Following was confirmed by the owner on the emulator. Version 2 is tagged `v2`; the roaming and leaf work comes after it. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.

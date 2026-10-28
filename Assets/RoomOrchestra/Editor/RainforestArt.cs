@@ -22,7 +22,6 @@ namespace RoomOrchestra.EditorTools
         static readonly (string name, Vector3 at)[] Vines =
         {
             ("Lamp", new Vector3(1.10f, 0f, 2.30f)),
-            ("Stand", new Vector3(0.62f, 0f, 1.15f)),
             ("TableL", new Vector3(-1.615f, 0f, 2.005f)),
             ("TableR", new Vector3(-0.595f, 0f, 2.005f)),
             ("Chair", new Vector3(0f, 0f, 2.235f)),
@@ -199,7 +198,7 @@ namespace RoomOrchestra.EditorTools
             EditorUtility.SetDirty(udu);
 
             var director = root.gameObject.AddComponent<JungleDirector>();
-            director.Configure(udu, grown["Chair"], grown["Lamp"], grown["Stand"], floor, flock);
+            director.Configure(udu, grown["Chair"], grown["Lamp"], null, floor, flock); // the ball stand is a cloud now: no post to climb
             EditorUtility.SetDirty(director);
             return root;
         }

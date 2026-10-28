@@ -132,7 +132,11 @@ namespace RoomOrchestra.EditorTools
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
-            if (dispenser != null) dispenser.position = DispenserPosition;
+            if (dispenser != null)
+            {
+                dispenser.position = DispenserPosition;
+                CreateCloudStand(dispenser);
+            }
             if (parent != null && !parent.TryGetComponent<StageAnchor>(out _)) parent.AddComponent<StageAnchor>();
             MarkGround();
             // Safety limiter on the final mix (dense songs never clip the output).
@@ -665,13 +669,12 @@ namespace RoomOrchestra.EditorTools
         const string PoofSoundPath = "Assets/RoomOrchestra/Audio/Effects/Poof.wav";
         const string SmokeSoundPath = "Assets/RoomOrchestra/Audio/Effects/Smoke.wav";
         const float PoofVolume = 0.45f;
-        static readonly Vector3 PoofParkHeight = new Vector3(0f, 0.2f, 0f); // below the parked balls, inside the post
 
         static void CreatePoofClouds(Transform root)
         {
             var puffMaterial = Glow(EnsureMaterial("Poof", "Ball", new Color(0.97f, 0.97f, 0.95f)), new Color(0.97f, 0.97f, 0.95f));
             var park = Holder("PoofPark", root, Vector3.zero);
-            park.position = DispenserPosition + PoofParkHeight;
+            park.position = DispenserPosition + CloudCoreHeight; // inside the stand cloud's core, with the spare balls
             var poofSound = AssetDatabase.LoadAssetAtPath<AudioClip>(PoofSoundPath);
             var smokeSound = AssetDatabase.LoadAssetAtPath<AudioClip>(SmokeSoundPath);
             if (poofSound == null || smokeSound == null) Debug.LogWarning("[RoomOrchestra] Poof sounds missing: run ArtSource/Audio/gen_poof.py");
@@ -694,6 +697,62 @@ namespace RoomOrchestra.EditorTools
                 source.volume = PoofVolume;
                 poof.ConfigureSound(source, poofSound, smokeSound);
                 EditorUtility.SetDirty(poof);
+            }
+        }
+
+        // The ball stand (owner 2026-10-28): the ready ball floats on a little cloud instead of a post.
+        // The scene's Pedestal becomes the cloud's core, a solid egg that hides the spare balls and the
+        // waiting poof clouds (and stops throws, as the post did); puffs around it, without colliders, make the shape.
+        static readonly Vector3 CloudCoreHeight = new Vector3(0f, 0.915f, 0f); // just under the ready ball (spawn at 1.06 m)
+        // As narrow as the old post (hand pointer rays to the erhu notes pass beside it), tall enough for a parked Flutter.
+        static readonly Vector3 CloudCoreSize = new Vector3(0.12f, 0.16f, 0.12f);
+        static readonly (Vector3 at, float size)[] CloudPuffs =
+        {
+            (new Vector3(-0.10f, -0.01f, 0f), 0.12f), (new Vector3(0.10f, -0.01f, 0f), 0.12f),
+            (new Vector3(-0.05f, 0.02f, 0.05f), 0.12f), (new Vector3(0.05f, 0.02f, -0.05f), 0.12f),
+            (new Vector3(0.04f, 0.02f, 0.06f), 0.11f), (new Vector3(-0.04f, 0.02f, -0.06f), 0.11f),
+            (new Vector3(-0.16f, -0.025f, 0.01f), 0.08f), (new Vector3(0.16f, -0.025f, -0.01f), 0.08f),
+        };
+
+        static void CreateCloudStand(Transform dispenser)
+        {
+            var white = new Color(0.95f, 0.97f, 1f);
+            var cloudMaterial = Glow(EnsureMaterial("StandCloud", "Ball", white), white * 0.6f);
+            var core = dispenser.Find("Pedestal");
+            if (core != null)
+            {
+                core.localPosition = CloudCoreHeight;
+                core.localScale = CloudCoreSize;
+                var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                core.GetComponent<MeshFilter>().sharedMesh = sphere.GetComponent<MeshFilter>().sharedMesh;
+                Object.DestroyImmediate(sphere);
+                if (core.TryGetComponent<SphereCollider>(out var round)) Object.DestroyImmediate(round);
+                if (!core.TryGetComponent<CapsuleCollider>(out var capsule)) capsule = core.gameObject.AddComponent<CapsuleCollider>();
+                capsule.center = Vector3.zero;
+                capsule.direction = 1;
+                capsule.radius = 0.5f;
+                capsule.height = 1f; // a short upright capsule inside the egg-shaped core
+                core.GetComponent<Renderer>().sharedMaterial = cloudMaterial;
+            }
+            var park = dispenser.Find("ParkPoint");
+            if (park != null) park.localPosition = CloudCoreHeight;
+            // Spare balls are authored where they wait (PICO Spatial keeps a pose moved before its renderer
+            // connects): inside the cloud, not at the old post height. The ready ball stays on the spawn point.
+            var spawn = dispenser.Find("SpawnPoint");
+            var pool = dispenser.Find("BallPool");
+            if (pool != null)
+                foreach (var ball in pool.GetComponentsInChildren<Ball>(true))
+                    if (spawn == null || (ball.transform.position - spawn.position).sqrMagnitude > 1e-6f)
+                        ball.transform.position = dispenser.TransformPoint(CloudCoreHeight);
+
+            var old = dispenser.Find("CloudPuffs");
+            if (old != null) Object.DestroyImmediate(old.gameObject);
+            var puffs = Holder("CloudPuffs", dispenser, CloudCoreHeight);
+            for (int i = 0; i < CloudPuffs.Length; i++)
+            {
+                var puff = Primitive(PrimitiveType.Sphere, $"CloudPuff{i}", puffs, cloudMaterial, keepCollider: false);
+                puff.localPosition = CloudPuffs[i].at;
+                puff.localScale = new Vector3(1f, 0.8f, 1f) * CloudPuffs[i].size; // flat-bottomed, like a cartoon cloud
             }
         }
 
