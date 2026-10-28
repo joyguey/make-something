@@ -33,3 +33,7 @@ Thumbs.db
 *.pfx
 *.keystore
 # .meta, prefabs, scenes, Packages and ProjectSettings MUST be tracked
+# PICO SpatialAdapter build outputs (regenerated on every build)
+/[Aa]ssets/[Ss]treamingAssets/SpatialAdapterExport/
+/[Aa]ssets/[Ee]ditor/SpatialAdapterResourceData.asset
+/[Aa]ssets/[Ee]ditor/SpatialAdapterResourceData.asset.meta

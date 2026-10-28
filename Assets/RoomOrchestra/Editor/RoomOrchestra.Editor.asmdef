@@ -1,0 +1,20 @@
+{
+    "name": "RoomOrchestra.Editor",
+    "rootNamespace": "RoomOrchestra.EditorTools",
+    "references": [
+        "RoomOrchestra.Core",
+        "RoomOrchestra.Runtime",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

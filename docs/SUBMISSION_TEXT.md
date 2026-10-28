@@ -5,17 +5,16 @@
 
 Little Echoes is a whimsical mixed-reality music playground that transforms everyday-looking virtual furniture into an orchestra you can touch. Three adorable musical companions—Flutter, a light turquoise blob; Bop, a springy lavender sphere; and Boom, a warm amber dumpling—respond to the way you move them. Each object has a distinct instrument-inspired voice: a Nigerian udu percussion tone, Zimbabwean mbira plucks and a Chinese erhu melody.
 
-Rather than tapping a conventional sequencer, players toss or gently place the characters onto objects. Their collisions create visible, smiling musical echoes that orbit each object and replay on a shared beat. Position an echo higher to change pitch, change its weight to alter timbre, slide it around the orbit to change rhythm, or add another echo to build complexity. The characters react to one another, turning musical discovery into a delightful social performance. Repeated interactions produce understandable outcomes, so players discover pitch, rhythm, dynamics and layering through motion and listening, without needing to read a tutorial on music theory.
+Rather than tapping a conventional sequencer, players toss or gently place the characters onto objects. Their collisions create visible, smiling musical echoes that orbit each object and replay on a shared beat. Position an echo higher to change pitch, change its weight to alter timbre, move it a step around the orbit to change rhythm, or add another echo to build complexity. The characters react to one another, turning musical discovery into a delightful social performance. Repeated interactions produce understandable outcomes, so players discover pitch, rhythm, dynamics and layering through motion and listening, without needing to read a tutorial on music theory.
 
-Accessibility is intrinsic to the concept: seated and one-handed players can create equivalent music using controller selection and placement rather than throwing, while visual pulse, shape identifiers, reduced-motion settings and adjustable control sensitivity support different needs.
+Accessibility is intrinsic to the concept: seated and one-handed players can create equivalent music using controller selection and placement rather than throwing, while a visual pulse, shape identifiers, text labels, seated and standing heights, per-instrument volume and English or Chinese labels support different needs.
 
 The project builds on an existing Unity/PICO OS 6 blockout. The proposed next milestone is a polished three-character, three-instrument playable demo with synchronized orbit loops, reliable collision feedback and accessibility-tested input alternatives. We welcome PICO's technical feedback on Unity Spatial/OS 6 integration and ergonomic testing on the target headset.
 
-## Current status — update at submission time
-- **Concept and design:** characterized and specified. Reference art provided by owner.
-- **Existing implementation:** Unity furniture/ball and instrument mapping blockout, based on provided screenshots, NOT an independently inspected project or measured build.
-- **Proposed features:** orbit sequencer, deterministic pitch, expressive character faces, alternative select/place and accessibility controls. DO NOT mark as implemented until agent test evidence exists.
-- **APK:** not yet verified in this handoff. Optional for this round as user stated.
+## Current status — updated 2026-10-28 for Version 2.1
+- **Implemented and tested in Unity (EditMode and PlayMode tests) and on the PICO Emulator 6.1:** three characters (Flutter, Bop, Boom), three instruments (udu, mbira, erhu), select-and-place and throwing, five notes per instrument, echo rings on one DSP clock at 88 BPM, Undo / Pause / Clear / Recenter, per-instrument volume and mute, Seated / Standing height, English / Chinese, controls on a leaf that follows a walking player, and a rainforest that grows with the song. Details: `docs/RELEASE_NOTES_v2.1.md`.
+- **Not yet done:** headset testing; moving an echo around its ring by hand (to revisit after the dev team's headset test; today an echo moves a step at a time in the controller's edit mode); scale/contrast settings; real-furniture mapping.
+- **APK:** Version 2.1 build (`RoomOrchestra-v2.1.apk`), emulator-tested only.
 
 ## Reviewer questions
 1. Which OS 6 Unity app mode is recommended for stationary shared-space instrument play with virtual-object assignment?

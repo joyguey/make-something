@@ -13,7 +13,7 @@ namespace RoomOrchestra
     public class BallLauncher : MonoBehaviour
     {
         [SerializeField] Transform spawnPoint;
-        [Tooltip("Where spare balls wait out of sight (inside the dispenser post).")]
+        [Tooltip("Where spare balls wait out of sight (inside the ball stand's cloud).")]
         [SerializeField] Transform parkPoint;
         [SerializeField] Ball[] pool;
         [SerializeField] AimArc arc;
@@ -48,10 +48,27 @@ namespace RoomOrchestra
         Vector3 m_Facing = Vector3.forward;
         Vector3 m_AimDirection = Vector3.forward;
         bool m_ArcHeld; // arc is showing the last throw and should stay put
+        Ball m_ArcBall; // the ball whose throw the held arc shows
+        OrbType m_Orb = OrbType.Flutter;
 
         public Ball ReadyBall => m_Ready;
+        public OrbType CurrentOrb => m_Orb;
+
+        /// <summary>Chooses which orb the ready ball (and every later ball) is.</summary>
+        public void SetOrb(OrbType orb)
+        {
+            m_Orb = orb;
+            if (m_Ready != null) m_Ready.ApplyOrb(orb);
+        }
         public int ThrowCount { get; private set; }
         public InstrumentTarget AimedTarget { get; private set; }
+
+        /// <summary>Wires references when built from code (tests); scenes set them in the inspector.</summary>
+        public void Configure(Transform spawn, Ball[] balls)
+        {
+            spawnPoint = spawn;
+            pool = balls;
+        }
 
         void Start()
         {
@@ -62,7 +79,7 @@ namespace RoomOrchestra
                         Physics.IgnoreCollision(pool[i].GetComponent<Collider>(), pool[j].GetComponent<Collider>());
 
             // PICO's Spatial renderer does not reliably follow SetActive, so spare balls are parked
-            // out of sight (inside the dispenser post) instead of being deactivated.
+            // out of sight (inside the ball stand's cloud) instead of being deactivated.
             foreach (var ball in pool)
             {
                 if (ball == null) continue;
@@ -78,7 +95,9 @@ namespace RoomOrchestra
         void Park(Ball ball)
         {
             ball.Hold();
-            Teleport(ball, ParkPosition, ball.transform.rotation);
+            ball.SetAlive(false);
+            ball.FitForParking();
+            Teleport(ball, ParkPosition, Quaternion.identity);
         }
 
         // Interpolated rigidbodies write their own pose back to the transform, so move both.
@@ -88,6 +107,14 @@ namespace RoomOrchestra
             body.position = position;
             body.rotation = rotation;
             ball.transform.SetPositionAndRotation(position, rotation);
+        }
+
+        /// <summary>The stand moved (the leaf pad carried it): the ready ball and the spares go with it.</summary>
+        public void FollowStand()
+        {
+            if (spawnPoint == null) return;
+            if (m_Ready != null && m_GrabId < 0) Teleport(m_Ready, spawnPoint.position, spawnPoint.rotation);
+            foreach (var ball in m_Free) Teleport(ball, ParkPosition, Quaternion.identity);
         }
 
         void Update()
@@ -102,6 +129,9 @@ namespace RoomOrchestra
             }
             Preview(m_Ready.transform.position, m_AimDirection);
         }
+
+        /// <summary>True while the arc still shows the last throw (until the next aim or until that ball is gone).</summary>
+        public bool ArcHeld => m_ArcHeld;
 
         public bool IsReadyBall(GameObject go) => m_Ready != null && go != null && go.GetComponentInParent<Ball>() == m_Ready;
 
@@ -161,7 +191,8 @@ namespace RoomOrchestra
             if (arc != null)
             {
                 arc.Show(from, velocity, duration, assisted);
-                m_ArcHeld = true; // keep the last throw's arc visible until the next aim
+                m_ArcHeld = true; // keep the last throw's arc visible until the next aim, or until that ball is gone
+                m_ArcBall = m_Ready;
             }
             Debug.Log($"[RoomOrchestra] Aim {(assisted ? "assisted -> " + target.Instrument : "free")}");
             return Throw(velocity);
@@ -252,6 +283,8 @@ namespace RoomOrchestra
             }
 
             next.Hold();
+            next.SetAlive(true);
+            next.ApplyOrb(m_Orb);
             Teleport(next, spawnPoint.position, spawnPoint.rotation);
             m_Ready = next;
         }
@@ -261,6 +294,12 @@ namespace RoomOrchestra
             if (!m_Thrown.Remove(ball)) return;
             Park(ball);
             m_Free.Enqueue(ball);
+            // The thrown ball poofed away: its old arc would now point at nothing, so aim from the ready ball again.
+            if (ball == m_ArcBall)
+            {
+                m_ArcHeld = false;
+                m_ArcBall = null;
+            }
         }
 
         Vector3 DragVelocity()

@@ -12,9 +12,12 @@ namespace RoomOrchestra
     /// Single input path for the room.
     /// Device/emulator (PICO Spatial Input): pinch-drag-release the dispenser ball to throw it
     /// (a quick tap tosses it; aim assist snaps throws to the nearest instrument);
-    /// tap furniture or loop buttons to activate them.
-    /// Unity Editor only: click furniture/buttons, click elsewhere to throw toward the cursor,
-    /// keys 1/2/3 play instruments, Space throws straight ahead, R toggles loop record, C clears.
+    /// tap a tray orb to select it, tap furniture to place the selected orb there, tap loop buttons.
+    /// Unity Editor only (controller simulator): click like a tap, click elsewhere to throw toward
+    /// the cursor; Left/Right choose orb, Up/Down choose target, Enter places, Q changes intensity,
+    /// P changes the pitch petal, E toggles echo edit mode (then arrows nudge/select, Enter removes,
+    /// Q undoes); keys 1/2/3 place on table/chair/lamp, Space throws straight ahead, C clears echoes,
+    /// Z undoes, K pauses/resumes the music, G calls the leaf pad, L switches language, H height.
     /// </summary>
     public class InstrumentInputRouter : MonoBehaviour
     {
@@ -27,7 +30,6 @@ namespace RoomOrchestra
         [SerializeField, Min(0f)] float tapDebounce = 0.2f;
 
         readonly HashSet<int> m_Grabbing = new();
-        readonly Dictionary<Component, float> m_LastTap = new();
 
         void OnEnable() => EnhancedTouchSupport.Enable();
         void OnDisable() => EnhancedTouchSupport.Disable();
@@ -74,24 +76,108 @@ namespace RoomOrchestra
             if (hit == null) return false;
             Component owner = hit.GetComponentInParent<LoopControlButton>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentButton>();
+            if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
+            if (owner == null) owner = hit.GetComponentInParent<TierButton>();
+            if (owner == null) owner = hit.GetComponentInParent<PitchTile>();
+            if (owner == null) owner = hit.GetComponentInParent<UndoButton>();
+            if (owner == null) owner = hit.GetComponentInParent<MusicControlButton>();
+            if (owner == null) owner = hit.GetComponentInParent<RecenterButton>();
+            if (owner == null) owner = hit.GetComponentInParent<MixButton>();
+            if (owner == null) owner = hit.GetComponentInParent<HeightButton>();
+            if (owner == null) owner = hit.GetComponentInParent<LanguageButton>();
+            if (owner == null) owner = hit.GetComponentInParent<TrayCallButton>();
+            if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
 
-            float now = Time.unscaledTime;
-            if (m_LastTap.TryGetValue(owner, out float last) && now - last < tapDebounce)
-            {
-                Debug.Log($"[RoomOrchestra] Ignored duplicate tap on {owner.name} ({(now - last) * 1000f:F0} ms after previous)");
-                return true;
-            }
-            m_LastTap[owner] = now;
-            return false;
+            if (MusicalHitPipeline.TryAcceptRepeat($"tap:{owner.GetInstanceID()}", tapDebounce))
+                return false;
+            Debug.Log($"[RoomOrchestra] Ignored duplicate tap on {owner.name}");
+            return true;
         }
 
-        /// <summary>Activates the loop button, button, or instrument that owns <paramref name="hit"/>.</summary>
+        /// <summary>
+        /// Activates what owns <paramref name="hit"/>: loop button, button, tray orb, intensity
+        /// button, or an instrument (placing the selected orb on it).
+        /// </summary>
         public static bool Activate(GameObject hit)
         {
             if (hit == null)
                 return false;
+
+            var selector = OrbSelector.Instance;
+            var token = hit.GetComponentInParent<OrbToken>();
+            if (token != null && selector != null)
+            {
+                selector.Select(token.Orb);
+                return true;
+            }
+
+            if (hit.GetComponentInParent<TierButton>() != null && selector != null)
+            {
+                selector.CycleTier();
+                return true;
+            }
+
+            var mini = hit.GetComponentInParent<EchoMini>();
+            if (mini != null)
+                return EchoConductor.Instance != null && EchoConductor.Instance.SelectMini(mini);
+
+            var music = hit.GetComponentInParent<MusicControlButton>();
+            if (music != null)
+            {
+                music.Press();
+                return true;
+            }
+
+            var mix = hit.GetComponentInParent<MixButton>();
+            if (mix != null)
+            {
+                mix.Press();
+                return true;
+            }
+
+            var height = hit.GetComponentInParent<HeightButton>();
+            if (height != null)
+            {
+                height.Press();
+                return true;
+            }
+
+            var language = hit.GetComponentInParent<LanguageButton>();
+            if (language != null)
+            {
+                language.Press();
+                return true;
+            }
+
+            var call = hit.GetComponentInParent<TrayCallButton>();
+            if (call != null)
+            {
+                call.Press();
+                return true;
+            }
+
+            var recenter = hit.GetComponentInParent<RecenterButton>();
+            if (recenter != null)
+            {
+                recenter.Press();
+                return true;
+            }
+
+            var undo = hit.GetComponentInParent<UndoButton>();
+            if (undo != null)
+            {
+                undo.Press();
+                return true;
+            }
+
+            var tile = hit.GetComponentInParent<PitchTile>();
+            if (tile != null && selector != null)
+            {
+                selector.PlaceOnTile(tile);
+                return true;
+            }
 
             var control = hit.GetComponentInParent<LoopControlButton>();
             if (control != null)
@@ -110,10 +196,17 @@ namespace RoomOrchestra
             var target = hit.GetComponentInParent<InstrumentTarget>();
             if (target != null)
             {
-                target.PlayInstrument();
+                if (selector != null) selector.PlaceOn(target);
+                else target.PlayInstrument();
                 return true;
             }
             return false;
+        }
+
+        static void PlaceOn(InstrumentType instrument)
+        {
+            var target = InstrumentTarget.Find(instrument);
+            if (target != null && OrbSelector.Instance != null) OrbSelector.Instance.PlaceOn(target);
         }
 
 #if UNITY_EDITOR
@@ -123,11 +216,37 @@ namespace RoomOrchestra
             var keyboard = Keyboard.current;
             if (keyboard != null)
             {
-                if (keyboard.digit1Key.wasPressedThisFrame) InstrumentTarget.Find(InstrumentType.Udu)?.Play(InstrumentTarget.HitSource.Key);
-                if (keyboard.digit2Key.wasPressedThisFrame) InstrumentTarget.Find(InstrumentType.Mbira)?.Play(InstrumentTarget.HitSource.Key);
-                if (keyboard.digit3Key.wasPressedThisFrame) InstrumentTarget.Find(InstrumentType.Erhu)?.Play(InstrumentTarget.HitSource.Key);
-                if (keyboard.rKey.wasPressedThisFrame) LoopStation.Instance?.ToggleRecording();
-                if (keyboard.cKey.wasPressedThisFrame) LoopStation.Instance?.Clear();
+                if (keyboard.digit1Key.wasPressedThisFrame) PlaceOn(InstrumentType.Udu);
+                if (keyboard.digit2Key.wasPressedThisFrame) PlaceOn(InstrumentType.Mbira);
+                if (keyboard.digit3Key.wasPressedThisFrame) PlaceOn(InstrumentType.Erhu);
+                var selector = OrbSelector.Instance;
+                if (selector != null)
+                {
+                    // Same commands a controller produces (and the same routing, incl. echo edit mode).
+                    if (keyboard.rightArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.NextOrb, selector);
+                    if (keyboard.leftArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.PreviousOrb, selector);
+                    if (keyboard.upArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.NextTarget, selector);
+                    if (keyboard.downArrowKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.PreviousTarget, selector);
+                    if (keyboard.enterKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.Place, selector);
+                    if (keyboard.qKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.CycleIntensity, selector);
+                    if (keyboard.pKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.CyclePetal, selector);
+                    if (keyboard.eKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.ToggleEchoEdit, selector);
+                    if (keyboard.rKey.wasPressedThisFrame) CommandRouter.Dispatch(ControllerCommand.Recenter, selector);
+                }
+                var conductor = EchoConductor.Instance;
+                if (conductor != null)
+                {
+                    if (keyboard.cKey.wasPressedThisFrame) conductor.Clear();
+                    if (keyboard.zKey.wasPressedThisFrame) conductor.Undo();
+                    if (keyboard.kKey.wasPressedThisFrame) conductor.TogglePause();
+                }
+                if (keyboard.hKey.wasPressedThisFrame)
+                {
+                    var height = FindFirstObjectByType<HeightButton>();
+                    if (height != null) height.Press();
+                }
+                if (keyboard.lKey.wasPressedThisFrame) Localization.Toggle();
+                if (keyboard.gKey.wasPressedThisFrame && RoamingTray.Instance != null) RoamingTray.Instance.Call();
                 if (keyboard.spaceKey.wasPressedThisFrame && cam != null && launcher != null)
                     launcher.ThrowAssisted(cam.transform.position + cam.transform.forward * 0.3f, cam.transform.forward, cam.transform.forward * editorThrowSpeed + Vector3.up);
             }
