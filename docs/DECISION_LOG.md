@@ -131,3 +131,11 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Decision:** at the 3rd note everything wakes together (vines catch up with notes already added, the first toadstool and the first flower appear), then one more flower per new note, 20 in all. A fixed seed keeps the scatter the same on every build, so tests and screenshots are repeatable.
 - **Budget:** flowers are drawn flat (352 triangles each) to keep the rainforest under 50,000 triangles for a standalone headset.
 - **Version 3 (owner):** balls make their own sound when they hit and bounce off walls.
+
+## 2026-10-28 — Version 2.1 for dev-team evaluation
+- **Owner:** tag this work `v2.1` (option B: the published `v2` tag stays where it is), upload the APK to GitHub, and write release notes covering everything since Version 1.
+- **App version** 0.2.1, version code 3, so the APK matches the tag and installs over Version 1 or 2.
+- **APK on GitHub:** attached to the `v2.1` release in the private repo (owner approved the upload). Builds stay out of Git itself.
+- **Submission text (owner):** the reduced-motion setting and adjustable control sensitivity are removed from the overview (neither is built; the Calm motion toggle was already removed on 2026-10-25 as too many buttons). Note: CLAUDE.md lists adjustable motion as an accessibility requirement; the owner has chosen not to offer it in this version.
+- **Moving an echo by hand** around its ring: to revisit after the dev team's headset test. Today an echo moves a step at a time in the controller's edit mode.
+- **Leftovers deleted:** two test-runner scenes and Unity's crash backup (`Assets/_Recovery`), none used by the build.

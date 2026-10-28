@@ -1,15 +1,17 @@
-# Little Echoes — Version 2
+# Little Echoes — Version 2.1
 
-**Status:** Version 2 for dev-team feedback. First tagged `v2` on 2026-10-27; the leaf palette, the cloud ball stand, the flowers and the other polish below were added on 2026-10-27/28 on the same branch (`feat/little-echoes-core`) and are part of this submission. Version 1 is tag `v1-pico-feedback` (see RELEASE_NOTES_v1.md).
-**APK:** `Builds/RoomOrchestra-v2-final.apk` (local, not in Git; sha256 09b1a9b93eaa0fea8176aaf182c2a182d8e04695e83e080d2c47f8a82d2e2661). Installs and launches on the emulator. To rebuild, see "Build and try it".
-**App version:** 0.2.0 (Android version code 2), package `com.roomorchestra.app`.
+**Everything new since Version 1**, for dev-team evaluation on a headset.
+
+**Tag:** `v2.1` (branch `feat/little-echoes-core`), 2026-10-28. Version 1 is tag `v1-pico-feedback` (see RELEASE_NOTES_v1.md); `v2` (2026-10-27) was an earlier cut of this work.
+**APK:** `RoomOrchestra-v2.1.apk`, attached to the GitHub release `v2.1` (also `Builds/RoomOrchestra-v2.1.apk` in the project folder; not in Git). Installs over Version 1 or 2.
+**App version:** 0.2.1 (Android version code 3), package `com.roomorchestra.app`.
 **Platform:** Unity 6000.3.25f1, PICO Unity SDK in PICO Spatial mode, PICO OS 6 (Project Swan).
-**Tested on:** PICO Emulator 6.1 only. **Not yet tested on a headset.**
+**Tested on:** PICO Emulator 6.1 only. **Not yet tested on a headset** — that is what we'd love your feedback on.
 
 ## Build and try it
 1. Open the project folder in Unity 6000.3.25f1 (the PICO Unity SDK is already in `Packages/`).
 2. Open `Assets/RoomOrchestra/Scenes/RoomOrchestra.unity`. To rebuild the scene from code: menu **RoomOrchestra → Little Echoes → Set Up Select-and-Place**.
-3. Build for Android with only that scene enabled, then install with `pico-cli app install <apk>` and launch `com.roomorchestra.app`.
+3. Or skip building: install the attached APK with `pico-cli app install RoomOrchestra-v2.1.apk` (or `adb install -r`) and launch `com.roomorchestra.app`. To build yourself, build for Android with only that scene enabled.
 4. Tests: Unity Test Runner, EditMode and PlayMode, filter `RoomOrchestra.Tests`.
 
 ## What you can do
@@ -22,6 +24,7 @@
 ### Controls: the leaf palette
 - All controls sit on one green leaf: the characters and Loudness along the back; **Come here**, Undo, Pause, Clear, Recenter, Height and 中文/English along the front.
 - **It follows you:** walk about a metre from your seat and the leaf glides after you, keeping its seated layout; sit back down and it goes home. Tap **Come here** to bring it at once. Recenter also sends it home.
+- **New buttons:** Pause/Play (the icon turns into a play triangle while paused), Clear, and Recenter (moves the stage in front of a seated player). Undo and Loudness were already in Version 1.
 - **Volume and mute** for each instrument: tap the instrument's name tile.
 - **Height** (Seated / Standing) lifts every control together.
 - **English / Chinese:** automatic from the headset's language; the 中文 / English button switches and remembers. In Chinese, notes show in jianpu (1 2 3 5 6) with the key, 1=D, on a small dark plate above each note column.
@@ -47,6 +50,12 @@ Butterflies fly out from the lamp once the song is layered and melodic, and spar
 - A safety limiter keeps dense songs from clipping.
 - A character landing on the floor is silent; Clear's smoke makes a soft whoosh.
 
+### Fixes
+- The music pauses when the app goes to the background.
+- The front row of buttons no longer catches taps meant for the low note tiles behind it.
+- Spare balls hide completely while they wait.
+- An accessibility walkthrough (seated, one-handed, tap-only, labels) was run on the real scene in the Unity Editor; every critical action works without throwing.
+
 ## Known limits
 - Emulator only; follow speed, label size and tap accuracy on the small leaf buttons need a headset.
 - The leaf can't see real walls or furniture yet (no room mapping), so it can follow you into a wall.
@@ -58,4 +67,5 @@ Butterflies fly out from the lamp once the song is layered and melodic, and spar
 - Balls make their own sound when they hit and bounce off the walls.
 - Real-furniture mapping (instruments on the player's own table, chair and lamp) and keeping the leaf clear of walls.
 - A controller button to call the leaf, chosen after headset testing.
-- UI clean-up, plus the remaining accessibility options (motion and scale/contrast settings).
+- UI clean-up and scale/contrast settings.
+- Moving an echo around its ring by hand: to revisit after your headset test (today an echo moves a step at a time in the controller's edit mode).
