@@ -143,7 +143,7 @@ namespace RoomOrchestra.EditorTools
             var listener = Object.FindFirstObjectByType<AudioListener>();
             if (listener != null && !listener.TryGetComponent<MasterLimiter>(out _)) listener.gameObject.AddComponent<MasterLimiter>();
             CreatePoofClouds(root.transform);
-            // The ball stand and the clouds waiting in its post travel with the pad; thrown balls stay put.
+            // The ball stand and the poof clouds waiting in it travel with the pad; thrown balls stay put.
             var carried = new List<Transform> { root.transform.Find("PoofPark") };
             if (dispenser != null) carried.Insert(0, dispenser);
             pad.gameObject.AddComponent<RoamingTray>().Configure(root.transform, carried.ToArray(),
@@ -373,9 +373,10 @@ namespace RoomOrchestra.EditorTools
         static void CreateUndoButton(Vector3 position, Transform root, Material slab, Material mark)
         {
             var go = SmallButton("UndoButton", position, root, slab, "UndoSlab");
-            Box("UndoArrowStem", go.transform, new Vector3(0.01f, 0.025f, 0f), new Vector3(0.06f, 0.012f, 0.012f), mark, keepCollider: false);
-            Box("UndoArrowHook", go.transform, new Vector3(0.04f, 0.04f, 0f), new Vector3(0.012f, 0.03f, 0.012f), mark, keepCollider: false);
-            var head = Box("UndoArrowHead", go.transform, new Vector3(-0.025f, 0.025f, 0f), new Vector3(0.022f, 0.022f, 0.012f), mark, keepCollider: false);
+            // Sized to sit within the small slab.
+            Box("UndoArrowStem", go.transform, new Vector3(0.006f, 0.025f, 0f), new Vector3(0.046f, 0.01f, 0.01f), mark, keepCollider: false);
+            Box("UndoArrowHook", go.transform, new Vector3(0.029f, 0.037f, 0f), new Vector3(0.01f, 0.024f, 0.01f), mark, keepCollider: false);
+            var head = Box("UndoArrowHead", go.transform, new Vector3(-0.019f, 0.025f, 0f), new Vector3(0.018f, 0.018f, 0.01f), mark, keepCollider: false);
             head.localRotation = Quaternion.Euler(0f, 0f, 45f);
             Localize(Label("UndoLabel", "Undo", go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Undo);
             go.AddComponent<UndoButton>();
@@ -663,7 +664,7 @@ namespace RoomOrchestra.EditorTools
             if (floor != null && !floor.TryGetComponent<GroundSurface>(out _)) floor.AddComponent<GroundSurface>();
         }
 
-        // Poof clouds of seven puffs, waiting inside the ball stand's post until a character lands.
+        // Poof clouds of seven puffs, waiting inside the ball stand's cloud until a character lands.
         const int PoofClouds = 16, PuffsPerCloud = 7; // landings plus Clear's smoke over vines, toadstools and butterflies
         const float PuffSize = 0.035f;
         const string SmokeSoundPath = "Assets/RoomOrchestra/Audio/Effects/Smoke.wav";

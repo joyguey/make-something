@@ -125,3 +125,9 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Owner request:** the ball to launch floats on a cloud instead of a post.
 - **Decision:** the post's solid stays only as a small hidden core inside the cloud (it hides spare balls and poof clouds and stops throws). The visible cloud is collider-free puffs.
 - **Trade-off:** the rainforest vine that climbed the post is retired. A replacement on the cloud (for example a rainbow or flowers as the song grows) is possible if the owner wants one.
+
+## 2026-10-28 — Growth threshold and floor flowers
+- **Owner:** nothing grows until the song has at least 3 notes; more random flowers around the room.
+- **Decision:** at the 3rd note everything wakes together (vines catch up with notes already added, the first toadstool and the first flower appear), then one more flower per new note, 20 in all. A fixed seed keeps the scatter the same on every build, so tests and screenshots are repeatable.
+- **Budget:** flowers are drawn flat (352 triangles each) to keep the rainforest under 50,000 triangles for a standalone headset.
+- **Version 3 (owner):** balls make their own sound when they hit and bounce off walls.

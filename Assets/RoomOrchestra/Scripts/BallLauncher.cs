@@ -13,7 +13,7 @@ namespace RoomOrchestra
     public class BallLauncher : MonoBehaviour
     {
         [SerializeField] Transform spawnPoint;
-        [Tooltip("Where spare balls wait out of sight (inside the dispenser post).")]
+        [Tooltip("Where spare balls wait out of sight (inside the ball stand's cloud).")]
         [SerializeField] Transform parkPoint;
         [SerializeField] Ball[] pool;
         [SerializeField] AimArc arc;
@@ -79,7 +79,7 @@ namespace RoomOrchestra
                         Physics.IgnoreCollision(pool[i].GetComponent<Collider>(), pool[j].GetComponent<Collider>());
 
             // PICO's Spatial renderer does not reliably follow SetActive, so spare balls are parked
-            // out of sight (inside the dispenser post) instead of being deactivated.
+            // out of sight (inside the ball stand's cloud) instead of being deactivated.
             foreach (var ball in pool)
             {
                 if (ball == null) continue;

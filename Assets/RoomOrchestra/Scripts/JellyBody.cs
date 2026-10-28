@@ -7,7 +7,7 @@ namespace RoomOrchestra
     /// it is dragged, thrown or carried round its orbit, splats on impact and hops on cue. Only the
     /// <c>visual</c> child moves (the root belongs to physics, the orbit or the tray). Motion starts a few
     /// seconds after load, never at startup: PICO Spatial keeps the exported pose of objects changed
-    /// before its renderer connects. Asleep (parked inside a post, hub or lamp) it rests in its authored
+    /// before its renderer connects. Asleep (parked inside the stand cloud, a hub or the lamp) it rests in its authored
     /// pose and writes nothing.
     /// </summary>
     public class JellyBody : MonoBehaviour

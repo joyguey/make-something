@@ -13,7 +13,7 @@ namespace RoomOrchestra
         [SerializeField] Transform[] dots;
         [Tooltip("Ring shown where the ball will land on the aimed instrument.")]
         [SerializeField] Transform landingMarker;
-        [Tooltip("Where hidden parts are parked (e.g. inside the dispenser post).")]
+        [Tooltip("Where hidden parts are parked (inside the ball stand's cloud).")]
         [SerializeField] Transform parkPoint;
 
         [Tooltip("For this long after start, dots are nudged every frame so the Spatial renderer picks up " +

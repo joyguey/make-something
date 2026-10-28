@@ -11,11 +11,10 @@ Accessibility is intrinsic to the concept: seated and one-handed players can cre
 
 The project builds on an existing Unity/PICO OS 6 blockout. The proposed next milestone is a polished three-character, three-instrument playable demo with synchronized orbit loops, reliable collision feedback and accessibility-tested input alternatives. We welcome PICO's technical feedback on Unity Spatial/OS 6 integration and ergonomic testing on the target headset.
 
-## Current status — update at submission time
-- **Concept and design:** characterized and specified. Reference art provided by owner.
-- **Existing implementation:** Unity furniture/ball and instrument mapping blockout, based on provided screenshots, NOT an independently inspected project or measured build.
-- **Proposed features:** orbit sequencer, deterministic pitch, expressive character faces, alternative select/place and accessibility controls. DO NOT mark as implemented until agent test evidence exists.
-- **APK:** not yet verified in this handoff. Optional for this round as user stated.
+## Current status — updated 2026-10-28 for Version 2
+- **Implemented and tested in Unity (EditMode and PlayMode tests) and on the PICO Emulator 6.1:** three characters (Flutter, Bop, Boom), three instruments (udu, mbira, erhu), select-and-place and throwing, five notes per instrument, echo rings on one DSP clock at 88 BPM, Undo / Pause / Clear / Recenter, per-instrument volume and mute, Seated / Standing height, English / Chinese, controls on a leaf that follows a walking player, and a rainforest that grows with the song. Details: `docs/RELEASE_NOTES_v2.md`.
+- **Not yet done:** headset testing; dragging an echo around its ring with the hand (today an echo is moved a step at a time in the controller's edit mode); a reduced-motion setting in the menu and scale/contrast settings; real-furniture mapping.
+- **APK:** Version 2 build, emulator-tested only.
 
 ## Reviewer questions
 1. Which OS 6 Unity app mode is recommended for stationary shared-space instrument play with virtual-object assignment?

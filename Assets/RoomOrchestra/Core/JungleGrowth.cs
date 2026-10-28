@@ -11,15 +11,17 @@ namespace RoomOrchestra
     /// The scale is pentatonic, so any combination is consonant: "harmonious and developed" here
     /// means layered (several instruments) with melodic variety, sustained over time.
     /// Clearing the song clears the jungle too (in a cloud of smoke): each song grows its own forest.
+    /// Nothing grows until the song has a few notes (owner): then the vines catch up with every note so far,
+    /// the first toadstool sprouts, and a flower pops up somewhere in the room with each new note.
     /// </summary>
     public sealed class JungleGrowth
     {
         /// <summary>Notes added on one instrument that grow its vine to full length (a full ring holds 6).</summary>
         public const int NotesPerVine = 6;
-        /// <summary>Notes added on every instrument together that grow the ball-stand vine.</summary>
-        public const int NotesForStandVine = 16;
+        /// <summary>Notes the song needs before anything grows.</summary>
+        public const int NotesBeforeGrowth = 3;
         /// <summary>Total notes added at which each toadstool sprouts, in order.</summary>
-        public static readonly int[] MushroomAt = { 1, 3, 5, 7, 9, 12, 15 };
+        public static readonly int[] MushroomAt = { 3, 4, 6, 8, 10, 13, 16 };
 
         readonly int[] m_Notes = new int[3];
 
@@ -33,9 +35,11 @@ namespace RoomOrchestra
 
         public int NotesOn(InstrumentType instrument) => m_Notes[(int)instrument];
 
-        public float VineProgress(InstrumentType instrument) => Math.Min(1f, m_Notes[(int)instrument] / (float)NotesPerVine);
+        public float VineProgress(InstrumentType instrument) =>
+            TotalNotes < NotesBeforeGrowth ? 0f : Math.Min(1f, m_Notes[(int)instrument] / (float)NotesPerVine);
 
-        public float StandVineProgress => Math.Min(1f, TotalNotes / (float)NotesForStandVine);
+        /// <summary>Floor flowers out of <paramref name="count"/>: the first with the growth, one more each note.</summary>
+        public int FlowersSprouted(int count) => Math.Max(0, Math.Min(count, TotalNotes - NotesBeforeGrowth + 1));
 
         public bool AllVinesGrown =>
             VineProgress(InstrumentType.Udu) >= 1f && VineProgress(InstrumentType.Mbira) >= 1f && VineProgress(InstrumentType.Erhu) >= 1f;

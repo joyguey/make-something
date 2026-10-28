@@ -73,7 +73,9 @@ namespace RoomOrchestra.Tests
             ball.Expired += _ => expired = true;
             yield return new WaitForFixedUpdate();
             ball.Launch(new Vector3(1.2f, 0f, 0f)); // rolls along the table top and off the edge
-            ball.transform.position = new Vector3(0.1f, 0.78f, 0f);
+            // Starts near the far side of the table: ~0.35 s of rolling before the edge, so a slow Editor
+            // frame cannot skip the whole "edge is coming" window (it flaked from x = 0.1, ~0.17 s).
+            ball.transform.position = new Vector3(-0.12f, 0.78f, 0f);
 
             bool wasScared = false, sawFloorPause = false, scaredBeforeTheEdge = false;
             Vector3 landedNear = Vector3.zero;

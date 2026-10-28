@@ -172,7 +172,7 @@ namespace RoomOrchestra.Tests
                 shrooms[i].Configure(Child("Visual", s), 1f);
             }
             var director = m_Root.AddComponent<JungleDirector>();
-            director.Configure(uduVine, null, lampVine, null, shrooms, new Butterfly[0]);
+            director.Configure(uduVine, null, lampVine, shrooms, new Butterfly[0]);
 
             for (int i = 0; i < JungleGrowth.NotesPerVine / 2; i++) director.NoteAdded(InstrumentType.Udu);
             Assert.AreEqual(4, uduVine.Shown, "half the notes: half the table vine");
@@ -195,21 +195,22 @@ namespace RoomOrchestra.Tests
             table.Configure(InstrumentType.Udu, new[] { AudioClip.Create("t", 441, 1, 44100, false) });
             var vine = MakeVine(8, out _, out _);
             var director = m_Root.AddComponent<JungleDirector>();
-            director.Configure(vine, null, null, null, new Toadstool[0], new Butterfly[0]);
+            director.Configure(vine, null, null, new Toadstool[0], new Butterfly[0]);
             yield return null;
 
-            MusicalHitPipeline.Submit(MusicalHitPipeline.BeginAction(), table, OrbType.Boom, IntensityTier.Medium, PitchInput.FromPetal(0), InputPath.Place);
-            Assert.AreEqual(1, conductor.Sequencer.Echoes.Count, "the note joined the song");
-            Assert.AreEqual(1, director.Growth.TotalNotes, "a new note grows the jungle");
+            for (int n = 0; n < JungleGrowth.NotesBeforeGrowth; n++)
+                MusicalHitPipeline.Submit(MusicalHitPipeline.BeginAction(), table, OrbType.Boom, IntensityTier.Medium, PitchInput.FromPetal(n), InputPath.Place);
+            Assert.AreEqual(JungleGrowth.NotesBeforeGrowth, conductor.Sequencer.Echoes.Count, "the notes joined the song");
+            Assert.AreEqual(JungleGrowth.NotesBeforeGrowth, director.Growth.TotalNotes, "new notes grow the jungle");
             int shown = vine.Shown;
             Assert.Greater(shown, 0);
 
-            yield return new WaitForSeconds(3.2f); // more than a bar: the echo comes round again
-            Assert.AreEqual(1, director.Growth.TotalNotes, "repeats of the loop add nothing");
+            yield return new WaitForSeconds(3.2f); // more than a bar: the echoes come round again
+            Assert.AreEqual(JungleGrowth.NotesBeforeGrowth, director.Growth.TotalNotes, "repeats of the loop add nothing");
             Assert.AreEqual(shown, vine.Shown, "the vine waits for the next new note");
 
-            MusicalHitPipeline.Submit(MusicalHitPipeline.BeginAction(), table, OrbType.Boom, IntensityTier.Medium, PitchInput.FromPetal(2), InputPath.Place);
-            Assert.AreEqual(2, director.Growth.TotalNotes);
+            MusicalHitPipeline.Submit(MusicalHitPipeline.BeginAction(), table, OrbType.Boom, IntensityTier.Medium, PitchInput.FromPetal(4), InputPath.Place);
+            Assert.AreEqual(JungleGrowth.NotesBeforeGrowth + 1, director.Growth.TotalNotes);
             Assert.Greater(vine.Shown, shown, "and grows again when the song does");
         }
 
@@ -237,7 +238,7 @@ namespace RoomOrchestra.Tests
             shroom.Configure(Child("Visual", shroomGo), 1f);
             var flier = MakeButterfly();
             var director = m_Root.AddComponent<JungleDirector>();
-            director.Configure(vine, null, null, null, new[] { shroom }, new[] { flier });
+            director.Configure(vine, null, null, new[] { shroom }, new[] { flier });
 
             for (int i = 0; i < JungleGrowth.NotesPerVine; i++) director.NoteAdded(InstrumentType.Udu);
             // A layered song (two instruments, four echoes) calls the butterfly out.

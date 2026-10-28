@@ -4,7 +4,7 @@ namespace RoomOrchestra
 {
     /// <summary>
     /// A little cloud of puffs that bursts where a character lands on the floor. The puffs are authored
-    /// in the scene and wait inside the ball stand's post (PICO Spatial: no runtime objects, and inactive
+    /// in the scene and wait inside the ball stand's cloud (PICO Spatial: no runtime objects, and inactive
     /// objects still draw, so hidden means parked out of sight). A few clouds share the work.
     /// A character landing is silent (owner 2026-10-28); Clear's big clouds play the smoky whoosh
     /// (Audio/Effects, ArtSource/Audio/gen_poof.py). Clouds that burst together share one sound so the

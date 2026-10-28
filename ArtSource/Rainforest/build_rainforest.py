@@ -7,11 +7,14 @@ no downloaded assets).
 Every part is a separate mesh so Unity colours it with project materials:
   Vine_<Name>_Seg<k>_Stem / _Leaves / _LeafRims (k = 0..7, bottom to tip), Vine_<Name>_Flowers / _FlowerHearts
       a vine shaped to its furniture, in pieces that creep out one by one as music plays. Each piece's
-      origin is inside the furniture, so Unity hides it by shrinking it there. Lamp, Stand (ball stand
-      post), TableL, TableR (front table legs) spiral up a pole; Chair climbs a back leg and runs along
-      the top of the back.
+      origin is inside the furniture, so Unity hides it by shrinking it there. Lamp, TableL, TableR
+      (front table legs) spiral up a pole; Chair climbs a back leg and runs along the top of the back.
+      (The ball-stand vine was retired 2026-10-28: the stand is a floating cloud now.)
   Toadstool_Cap / _CapRim / _Spots / _Stem / _StemRim / _Face
       a cute spotted toadstool with a sleepy face that grows from a bud and sways to the beat
+  Flower_Stem / _Leaves / _LeafRims / _Petals / _PetalRims / _Heart
+      a little floor flower (about 20 cm) that pops up around the room as the song grows; Unity
+      colours the petals per flower. Origin at the foot of the stem.
   Butterfly_Body, Butterfly_WingL/R, Butterfly_WingRimL/R, Butterfly_SpotsL/R
       wings pivot on the body axis (Unity flaps them by rotation)
   Sparkle, Sparkle_Rim
@@ -37,7 +40,6 @@ RIM = 0.004  # outline thickness (m) on leaves, wings and sparkles
 # Vines that climb a pole: (name, pole radius, bottom, top, turns, leaves per turn, flowers)
 SPIRALS = [
     ("Lamp", 0.045, 0.08, 1.04, 3.0, 6, 3),
-    ("Stand", 0.07, 0.05, 0.92, 2.5, 6, 2),
     ("TableL", 0.055, 0.02, 0.72, 1.75, 6, 1),
     ("TableR", 0.055, 0.02, 0.72, 1.75, 6, 1),
 ]
@@ -281,6 +283,45 @@ def toadstool():
     obj_from(face, "Toadstool_Face")
 
 
+def floor_flower():
+    """A little flower for the floor: a gently curved stem, two chunky leaves, five outlined flat petals
+    and a round heart, its face tipped toward the player (-Y). Origin at the foot; about 20 cm tall.
+    Kept light (about 350 triangles) because twenty of them sit round the room."""
+    stem, leaves, leaf_rims = bmesh.new(), bmesh.new(), bmesh.new()
+    path = [Vector((0.012 * math.sin(math.pi * u), 0.0, 0.17 * u)) for u in [j / 3 for j in range(4)]]
+    tube(stem, path, 0.007, sides=5, taper_end=0.7)
+
+    def blade(length, width, points):
+        # A plump leaf/petal outline with few points: base at the origin, tip along +y.
+        return [Vector((width * 0.5 * math.sin(2 * math.pi * k / points),
+                        length * 0.5 * (1 - math.cos(2 * math.pi * k / points)), 0)) for k in range(points)]
+
+    for side, height in ((-1, 0.05), (1, 0.085)):
+        m = leaf_matrix(Vector((0.0, 0.0, height)), Vector((side * 0.9, -0.25, 0.55)), Vector((0, -0.4, 1)))
+        add_flat(leaves, blade(0.06, 0.032, 6), 0.005, m)
+        add_flat(leaf_rims, blade(0.06, 0.032, 6), 0.005, m, inflate=RIM)
+    bmesh.ops.reverse_faces(leaf_rims, faces=leaf_rims.faces)
+
+    petals, petal_rims, heart = bmesh.new(), bmesh.new(), bmesh.new()
+    at = path[-1] + Vector((0, -0.005, 0.005))
+    normal = Vector((0, -0.55, 1)).normalized()
+    face = Vector((0, 0, 1)).rotation_difference(normal).to_matrix().to_4x4()
+    for k in range(5):
+        spin = Matrix.Rotation(2 * math.pi * k / 5, 4, "Z") @ Matrix.Translation(Vector((0, 0.008, 0)))
+        m = Matrix.Translation(at) @ face @ spin
+        add_flat(petals, blade(0.034, 0.026, 6), 0.006, m)
+        add_flat(petal_rims, blade(0.034, 0.026, 6), 0.006, m, inflate=RIM)
+    bmesh.ops.reverse_faces(petal_rims, faces=petal_rims.faces)
+    g = bmesh.ops.create_uvsphere(heart, u_segments=6, v_segments=4, radius=1.0)
+    bmesh.ops.transform(heart, matrix=Matrix.Translation(at + normal * 0.004) @ face @ Matrix.Diagonal((0.013, 0.013, 0.008, 1)), verts=g["verts"])
+    obj_from(stem, "Flower_Stem")
+    obj_from(leaves, "Flower_Leaves", smooth=False)
+    obj_from(leaf_rims, "Flower_LeafRims", smooth=False)
+    obj_from(petals, "Flower_Petals", smooth=False)
+    obj_from(petal_rims, "Flower_PetalRims", smooth=False)
+    obj_from(heart, "Flower_Heart")
+
+
 def butterfly():
     body = bmesh.new()
     seg = bmesh.ops.create_uvsphere(body, u_segments=10, v_segments=6, radius=1.0)
@@ -345,6 +386,7 @@ def main():
     butterfly()
     sparkle()
     toadstool()
+    floor_flower()
     os.makedirs(os.path.dirname(EXPORT), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Rainforest.blend"))
     bpy.ops.object.select_all(action="SELECT")

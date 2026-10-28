@@ -756,6 +756,21 @@ namespace RoomOrchestra.Tests
                 Assert.Less(t.transform.position.y, 0.01f, $"{t.name} on the floor");
             }
 
+            // Flowers wait as buds on the floor around the room, clear of the furniture, the seat and each other.
+            var flowers = rainforest.GetComponentsInChildren<FloorFlower>();
+            Assert.AreEqual(20, flowers.Length, "a meadow's worth (RainforestArt.FloorFlowers)");
+            var furniture = stage.Find("Furniture").GetComponentsInChildren<Collider>().Select(c => c.bounds).ToArray();
+            foreach (var f in flowers)
+            {
+                var p = f.transform.position;
+                Assert.AreEqual(Toadstool.BudScale, f.transform.localScale.x, 1e-6f, $"{f.name} is a bud at startup");
+                Assert.Less(Mathf.Abs(p.y), 0.01f, $"{f.name} on the floor");
+                Assert.Greater(new Vector2(p.x, p.z).magnitude, 0.7f, $"{f.name} clear of the player's feet");
+                Assert.IsFalse(furniture.Any(b => p.x > b.min.x && p.x < b.max.x && p.z > b.min.z && p.z < b.max.z), $"{f.name} not under furniture");
+                foreach (var g in flowers)
+                    if (g != f) Assert.Greater(Vector3.Distance(p, g.transform.position), 0.3f, $"{f.name} and {g.name} apart");
+            }
+
             var sparkles = rainforest.GetComponentsInChildren<SparkleTwinkle>();
             Assert.AreEqual(15, sparkles.Length);
             foreach (var instrument in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))

@@ -3,9 +3,9 @@ using UnityEngine;
 namespace RoomOrchestra
 {
     /// <summary>
-    /// Brings the rainforest to life as music is composed (rules in Core/JungleGrowth): each note ADDED to
-    /// the song feeds its instrument's vine (table/udu, chair/mbira, lamp/erhu; the ball-stand vine feeds
-    /// on every note); the loop repeating does not grow anything,
+    /// Brings the rainforest to life as music is composed (rules in Core/JungleGrowth): once the song has
+    /// a few notes, each note ADDED feeds its instrument's vine (table/udu, chair/mbira, lamp/erhu) and
+    /// pops up another flower around the room; the loop repeating does not grow anything,
     /// toadstools sprout from buds one by one, butterflies flutter out of the lamp while the song is
     /// layered and melodic, and with every vine grown and all butterflies out the toadstools hop in a
     /// chorus. Clear sweeps it all away in big smoke clouds and the next song grows it again. Each new
@@ -13,8 +13,9 @@ namespace RoomOrchestra
     /// </summary>
     public class JungleDirector : MonoBehaviour
     {
-        [SerializeField] VineGrowth udu, mbira, erhu, stand;
+        [SerializeField] VineGrowth udu, mbira, erhu;
         [SerializeField] Toadstool[] toadstools;
+        [SerializeField] FloorFlower[] flowers;
         [SerializeField] Butterfly[] butterflies;
 
         JungleGrowth m_Growth = new();
@@ -27,14 +28,14 @@ namespace RoomOrchestra
         public JungleGrowth Growth => m_Growth;
         public bool InChorus => m_Chorus;
 
-        public void Configure(VineGrowth uduVine, VineGrowth mbiraVine, VineGrowth erhuVine, VineGrowth standVine, Toadstool[] floor, Butterfly[] flock)
+        public void Configure(VineGrowth uduVine, VineGrowth mbiraVine, VineGrowth erhuVine, Toadstool[] floor, Butterfly[] flock, FloorFlower[] bloom = null)
         {
             udu = uduVine;
             mbira = mbiraVine;
             erhu = erhuVine;
-            stand = standVine;
             toadstools = floor;
             butterflies = flock;
+            flowers = bloom;
         }
 
         void OnEnable()
@@ -57,7 +58,7 @@ namespace RoomOrchestra
         void OnCleared()
         {
             int clouds = 0;
-            foreach (var vine in new[] { udu, mbira, erhu, stand })
+            foreach (var vine in new[] { udu, mbira, erhu })
                 if (vine != null && vine.Shown > 0 && PoofCloud.PoofAt(vine.GrownCentre(), ClearSmokeSize)) clouds++;
             if (toadstools != null)
                 foreach (var t in toadstools)
@@ -65,6 +66,10 @@ namespace RoomOrchestra
             if (butterflies != null)
                 foreach (var b in butterflies)
                     if (b != null && !b.AtHome && PoofCloud.PoofAt(b.transform.position, ClearSmokeSize * 0.5f)) clouds++;
+            // Last, so the bigger growth gets the clouds first; when every cloud is busy a flower just goes.
+            if (flowers != null)
+                foreach (var f in flowers)
+                    if (f != null && f.Sprouted && PoofCloud.PoofAt(f.transform.position, ClearSmokeSize * 0.5f)) clouds++;
             m_VanishAt = Time.time + VanishDelay;
             Debug.Log($"[RoomOrchestra] Jungle: cleared in a cloud of smoke ({clouds} clouds)");
         }
@@ -76,8 +81,11 @@ namespace RoomOrchestra
         {
             m_VanishAt = -1f;
             m_Growth = new JungleGrowth();
-            foreach (var vine in new[] { udu, mbira, erhu, stand })
+            foreach (var vine in new[] { udu, mbira, erhu })
                 if (vine != null) vine.ResetGrowth();
+            if (flowers != null)
+                foreach (var f in flowers)
+                    if (f != null) f.Unsprout();
             if (toadstools != null)
                 foreach (var t in toadstools)
                     if (t != null) t.Unsprout();
@@ -93,13 +101,19 @@ namespace RoomOrchestra
         public void NoteAdded(InstrumentType instrument)
         {
             m_Growth.NoteAdded(instrument);
-            var vine = VineFor(instrument);
-            if (vine != null && vine.SetProgress(m_Growth.VineProgress(instrument)))
-                Debug.Log($"[RoomOrchestra] Jungle: {instrument} vine {vine.Shown}/{vine.SegmentCount}{(vine.Bloomed ? ", in bloom" : "")}");
-            if (stand != null) stand.SetProgress(m_Growth.StandVineProgress);
+            // Every vine, not only this note's: when growth wakes up, vines fed earlier catch up together.
+            foreach (var type in new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu })
+            {
+                var vine = VineFor(type);
+                if (vine != null && vine.SetProgress(m_Growth.VineProgress(type)))
+                    Debug.Log($"[RoomOrchestra] Jungle: {type} vine {vine.Shown}/{vine.SegmentCount}{(vine.Bloomed ? ", in bloom" : "")}");
+            }
             if (toadstools != null)
                 for (int i = 0; i < m_Growth.MushroomsSprouted && i < toadstools.Length; i++)
                     if (toadstools[i] != null) toadstools[i].Sprout();
+            if (flowers != null)
+                for (int i = 0; i < m_Growth.FlowersSprouted(flowers.Length); i++)
+                    if (flowers[i] != null) flowers[i].Sprout();
         }
 
         VineGrowth VineFor(InstrumentType instrument) => instrument switch
@@ -128,6 +142,9 @@ namespace RoomOrchestra
             if (toadstools != null)
                 foreach (var t in toadstools)
                     if (t != null) t.Chorus = chorus;
+            if (flowers != null)
+                foreach (var f in flowers)
+                    if (f != null) f.Chorus = chorus;
             Debug.Log($"[RoomOrchestra] Jungle: chorus {(chorus ? "begins!" : "rests")}");
         }
     }

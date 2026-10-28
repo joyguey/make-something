@@ -476,7 +476,13 @@ namespace RoomOrchestra.Tests
             var growth = new JungleGrowth();
             Assert.AreEqual(0f, growth.VineProgress(InstrumentType.Erhu));
             Assert.AreEqual(0, growth.MushroomsSprouted);
-            for (int i = 0; i < JungleGrowth.NotesPerVine / 2; i++) growth.NoteAdded(InstrumentType.Erhu);
+            for (int i = 0; i < JungleGrowth.NotesBeforeGrowth - 1; i++) growth.NoteAdded(InstrumentType.Erhu);
+            Assert.AreEqual(0f, growth.VineProgress(InstrumentType.Erhu), "nothing grows before the song has a few notes");
+            Assert.AreEqual(0, growth.MushroomsSprouted, "no toadstool yet");
+            Assert.AreEqual(0, growth.FlowersSprouted(20), "no flower yet");
+            growth.NoteAdded(InstrumentType.Erhu);
+            Assert.AreEqual(1, growth.MushroomsSprouted, "the third note wakes the floor");
+            Assert.AreEqual(1, growth.FlowersSprouted(20), "and the first flower");
             Assert.AreEqual(0.5f, growth.VineProgress(InstrumentType.Erhu), 1e-6f, "each note added creeps the vine of its own instrument");
             Assert.AreEqual(0f, growth.VineProgress(InstrumentType.Udu), "other vines wait for their own instrument");
             Assert.AreEqual(JungleGrowth.MushroomAt.Count(n => n <= JungleGrowth.NotesPerVine / 2), growth.MushroomsSprouted, "toadstools follow the total");
@@ -484,6 +490,8 @@ namespace RoomOrchestra.Tests
                 for (int i = 0; i < JungleGrowth.NotesPerVine; i++) growth.NoteAdded(type);
             Assert.IsTrue(growth.AllVinesGrown);
             Assert.AreEqual(1f, growth.VineProgress(InstrumentType.Erhu), "never beyond full length");
+            Assert.AreEqual(growth.TotalNotes - JungleGrowth.NotesBeforeGrowth + 1, growth.FlowersSprouted(100), "a flower for every note since growth began");
+            Assert.AreEqual(5, growth.FlowersSprouted(5), "never more than there are");
 
             var clock = new MusicClock(0.0);
             var loop = new EchoSequencer(clock);

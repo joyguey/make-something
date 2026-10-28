@@ -49,6 +49,17 @@ namespace RoomOrchestra.EditorTools
 
         const int TrailDots = 8, SparklesPerInstrument = 5;
 
+        // Floor flowers scattered round the room (owner 2026-10-28), one more for every note the song adds.
+        // A fixed seed, so every build has the same meadow; kept off the furniture, the player's spot, the
+        // leaf palette, the ball stand, the toadstools and each other.
+        public const int FloorFlowers = 20;
+        const int FlowerSeed = 2026;
+        static readonly Color[] PetalColours =
+        {
+            new Color(1.00f, 0.55f, 0.78f), new Color(0.78f, 0.60f, 1.00f), new Color(0.55f, 0.82f, 1.00f),
+            new Color(1.00f, 0.62f, 0.45f), new Color(1.00f, 0.97f, 0.90f),
+        };
+
         public static bool Available => Mesh("Sparkle") != null;
 
         public static Transform Build(Transform parent, InstrumentTarget[] targets)
@@ -198,7 +209,8 @@ namespace RoomOrchestra.EditorTools
             EditorUtility.SetDirty(udu);
 
             var director = root.gameObject.AddComponent<JungleDirector>();
-            director.Configure(udu, grown["Chair"], grown["Lamp"], null, floor, flock); // the ball stand is a cloud now: no post to climb
+            var meadow = BuildFlowers(root, stem, leaf, leafRim, heart);
+            director.Configure(udu, grown["Chair"], grown["Lamp"], floor, flock, meadow); // no ball-stand vine: the stand is a cloud now
             EditorUtility.SetDirty(director);
             return root;
         }
@@ -216,6 +228,59 @@ namespace RoomOrchestra.EditorTools
         }
 
         /// <summary>A holder at the piece's hiding pivot (inside the furniture), folded to the hidden size.</summary>
+        static FloorFlower[] BuildFlowers(Transform root, Material stem, Material leaf, Material leafRim, Material heart)
+        {
+            if (Mesh("Flower_Petals") == null) return new FloorFlower[0]; // FBX from before the flowers
+            var petals = PetalColours.Select((c, i) => Material($"Rainforest_FlowerPetal{i}", c, glow: 0.2f)).ToArray();
+            var petalRim = Material("Rainforest_FlowerPetalRim", new Color(0.55f, 0.25f, 0.4f));
+            var stage = root.parent != null ? root.parent.parent : null; // RoomOrchestra
+            var furniture = stage != null && stage.Find("Furniture") != null
+                ? stage.Find("Furniture").GetComponentsInChildren<Collider>().Select(c => c.bounds).ToArray()
+                : new Bounds[0];
+            var random = new System.Random(FlowerSeed);
+            var placed = new System.Collections.Generic.List<Vector3>();
+            var flowers = new FloorFlower[FloorFlowers];
+            for (int attempt = 0; placed.Count < FloorFlowers && attempt < 5000; attempt++)
+            {
+                var at = new Vector3(Mathf.Lerp(-2.1f, 2.1f, (float)random.NextDouble()), 0f, Mathf.Lerp(0.6f, 3.2f, (float)random.NextDouble()));
+                if (!FlowerFits(at, furniture, placed)) continue;
+                int i = placed.Count;
+                placed.Add(at);
+                var flower = new GameObject($"Flower{i}").transform;
+                flower.SetParent(root, false);
+                flower.localPosition = at;
+                var away = at - Viewer.SeatedEye;
+                away.y = 0f;
+                flower.localRotation = Quaternion.LookRotation(away, Vector3.up) * Quaternion.Euler(0f, (float)(random.NextDouble() * 50.0 - 25.0), 0f);
+                flower.localScale = Vector3.one * Toadstool.BudScale; // a little bud until the music grows it
+                var look = new GameObject("Visual").transform;
+                look.SetParent(flower, false);
+                Part(look, "Flower_Stem", stem);
+                Part(look, "Flower_Leaves", leaf);
+                Part(look, "Flower_LeafRims", leafRim);
+                Part(look, "Flower_Petals", petals[i % petals.Length]);
+                Part(look, "Flower_PetalRims", petalRim);
+                Part(look, "Flower_Heart", heart);
+                flowers[i] = flower.gameObject.AddComponent<FloorFlower>();
+                flowers[i].Configure(look, 1.2f + 0.6f * (float)random.NextDouble()); // 24-36 cm: readable from the seat
+                EditorUtility.SetDirty(flowers[i]);
+            }
+            return flowers.Where(f => f != null).ToArray();
+        }
+
+        static bool FlowerFits(Vector3 at, Bounds[] furniture, System.Collections.Generic.List<Vector3> placed)
+        {
+            static float Flat(Vector3 a, Vector3 b) => new Vector2(a.x - b.x, a.z - b.z).magnitude;
+            if (Flat(at, Vector3.zero) < 0.75f) return false;                               // the player's feet and chair
+            if (at.x > -0.75f && at.x < 0.35f && at.z > 0.9f && at.z < 1.45f) return false; // under the leaf palette
+            if (Flat(at, new Vector3(0.62f, 0f, 1.15f)) < 0.3f) return false;              // below the ball stand
+            foreach (var b in furniture)
+                if (at.x > b.min.x - 0.15f && at.x < b.max.x + 0.15f && at.z > b.min.z - 0.15f && at.z < b.max.z + 0.15f) return false;
+            foreach (var t in Toadstools) if (Flat(at, t.at) < 0.35f) return false;
+            foreach (var p in placed) if (Flat(at, p) < 0.35f) return false;
+            return true;
+        }
+
         static Transform Pivot(Transform vine, GameObject fbx, string name, string meshObject)
         {
             var source = fbx.transform.Find(meshObject);
