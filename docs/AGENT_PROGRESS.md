@@ -382,8 +382,14 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
   - The cloud still travels with the leaf pad and still stops throws, as the post did.
   - **Retired:** the rainforest vine that climbed the post (no post to climb). The table, chair and lamp vines are unchanged.
 - **Tests:** EditMode 168/168 (new `TheReadyBallFloatsOnACloudNotAPost`: no post, puffs never block, the ball sits just on top, nothing reaches the floor, spares wait inside the cloud). PlayMode 61/61. The first pass found the wider core blocking hand rays to three erhu tiles and the erhu volume tile; fixed by narrowing the solid core.
-- **Emulator:** `Builds/RoomOrchestra-v2-cloud.apk` installed and launched; the ready ball shows on the cloud at startup, no app errors. Screenshot in scratchpad `cloud-emu.png`.
+- **Emulator:** `Builds/RoomOrchestra-v2-quietpoof.apk` installed and launched; the ready ball shows on the cloud at startup, no app errors. Screenshot in scratchpad `cloud-emu.png`.
 - **NOT verified:** on a headset; whether the lamp pole behind the cloud (from the seat) reads as a stick holding it up.
 
+## 2026-10-28 | Landing poofs are silent; only Clear's smoke makes a sound
+- **Owner request:** no sound when a ball drops and poofs; a sound only when Clear is pressed.
+- **Changed:** `PoofCloud.PlaySound` plays only for clouds at least `SmokeSize` (Clear's smoke); a landing poof still shows its cloud but is silent. The landing clip was unwired (`poofSound` field removed); `Audio/Effects/Poof.wav` is kept in the project, unused and not in the build, in case it's wanted back.
+- **Tests:** EditMode 168/168 (`ClearsSmokeHasAGentleSoundAndLandingsAreSilent`), PlayMode 61/61 (`ALandingIsSilentAndClearsSmokeIsOneWhoosh`).
+- **Emulator:** `Builds/RoomOrchestra-v2-quietpoof.apk` installed and launched, no app errors. Not listened to.
+
 ## Resume here (next session)
-1. Owner emulator check: the leaf palette and cloud stand (`Builds/RoomOrchestra-v2-cloud.apk`: are the small labels readable, are the small buttons easy to tap, does the cloud read as floating), the 1=D plate in Chinese, the weight levels and poof sounds. Following was confirmed by the owner on the emulator. Version 2 is tagged `v2`; the roaming and leaf work comes after it. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.
+1. Owner emulator check: the leaf palette and cloud stand (`Builds/RoomOrchestra-v2-quietpoof.apk`: are the small labels readable, are the small buttons easy to tap, does the cloud read as floating), the 1=D plate in Chinese, the weight levels and Clear's smoke sound (landings are now silent). Following was confirmed by the owner on the emulator. Version 2 is tagged `v2`; the roaming and leaf work comes after it. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.

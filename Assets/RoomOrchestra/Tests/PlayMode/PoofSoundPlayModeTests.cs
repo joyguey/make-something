@@ -6,11 +6,11 @@ using UnityEngine.TestTools;
 
 namespace RoomOrchestra.Tests
 {
-    /// <summary>The poof's sound: a puff for a landing, a whoosh for Clear's smoke, one sound per burst.</summary>
+    /// <summary>The poof's sound: a landing is silent, Clear's smoke is one whoosh per burst.</summary>
     public class PoofSoundPlayModeTests
     {
         readonly List<GameObject> m_Spawned = new();
-        AudioClip m_Poof, m_Smoke;
+        AudioClip m_Smoke;
 
         [TearDown]
         public void TearDown()
@@ -30,7 +30,6 @@ namespace RoomOrchestra.Tests
 
         PoofCloud[] Build(int count)
         {
-            m_Poof ??= Clip("TestPoof");
             m_Smoke ??= Clip("TestSmoke");
             var clouds = new PoofCloud[count];
             for (int c = 0; c < count; c++)
@@ -47,20 +46,19 @@ namespace RoomOrchestra.Tests
                 clouds[c].Configure(puffs, null);
                 var source = go.AddComponent<AudioSource>();
                 source.playOnAwake = false;
-                clouds[c].ConfigureSound(source, m_Poof, m_Smoke);
+                clouds[c].ConfigureSound(source, m_Smoke);
             }
             return clouds;
         }
 
         [UnityTest]
-        public IEnumerator ALandingPuffsAndClearsSmokeIsOneWhoosh()
+        public IEnumerator ALandingIsSilentAndClearsSmokeIsOneWhoosh()
         {
             var clouds = Build(4);
             yield return new WaitForSeconds(PoofCloud.SoundGapSeconds); // clear of any earlier test's poof
             clouds[0].Play(Vector3.zero);
-            Assert.AreSame(m_Poof, clouds[0].LastSound, "a landing is a little puff");
-            float firstPitch = clouds[0].GetComponent<AudioSource>().pitch;
-            Assert.IsTrue(clouds[0].GetComponent<AudioSource>().isPlaying);
+            Assert.IsNull(clouds[0].LastSound, "a landing poofs without a sound");
+            Assert.IsFalse(clouds[0].GetComponent<AudioSource>().isPlaying);
 
             yield return new WaitForSeconds(PoofCloud.Seconds + 0.05f);
             for (int c = 1; c < clouds.Length; c++) clouds[c].Play(Vector3.right * c, JungleDirector.ClearSmokeSize);
@@ -68,11 +66,12 @@ namespace RoomOrchestra.Tests
             Assert.IsNull(clouds[2].LastSound, "clouds bursting together share the one sound");
             Assert.IsNull(clouds[3].LastSound);
             Assert.IsFalse(clouds[3].GetComponent<AudioSource>().isPlaying, "never a stack of whooshes");
+            float firstPitch = clouds[1].GetComponent<AudioSource>().pitch;
 
-            yield return new WaitForSeconds(PoofCloud.SoundGapSeconds + 0.05f);
-            clouds[0].Play(Vector3.zero);
-            Assert.AreSame(m_Poof, clouds[0].LastSound, "a later landing has its own puff");
-            Assert.AreNotEqual(firstPitch, clouds[0].GetComponent<AudioSource>().pitch, "a slightly different puff each time");
+            yield return new WaitForSeconds(PoofCloud.Seconds + 0.05f);
+            clouds[1].Play(Vector3.zero, JungleDirector.ClearSmokeSize);
+            Assert.AreSame(m_Smoke, clouds[1].LastSound, "the next Clear whooshes again");
+            Assert.AreNotEqual(firstPitch, clouds[1].GetComponent<AudioSource>().pitch, "a slightly different whoosh each time");
         }
     }
 }

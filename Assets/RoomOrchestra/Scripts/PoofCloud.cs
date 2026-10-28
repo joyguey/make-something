@@ -6,14 +6,15 @@ namespace RoomOrchestra
     /// A little cloud of puffs that bursts where a character lands on the floor. The puffs are authored
     /// in the scene and wait inside the ball stand's post (PICO Spatial: no runtime objects, and inactive
     /// objects still draw, so hidden means parked out of sight). A few clouds share the work.
-    /// Each burst plays a soft puff (Audio/Effects, ArtSource/Audio/gen_poof.py); big clouds play the
-    /// smoky whoosh. Clouds that burst together (Clear) share one sound so the smoke never gets loud.
+    /// A character landing is silent (owner 2026-10-28); Clear's big clouds play the smoky whoosh
+    /// (Audio/Effects, ArtSource/Audio/gen_poof.py). Clouds that burst together share one sound so the
+    /// smoke never gets loud.
     /// </summary>
     public class PoofCloud : MonoBehaviour
     {
         public const float Seconds = 0.6f;
         const float Spread = 0.12f, Rise = 0.06f, Grow = 3.2f;
-        /// <summary>Clouds at least this big (Clear's smoke) play the whoosh instead of the puff.</summary>
+        /// <summary>Clouds at least this big (Clear's smoke) play the whoosh; smaller ones (landings) are silent.</summary>
         public const float SmokeSize = 2f;
         /// <summary>Bursts closer together than this share one sound.</summary>
         public const float SoundGapSeconds = 0.15f;
@@ -28,7 +29,7 @@ namespace RoomOrchestra
         [Tooltip("Where the cloud waits, wholly inside the ball stand.")]
         [SerializeField] Transform parkPoint;
         [SerializeField] AudioSource voice;
-        [SerializeField] AudioClip poofSound, smokeSound;
+        [SerializeField] AudioClip smokeSound;
 
         Vector3[] m_Directions;
         float[] m_Sizes;
@@ -38,7 +39,7 @@ namespace RoomOrchestra
         public bool Playing => Time.time - m_Start < Seconds;
         public System.Collections.Generic.IReadOnlyList<Transform> Puffs => puffs;
 
-        /// <summary>The sound the last burst started, or null if it shared another cloud's.</summary>
+        /// <summary>The sound the last burst started, or null if it was silent or shared another cloud's.</summary>
         public AudioClip LastSound { get; private set; }
 
         public void Configure(Transform[] cloudPuffs, Transform park)
@@ -47,10 +48,9 @@ namespace RoomOrchestra
             parkPoint = park;
         }
 
-        public void ConfigureSound(AudioSource source, AudioClip poof, AudioClip smoke)
+        public void ConfigureSound(AudioSource source, AudioClip smoke)
         {
             voice = source;
-            poofSound = poof;
             smokeSound = smoke;
         }
 
@@ -108,7 +108,8 @@ namespace RoomOrchestra
         void PlaySound(float size)
         {
             LastSound = null;
-            var clip = size >= SmokeSize ? smokeSound : poofSound;
+            if (size < SmokeSize) return; // a landing poof is silent
+            var clip = smokeSound;
             if (voice == null || clip == null || Time.time - s_LastSound < SoundGapSeconds) return;
             s_LastSound = Time.time;
             voice.pitch = s_Pitches[s_Variant++ % s_Pitches.Length];

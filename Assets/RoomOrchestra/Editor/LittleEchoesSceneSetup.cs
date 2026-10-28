@@ -666,7 +666,6 @@ namespace RoomOrchestra.EditorTools
         // Poof clouds of seven puffs, waiting inside the ball stand's post until a character lands.
         const int PoofClouds = 16, PuffsPerCloud = 7; // landings plus Clear's smoke over vines, toadstools and butterflies
         const float PuffSize = 0.035f;
-        const string PoofSoundPath = "Assets/RoomOrchestra/Audio/Effects/Poof.wav";
         const string SmokeSoundPath = "Assets/RoomOrchestra/Audio/Effects/Smoke.wav";
         const float PoofVolume = 0.45f;
 
@@ -675,9 +674,8 @@ namespace RoomOrchestra.EditorTools
             var puffMaterial = Glow(EnsureMaterial("Poof", "Ball", new Color(0.97f, 0.97f, 0.95f)), new Color(0.97f, 0.97f, 0.95f));
             var park = Holder("PoofPark", root, Vector3.zero);
             park.position = DispenserPosition + CloudCoreHeight; // inside the stand cloud's core, with the spare balls
-            var poofSound = AssetDatabase.LoadAssetAtPath<AudioClip>(PoofSoundPath);
             var smokeSound = AssetDatabase.LoadAssetAtPath<AudioClip>(SmokeSoundPath);
-            if (poofSound == null || smokeSound == null) Debug.LogWarning("[RoomOrchestra] Poof sounds missing: run ArtSource/Audio/gen_poof.py");
+            if (smokeSound == null) Debug.LogWarning("[RoomOrchestra] Smoke sound missing: run ArtSource/Audio/gen_poof.py");
             for (int c = 0; c < PoofClouds; c++)
             {
                 var cloud = Holder($"PoofCloud{c}", root, Vector3.zero);
@@ -695,7 +693,7 @@ namespace RoomOrchestra.EditorTools
                 source.playOnAwake = false;
                 source.spatialBlend = 0f;
                 source.volume = PoofVolume;
-                poof.ConfigureSound(source, poofSound, smokeSound);
+                poof.ConfigureSound(source, smokeSound);
                 EditorUtility.SetDirty(poof);
             }
         }
