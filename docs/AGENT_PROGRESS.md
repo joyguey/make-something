@@ -448,5 +448,13 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - **Evidence:** `docs/evidence/stalk-and-flower-growth-2026-10-29.png`, `docs/evidence/flower-bud-to-bloom-2026-10-29.png` (Editor renders).
 - **NOT verified:** on the emulator or a headset.
 
+## 2026-10-29 | Furniture at standard real-world sizes (Version 1 feedback: "felt uncomfortably large")
+- **Checked first** (details in DECISION_LOG): the app is real-world scale (spatial camera config Unconstrained); the furniture was near real size and matched the emulator room's scale; the table was 8-10 cm too tall and the chair back loomed over a seated player.
+- **Changed** (`LittleEchoesSceneSetup.FitFurnitureToRealSizes`, owner chose "true real-world sizes"): table top 0.75 m (was 0.83), chair back top 0.90 m (was 1.08; seat unchanged), lamp unchanged (1.54 m); table and lamp moved to z 2.5, chair to 2.2 (each 0.2 m further out). Blender: the table-leg and chair vines re-fitted (`TABLE_LEG_TOP`, `CHAIR_BACK_TOP`); `RainforestArt` places vines from their furniture's position instead of fixed coordinates.
+- **Incident:** the first rebuild ran old editor code: a variable name clash (CS0136) in RainforestArt stopped the editor assembly compiling, and my compile check read the wrong "errors" field. Fixed; checks now count "error CS" lines. Results below are from the corrected build.
+- **Tests:** EditMode 176/176 (all reach, sight-line and pointer-shadow checks with the new positions), PlayMode 63/63.
+- **Evidence:** `docs/evidence/furniture-scale-before-after-2026-10-29.png` (Editor, seated eye), `docs/evidence/furniture-scale-emulator-2026-10-29.png` (emulator after the opening; no app errors).
+- **NOT verified:** how it feels seated at a real desk on a headset.
+
 ## Resume here (next session)
 1. Dev team evaluating `v2.1` (`Builds/RoomOrchestra-v2.1.apk`, GitHub release `v2.1`) on a headset; then act on their feedback. Owner checks of the same build: growth waits for 3 notes, flowers round the room, the leaf palette and cloud stand (are the small labels readable, are the small buttons easy to tap, does the cloud read as floating), the 1=D plate in Chinese, the weight levels and Clear's smoke sound (landings are now silent). Following was confirmed by the owner on the emulator. Released as `v2.1` (app 0.2.1); `v2` is the earlier cut. Revisit moving an echo by hand after the headset test. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.

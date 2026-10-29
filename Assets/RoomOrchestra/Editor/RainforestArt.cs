@@ -17,14 +17,14 @@ namespace RoomOrchestra.EditorTools
         const string FbxPath = "Assets/RoomOrchestra/Art/Rainforest/Rainforest.fbx";
         const string MaterialDir = "Assets/RoomOrchestra/Materials";
 
-        // Where each vine grows (stage space, floor level): pole and leg axes; the chair's centre line on its
-        // back's mid-plane (its vine climbs the back-left leg). Both table legs feed on udu together.
-        static readonly (string name, Vector3 at)[] Vines =
+        // Where each vine grows, from its piece of furniture's floor position: pole and leg axes; the chair's
+        // centre line on its back's mid-plane (its vine climbs the back-left leg). Both table legs feed on udu.
+        static readonly (string name, string furniture, Vector3 offset)[] Vines =
         {
-            ("Lamp", new Vector3(1.10f, 0f, 2.30f)),
-            ("TableL", new Vector3(-1.615f, 0f, 2.005f)),
-            ("TableR", new Vector3(-0.595f, 0f, 2.005f)),
-            ("Chair", new Vector3(0f, 0f, 2.235f)),
+            ("Lamp", "Lamp", Vector3.zero),
+            ("TableL", "Table", new Vector3(-0.515f, 0f, -0.295f)),
+            ("TableR", "Table", new Vector3(0.505f, 0f, -0.295f)),
+            ("Chair", "Chair", new Vector3(0f, 0f, 0.235f)),
         };
 
         // Toadstools around the edge of the stage, in the order they sprout: (position, grown size, cap colour).
@@ -76,8 +76,11 @@ namespace RoomOrchestra.EditorTools
             var heart = Material("Rainforest_FlowerHeart", new Color(1.00f, 0.85f, 0.29f), glow: 0.4f);
             var fbx = (GameObject)AssetDatabase.LoadMainAssetAtPath(FbxPath);
             var grown = new System.Collections.Generic.Dictionary<string, VineGrowth>();
-            foreach (var (name, at) in Vines)
+            var furnitureRoot = root.parent != null && root.parent.parent != null ? root.parent.parent.Find("Furniture") : null;
+            foreach (var (name, furnitureName, offset) in Vines)
             {
+                var host = furnitureRoot != null ? furnitureRoot.Find(furnitureName) : null;
+                var at = (host != null ? new Vector3(host.position.x, 0f, host.position.z) : Vector3.zero) + offset;
                 var vine = new GameObject($"Vine_{name}").transform;
                 vine.SetParent(root, false);
                 vine.localPosition = at;

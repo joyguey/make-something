@@ -57,6 +57,7 @@ namespace RoomOrchestra.EditorTools
         {
             KeepExportAlignedWithBuild();
             RemoveRetiredLoopStation();
+            FitFurnitureToRealSizes();
 
             var parent = GameObject.Find("RoomOrchestra");
             var old = parent != null ? parent.transform.Find(RootName) : null;
@@ -212,6 +213,57 @@ namespace RoomOrchestra.EditorTools
                     t.gameObject.AddComponent<EditorPreviewOnly>();
                 Debug.Log($"[RoomOrchestra] {t.name}: EditorOnly tag removed so the Spatial export matches the build");
             }
+        }
+
+        /// <summary>
+        /// Version 1 feedback: seated at a desk, the furniture felt uncomfortably large. It is real-world scale
+        /// (the spatial camera is Unconstrained: one Unity metre is one metre), so it is set to standard sizes
+        /// (a 0.75 m table, a chair back topping out at 0.90 m; the 1.54 m floor lamp was already standard)
+        /// and set 0.2 m further out, around a seated player rather than over them (owner, 2026-10-29).
+        /// Absolute values, so running the setup again changes nothing.
+        /// </summary>
+        public const float TableTop = 0.75f, ChairBackTop = 0.90f;
+        public static readonly Vector3 TableAt = new Vector3(-1.1f, 0f, 2.5f), ChairAt = new Vector3(0f, 0f, 2.2f), LampAt = new Vector3(1.1f, 0f, 2.5f);
+
+        static void FitFurnitureToRealSizes()
+        {
+            var furniture = GameObject.Find("RoomOrchestra")?.transform.Find("Furniture");
+            if (furniture == null) return;
+            var table = furniture.Find("Table");
+            if (table != null)
+            {
+                table.localPosition = TableAt;
+                float s = table.localScale.y;                 // 6: the table is authored in sixths of a metre
+                const float topThickness = 0.09f;
+                float legTop = TableTop - topThickness;
+                foreach (Transform part in table)
+                {
+                    if (part.name == "Top") part.localPosition = new Vector3(part.localPosition.x, (TableTop - topThickness / 2f) / s, part.localPosition.z);
+                    if (part.name == "Leg")
+                    {
+                        part.localScale = new Vector3(part.localScale.x, legTop / s, part.localScale.z);
+                        part.localPosition = new Vector3(part.localPosition.x, legTop / 2f / s, part.localPosition.z);
+                    }
+                    if (part.name == "AimPoint") part.localPosition = new Vector3(part.localPosition.x, (TableTop + 0.06f) / s, part.localPosition.z);
+                }
+            }
+            var chair = furniture.Find("Chair");
+            if (chair != null)
+            {
+                chair.localPosition = ChairAt;
+                var back = chair.Find("Back");
+                var seat = chair.Find("Seat");
+                if (back != null && seat != null)
+                {
+                    float s = chair.localScale.y;
+                    float seatTop = seat.GetComponent<Renderer>().bounds.max.y;
+                    back.localScale = new Vector3(back.localScale.x, (ChairBackTop - seatTop) / s, back.localScale.z);
+                    back.localPosition = new Vector3(back.localPosition.x, (ChairBackTop + seatTop) / 2f / s, back.localPosition.z);
+                }
+            }
+            var lamp = furniture.Find("Lamp");
+            if (lamp != null) lamp.localPosition = LampAt;
+            Physics.SyncTransforms();
         }
 
         /// <summary>

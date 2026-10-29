@@ -39,10 +39,15 @@ EXPORT = os.path.join(ROOT, "Assets", "RoomOrchestra", "Art", "Rainforest", "Rai
 RIM = 0.004  # outline thickness (m) on leaves, wings and sparkles
 
 # Vines that climb a pole: (name, pole radius, bottom, top, turns, leaves per turn, flowers)
+# Furniture at standard real-world sizes (2026-10-29, Version 1 feedback "the furniture felt large"):
+# the table legs stop under a 0.75 m top, the chair back's top is at 0.90 m.
+TABLE_LEG_TOP = 0.66
+CHAIR_BACK_TOP = 0.90
+
 SPIRALS = [
     ("Lamp", 0.045, 0.08, 1.04, 3.0, 6, 3),
-    ("TableL", 0.055, 0.02, 0.72, 1.75, 6, 1),
-    ("TableR", 0.055, 0.02, 0.72, 1.75, 6, 1),
+    ("TableL", 0.055, 0.02, TABLE_LEG_TOP - 0.02, 1.75, 6, 1),
+    ("TableR", 0.055, 0.02, TABLE_LEG_TOP - 0.02, 1.75, 6, 1),
 ]
 
 
@@ -220,18 +225,20 @@ def chair_vine():
     """Climbs the chair's back-left leg and the back's left edge, then runs along the top of the back
     (local origin = the chair's centre line at floor level, on the back's mid-plane)."""
     axis = Vector((-0.22, 0, 0))
-    path = spiral_path(0.03, 0.02, 1.0, 4.0, axis)
+    climb = CHAIR_BACK_TOP - 0.08          # spiral up the leg and the back's edge to here
+    edge = CHAIR_BACK_TOP + 0.02           # then along just above the top of the back
+    path = spiral_path(0.03, 0.02, climb, 4.0 * climb / 1.0, axis)
     top = path[-1]
     for k in range(1, 8):  # up and over the corner
-        path.append(top.lerp(Vector((-0.2, -0.04, 1.1)), k / 7.0))
+        path.append(top.lerp(Vector((-0.2, -0.04, edge)), k / 7.0))
     for k in range(1, 22):  # along the top edge with a gentle sag
         u = k / 21.0
-        path.append(Vector((-0.2 + 0.46 * u, -0.04 - 0.008 * math.sin(math.pi * u), 1.1 - 0.02 * math.sin(math.pi * u))))
+        path.append(Vector((-0.2 + 0.46 * u, -0.04 - 0.008 * math.sin(math.pi * u), edge - 0.02 * math.sin(math.pi * u))))
     path = curl(path)
     spiral_side = radial(axis)
-    side = lambda p: spiral_side(p) if p.z < 1.0 else Vector((0, -1, 0.3)).normalized()
-    # Hide inside the leg (below the seat) or the back slab (above it): the slab top is at 1.08.
-    core = lambda p: Vector((axis.x, 0, max(p.z, 0.02))) if p.z < 1.0 else Vector((min(max(p.x, -0.24), 0.24), 0, 1.02))
+    side = lambda p: spiral_side(p) if p.z < climb else Vector((0, -1, 0.3)).normalized()
+    # Hide inside the leg (below the seat) or the back slab (above it).
+    core = lambda p: Vector((axis.x, 0, max(p.z, 0.02))) if p.z < climb else Vector((min(max(p.x, -0.24), 0.24), 0, CHAIR_BACK_TOP - 0.06))
     build_vine("Chair", path, side, core, 3, [0.3, 0.62, 0.9])
 
 
