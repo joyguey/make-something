@@ -18,7 +18,12 @@ namespace RoomOrchestra.Tests
         const string ScenePath = "Assets/RoomOrchestra/Scenes/RoomOrchestra.unity";
 
         [OneTimeSetUp]
-        public void OpenScene() => EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+        public void OpenScene()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            // The scene is saved in the opening's first frame; layout checks are about the finished layout.
+            UnityEngine.Object.FindFirstObjectByType<IntroSequence>()?.Finish();
+        }
 
         static float[] Voice(InstrumentTarget target, OrbType orb, int index)
         {

@@ -78,13 +78,15 @@ namespace RoomOrchestra.EditorTools
             // The leaf pad: tray, buttons and (via RoamingTray) the ball stand travel together after a
             // player who walks around. Pitch columns stay beside their instruments.
             var pad = Holder("LeafPad", controls, Vector3.zero);
+            // The leaf and everything on it, under one holder the opening swoops in (IntroSequence).
+            var swoop = Holder("LeafSwoop", pad, Vector3.zero);
 
             var veinMaterial = EnsureMaterial("CallLeafVein", "Ball", new Color(0.86f, 0.95f, 0.78f));
-            CreateLeaf(pad, veinMaterial);
+            CreateLeaf(swoop, pad, veinMaterial);
 
             // The characters along the back of the leaf
             var tray = new GameObject("OrbTray").transform;
-            tray.SetParent(pad, false);
+            tray.SetParent(swoop, false);
             tray.position = TrayCenter;
 
             var tokens = new OrbToken[OrbCatalog.Count];
@@ -97,8 +99,8 @@ namespace RoomOrchestra.EditorTools
                 Localize(name, profile.Type switch { OrbType.Flutter => UiTerm.Flutter, OrbType.Bop => UiTerm.Bop, _ => UiTerm.Boom });
             }
 
-            var tierButton = CreateTierButton(pad, slabMaterial, motifMaterial);
-            CreateCallButton(FrontRow(0), pad, slabMaterial, veinMaterial);
+            var tierButton = CreateTierButton(swoop, slabMaterial, motifMaterial);
+            CreateCallButton(FrontRow(0), swoop, slabMaterial, veinMaterial);
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -128,12 +130,12 @@ namespace RoomOrchestra.EditorTools
             director.Configure(conductor, tokens);
             EditorUtility.SetDirty(director);
             // The front row of the leaf, left to right after Come here.
-            CreateUndoButton(FrontRow(1), pad, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Pause, FrontRow(2), pad, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Clear, FrontRow(3), pad, slabMaterial, motifMaterial);
-            CreateRecenterButton(FrontRow(4), pad, slabMaterial, motifMaterial);
-            CreateHeightButton(FrontRow(5), pad, slabMaterial, motifMaterial);
-            CreateLanguageButton(FrontRow(6), pad, slabMaterial);
+            CreateUndoButton(FrontRow(1), swoop, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Pause, FrontRow(2), swoop, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Clear, FrontRow(3), swoop, slabMaterial, motifMaterial);
+            CreateRecenterButton(FrontRow(4), swoop, slabMaterial, motifMaterial);
+            CreateHeightButton(FrontRow(5), swoop, slabMaterial, motifMaterial);
+            CreateLanguageButton(FrontRow(6), swoop, slabMaterial);
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
@@ -174,6 +176,26 @@ namespace RoomOrchestra.EditorTools
             var cso = new SerializedObject(controller);
             cso.FindProperty("selector").objectReferenceValue = selector;
             cso.ApplyModifiedPropertiesWithoutUndo();
+
+            CreateIntro(root, swoop, tokens);
+        }
+
+        // The opening (owner, 2026-10-29): the scene is saved in its first frame, the leaf out of view and the
+        // characters sitting on the floor in front of the leaf's home, ready to bounce up onto it.
+        const float IntroFloorZ = 1.0f;
+
+        static void CreateIntro(GameObject root, Transform swoop, OrbToken[] tokens)
+        {
+            var cast = tokens.Select(t => t.transform).ToArray();
+            var floor = cast.Select(t =>
+            {
+                var body = t.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+                float aboveFeet = t.position.y - body.min.y;
+                return new Vector3(t.position.x, aboveFeet + 0.003f, IntroFloorZ);
+            }).ToArray();
+            var intro = root.AddComponent<IntroSequence>();
+            intro.Configure(swoop, cast, floor);
+            EditorUtility.SetDirty(intro);
         }
 
         /// <summary>
@@ -468,15 +490,16 @@ namespace RoomOrchestra.EditorTools
         }
 
         // The leaf palette itself: a flat green leaf with a pale midrib, on a stalk. Decoration only: no colliders, so it never takes a tap from the buttons on it.
-        static void CreateLeaf(Transform pad, Material vein)
+        static void CreateLeaf(Transform leafHolder, Transform pad, Material vein)
         {
             var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.42f, 0.74f, 0.4f));
-            var leaf = Primitive(PrimitiveType.Sphere, "Leaf", pad, leafMaterial, keepCollider: false);
+            var leaf = Primitive(PrimitiveType.Sphere, "Leaf", leafHolder, leafMaterial, keepCollider: false);
             leaf.position = LeafCenter;
             leaf.localScale = LeafSize;
             // Over the thick middle only: the leaf thins to nothing at its tips.
-            var rib = Box("LeafRib", pad, Vector3.zero, new Vector3(LeafSize.x * 0.75f, 0.004f, 0.008f), vein, keepCollider: false);
+            var rib = Box("LeafRib", leafHolder, Vector3.zero, new Vector3(LeafSize.x * 0.75f, 0.004f, 0.008f), vein, keepCollider: false);
             rib.position = new Vector3(LeafCenter.x, LeafCenter.y + LeafSize.y / 2f - 0.001f, (TrayCenter.z + ButtonRowZ) / 2f);
+            // The stalk stays put on the floor; in the opening the leaf swoops down onto it.
             var stalk = Box("LeafStalk", pad, Vector3.zero, new Vector3(0.03f, LeafCenter.y, 0.03f), leafMaterial, keepCollider: false);
             stalk.position = new Vector3(LeafCenter.x, LeafCenter.y / 2f, LeafCenter.z);
         }

@@ -43,6 +43,7 @@ namespace RoomOrchestra.Tests
             LogAssert.ignoreFailingMessages = false;
             m_Conductor = EchoConductor.Instance;
             Assert.IsNotNull(m_Conductor, "real scene loaded");
+            Object.FindFirstObjectByType<IntroSequence>()?.Finish(); // skip the opening: the walkthrough is about play
             m_Fake = new FakeControllerSource();
             Object.FindFirstObjectByType<ControllerButtonInput>().Source = m_Fake;
             yield return null;

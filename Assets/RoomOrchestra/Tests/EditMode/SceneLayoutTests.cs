@@ -15,7 +15,12 @@ namespace RoomOrchestra.Tests
         const string ScenePath = "Assets/RoomOrchestra/Scenes/RoomOrchestra.unity";
 
         [OneTimeSetUp]
-        public void OpenScene() => EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+        public void OpenScene()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            // The scene is saved in the opening's first frame; layout checks are about the finished layout.
+            UnityEngine.Object.FindFirstObjectByType<IntroSequence>()?.Finish();
+        }
 
         static void AssertSeated(string label, Vector3 p)
         {
@@ -619,6 +624,39 @@ namespace RoomOrchestra.Tests
                 Assert.Less((solid.ClosestPoint(ball.transform.position) - ball.transform.position).sqrMagnitude, 1e-8f, $"{ball.name} waits inside the cloud");
             }
             Assert.AreEqual(1, ready, "one ball ready on the cloud");
+        }
+
+        // ---- The opening: the scene is saved in its first frame (PICO Spatial keeps startup poses) ----
+        [Test]
+        public void TheSceneOpensWithTheLeafOutOfViewAndTheCharactersOnTheFloor()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single); // as saved, without Finish()
+            var intro = Object.FindFirstObjectByType<IntroSequence>();
+            Assert.IsNotNull(intro, "the opening is wired");
+            Assert.IsFalse(intro.Done);
+            var pad = Object.FindFirstObjectByType<RoamingTray>().transform;
+            Assert.AreEqual(pad, intro.Leaf.parent, "the swoop moves the leaf within the pad, which follows the player");
+            var leafBody = intro.Leaf.Find("Leaf");
+            var eye = new Vector3(0f, 1.15f, 0f);
+            var toLeaf = leafBody.position - eye;
+            Assert.Greater(Vector3.Angle(Vector3.forward, new Vector3(toLeaf.x, 0f, toLeaf.z)), 55f, "the leaf waits out of view");
+            Assert.IsNotNull(pad.Find("LeafStalk"), "the stalk stays on the floor for the leaf to land on");
+            var furniture = GameObject.Find("RoomOrchestra").transform.Find("Furniture").GetComponentsInChildren<Collider>();
+            foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
+            {
+                var p = token.transform.position;
+                Assert.Less(p.y, 0.12f, $"{token.name} sits on the floor");
+                Assert.IsTrue(token.transform.IsChildOf(intro.Leaf), $"{token.name} belongs on the leaf");
+                var flat = new Vector3(p.x, 0f, p.z);
+                Assert.Less(Vector3.Angle(Vector3.forward, flat), 35f, $"{token.name} is in front of the player");
+                Assert.IsFalse(furniture.Any(c => c.bounds.Contains(p)), $"{token.name} is not inside furniture");
+            }
+
+            intro.Finish();
+            Assert.AreEqual(Vector3.zero, intro.Leaf.localPosition, "finished: the leaf is home");
+            Assert.AreEqual(Quaternion.identity, intro.Leaf.localRotation);
+            foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
+                Assert.Greater(token.transform.position.y, 0.5f, $"{token.name} is on the leaf");
         }
 
         // Version 1 feedback: nothing showed what the eye or pointer was on. PICO's system hover highlight
