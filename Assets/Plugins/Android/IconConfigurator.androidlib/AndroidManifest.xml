@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.iconfeature.iconconfigurator">
+    <application>
+        <meta-data android:name="icon.3d.list" android:resource="@array/icon_3d_list" />
+        <meta-data android:name="icon.sdf.list" android:resource="@array/icon_sdf_list" />
+    </application>
+</manifest>

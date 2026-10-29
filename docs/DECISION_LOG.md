@@ -139,3 +139,8 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Submission text (owner):** the reduced-motion setting and adjustable control sensitivity are removed from the overview (neither is built; the Calm motion toggle was already removed on 2026-10-25 as too many buttons). Note: CLAUDE.md lists adjustable motion as an accessibility requirement; the owner has chosen not to offer it in this version.
 - **Moving an echo by hand** around its ring: to revisit after the dev team's headset test. Today an echo moves a step at a time in the controller's edit mode.
 - **Leftovers deleted:** two test-runner scenes and Unity's crash backup (`Assets/_Recovery`), none used by the build.
+
+## 2026-10-29 — App icon, name and layered launcher icon
+- **Icon:** the owner's combination (see AGENT_PROGRESS), with the cover's hand lettering lifted from the owner's own key art (no font file exists for it). If that cover lettering came from an AI image tool, its terms should allow use in a published app icon (flagged to the owner).
+- **Name:** the app is now called "Little Echoes" on the device (was "Room Orchestra"). The package id `com.roomorchestra.app` is unchanged, so updates still install over earlier versions.
+- **Layered icon without the Configurator's manifest edits:** to keep SpatialAdapter's required stock manifests, the launcher entries live in the generated Android library's manifest instead. If PICO adds Spatial-mode support to the Icon Configurator, switch to it.

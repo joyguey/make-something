@@ -1,0 +1,8 @@
+{
+    "ConfigGuid": "little-echoes-app-icon",
+    "GeneratedAt": "2026-10-29T20:59:29.9769570Z",
+    "BackgroundPath": "ArtSource/Icon/AppIcon_background.png",
+    "Foreground1Path": "ArtSource/Icon/AppIcon_layer_art.png",
+    "Foreground2Path": "ArtSource/Icon/AppIcon_title.png",
+    "LayerCount": 3
+}
