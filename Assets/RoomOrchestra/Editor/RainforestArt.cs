@@ -179,7 +179,7 @@ namespace RoomOrchestra.EditorTools
                 var away = at - Viewer.SeatedEye;
                 away.y = 0f;
                 shroom.localRotation = Quaternion.LookRotation(away, Vector3.up); // its sleepy face toward the seat
-                shroom.localScale = Vector3.one * Toadstool.BudScale;              // a little bud until the music grows it
+                shroom.localScale = Vector3.one * SproutSync.HiddenScale;          // out of sight until the music grows it
                 var look = new GameObject("Visual").transform;
                 look.SetParent(shroom, false);
                 Part(look, "Toadstool_Cap", Material($"Rainforest_Cap{cap}", CapColours[cap]));
@@ -252,17 +252,28 @@ namespace RoomOrchestra.EditorTools
                 var away = at - Viewer.SeatedEye;
                 away.y = 0f;
                 flower.localRotation = Quaternion.LookRotation(away, Vector3.up) * Quaternion.Euler(0f, (float)(random.NextDouble() * 50.0 - 25.0), 0f);
-                flower.localScale = Vector3.one * Toadstool.BudScale; // a little bud until the music grows it
+                flower.localScale = Vector3.one * SproutSync.HiddenScale; // out of sight until the music grows it
                 var look = new GameObject("Visual").transform;
                 look.SetParent(flower, false);
                 Part(look, "Flower_Stem", stem);
                 Part(look, "Flower_Leaves", leaf);
                 Part(look, "Flower_LeafRims", leafRim);
-                Part(look, "Flower_Petals", petals[i % petals.Length]);
-                Part(look, "Flower_PetalRims", petalRim);
-                Part(look, "Flower_Heart", heart);
+                // Petals and bud open and close about the heart's centre: grown as a bud, then in bloom.
+                var head = Mesh("Flower_Heart").bounds.center;
+                var bloom = new GameObject("Bloom").transform;
+                bloom.SetParent(look, false);
+                bloom.localPosition = head;
+                bloom.localScale = Vector3.one * FloorFlower.ClosedScale;
+                Part(bloom, "Flower_Petals", petals[i % petals.Length]).localPosition = -head;
+                Part(bloom, "Flower_PetalRims", petalRim).localPosition = -head;
+                Part(bloom, "Flower_Heart", heart).localPosition = -head;
+                var bud = new GameObject("Bud").transform;
+                bud.SetParent(look, false);
+                bud.localPosition = head;
+                Part(bud, "Flower_Bud", stem).localPosition = -head;
                 flowers[i] = flower.gameObject.AddComponent<FloorFlower>();
                 flowers[i].Configure(look, 1.2f + 0.6f * (float)random.NextDouble()); // 24-36 cm: readable from the seat
+                flowers[i].ConfigureBloom(bloom, bud);
                 EditorUtility.SetDirty(flowers[i]);
             }
             return flowers.Where(f => f != null).ToArray();

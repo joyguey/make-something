@@ -21,6 +21,11 @@ namespace RoomOrchestra
         [SerializeField] Vector3[] homes;
         [Tooltip("Each character's spot on the floor, in the leaf pad's space (it waits there during the swoop).")]
         [SerializeField] Vector3[] floorSpots;
+        [Tooltip("The hole that opens and the stalk that grows up to meet the leaf.")]
+        [SerializeField] LeafStalk stalk;
+
+        /// <summary>The hole opens over this long; then the stalk grows, reaching the leaf just before it lands.</summary>
+        public const float HoleOpenSeconds = 0.4f, StalkDoneBefore = 0.2f;
 
         float m_Start = -1f;
         bool m_Done;
@@ -32,8 +37,9 @@ namespace RoomOrchestra
         public Transform Leaf => leaf;
 
         /// <summary>Wires the opening and puts the scene in its first frame (called by the scene setup).</summary>
-        public void Configure(Transform leafHolder, Transform[] cast, Vector3[] floorWorld)
+        public void Configure(Transform leafHolder, Transform[] cast, Vector3[] floorWorld, LeafStalk leafStalk = null)
         {
+            stalk = leafStalk;
             leaf = leafHolder;
             characters = cast;
             homes = new Vector3[cast.Length];
@@ -91,6 +97,11 @@ namespace RoomOrchestra
                 leaf.localPosition = Vector3.zero;
                 leaf.localRotation = Quaternion.identity;
             }
+            if (stalk != null)
+            {
+                stalk.HoleOpen = 1f;
+                stalk.Grown = 1f;
+            }
             if (characters != null)
                 for (int i = 0; i < characters.Length; i++)
                     if (characters[i] != null) characters[i].localPosition = homes[i];
@@ -103,6 +114,12 @@ namespace RoomOrchestra
             var p = IntroPath.LeafAt(seconds);
             leaf.localPosition = new Vector3(p.x, p.y, p.z);
             leaf.localRotation = Quaternion.Euler(p.pitch, p.yaw, p.roll);
+            if (stalk != null)
+            {
+                stalk.HoleOpen = Mathf.Clamp01(seconds / HoleOpenSeconds);
+                float grow = Mathf.Clamp01((seconds - HoleOpenSeconds) / (IntroPath.SwoopSeconds - HoleOpenSeconds - StalkDoneBefore));
+                stalk.Grown = grow * grow * (3f - 2f * grow);
+            }
         }
 
         void PlaceOnFloor(int i) => characters[i].position = leaf.parent.TransformPoint(floorSpots[i]);

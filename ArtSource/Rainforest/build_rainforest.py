@@ -12,9 +12,10 @@ Every part is a separate mesh so Unity colours it with project materials:
       (The ball-stand vine was retired 2026-10-28: the stand is a floating cloud now.)
   Toadstool_Cap / _CapRim / _Spots / _Stem / _StemRim / _Face
       a cute spotted toadstool with a sleepy face that grows from a bud and sways to the beat
-  Flower_Stem / _Leaves / _LeafRims / _Petals / _PetalRims / _Heart
+  Flower_Stem / _Leaves / _LeafRims / _Petals / _PetalRims / _Heart / _Bud
       a little floor flower (about 20 cm) that pops up around the room as the song grows; Unity
-      colours the petals per flower. Origin at the foot of the stem.
+      colours the petals per flower. Origin at the foot of the stem. It grows as a closed green bud,
+      then the petals bloom open around the heart (Unity scales them about the heart's centre).
   Butterfly_Body, Butterfly_WingL/R, Butterfly_WingRimL/R, Butterfly_SpotsL/R
       wings pivot on the body axis (Unity flaps them by rotation)
   Sparkle, Sparkle_Rim
@@ -314,12 +315,21 @@ def floor_flower():
     bmesh.ops.reverse_faces(petal_rims, faces=petal_rims.faces)
     g = bmesh.ops.create_uvsphere(heart, u_segments=6, v_segments=4, radius=1.0)
     bmesh.ops.transform(heart, matrix=Matrix.Translation(at + normal * 0.004) @ face @ Matrix.Diagonal((0.013, 0.013, 0.008, 1)), verts=g["verts"])
+    # The closed bud the flower grows as: a green teardrop over the heart, pointing out along the face.
+    bud = bmesh.new()
+    g = bmesh.ops.create_uvsphere(bud, u_segments=6, v_segments=5, radius=1.0)
+    for v in g["verts"]:
+        if v.co.z > 0:
+            v.co.x *= 1.0 - 0.55 * v.co.z  # taper to a point
+            v.co.y *= 1.0 - 0.55 * v.co.z
+    bmesh.ops.transform(bud, matrix=Matrix.Translation(at + normal * 0.008) @ face @ Matrix.Diagonal((0.011, 0.011, 0.019, 1)), verts=g["verts"])
     obj_from(stem, "Flower_Stem")
     obj_from(leaves, "Flower_Leaves", smooth=False)
     obj_from(leaf_rims, "Flower_LeafRims", smooth=False)
     obj_from(petals, "Flower_Petals", smooth=False)
     obj_from(petal_rims, "Flower_PetalRims", smooth=False)
     obj_from(heart, "Flower_Heart")
+    obj_from(bud, "Flower_Bud")
 
 
 def butterfly():

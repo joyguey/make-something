@@ -82,7 +82,7 @@ namespace RoomOrchestra.EditorTools
             var swoop = Holder("LeafSwoop", pad, Vector3.zero);
 
             var veinMaterial = EnsureMaterial("CallLeafVein", "Ball", new Color(0.86f, 0.95f, 0.78f));
-            CreateLeaf(swoop, pad, veinMaterial);
+            var leafStalk = CreateLeaf(swoop, pad, veinMaterial);
 
             // The characters along the back of the leaf
             var tray = new GameObject("OrbTray").transform;
@@ -177,14 +177,14 @@ namespace RoomOrchestra.EditorTools
             cso.FindProperty("selector").objectReferenceValue = selector;
             cso.ApplyModifiedPropertiesWithoutUndo();
 
-            CreateIntro(root, swoop, tokens);
+            CreateIntro(root, swoop, tokens, leafStalk);
         }
 
         // The opening (owner, 2026-10-29): the scene is saved in its first frame, the leaf out of view and the
         // characters sitting on the floor in front of the leaf's home, ready to bounce up onto it.
         const float IntroFloorZ = 1.0f;
 
-        static void CreateIntro(GameObject root, Transform swoop, OrbToken[] tokens)
+        static void CreateIntro(GameObject root, Transform swoop, OrbToken[] tokens, LeafStalk stalk)
         {
             var cast = tokens.Select(t => t.transform).ToArray();
             var floor = cast.Select(t =>
@@ -194,7 +194,7 @@ namespace RoomOrchestra.EditorTools
                 return new Vector3(t.position.x, aboveFeet + 0.003f, IntroFloorZ);
             }).ToArray();
             var intro = root.AddComponent<IntroSequence>();
-            intro.Configure(swoop, cast, floor);
+            intro.Configure(swoop, cast, floor, stalk);
             EditorUtility.SetDirty(intro);
         }
 
@@ -490,7 +490,7 @@ namespace RoomOrchestra.EditorTools
         }
 
         // The leaf palette itself: a flat green leaf with a pale midrib, on a stalk. Decoration only: no colliders, so it never takes a tap from the buttons on it.
-        static void CreateLeaf(Transform leafHolder, Transform pad, Material vein)
+        static LeafStalk CreateLeaf(Transform leafHolder, Transform pad, Material vein)
         {
             var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.42f, 0.74f, 0.4f));
             var leaf = Primitive(PrimitiveType.Sphere, "Leaf", leafHolder, leafMaterial, keepCollider: false);
@@ -499,9 +499,20 @@ namespace RoomOrchestra.EditorTools
             // Over the thick middle only: the leaf thins to nothing at its tips.
             var rib = Box("LeafRib", leafHolder, Vector3.zero, new Vector3(LeafSize.x * 0.75f, 0.004f, 0.008f), vein, keepCollider: false);
             rib.position = new Vector3(LeafCenter.x, LeafCenter.y + LeafSize.y / 2f - 0.001f, (TrayCenter.z + ButtonRowZ) / 2f);
-            // The stalk stays put on the floor; in the opening the leaf swoops down onto it.
-            var stalk = Box("LeafStalk", pad, Vector3.zero, new Vector3(0.03f, LeafCenter.y, 0.03f), leafMaterial, keepCollider: false);
-            stalk.position = new Vector3(LeafCenter.x, LeafCenter.y / 2f, LeafCenter.z);
+            // The stalk stands on the floor in a little hole (owner, 2026-10-29); in the opening the hole opens
+            // and the stalk grows up to meet the swooping leaf. Saved closed: the opening's first frame.
+            var stem = Holder("LeafStem", pad, Vector3.zero);
+            var stalk = Box("LeafStalk", stem, Vector3.zero, Vector3.one, leafMaterial, keepCollider: false);
+            var hole = Holder("LeafHole", stem, Vector3.zero);
+            var rim = Primitive(PrimitiveType.Cylinder, "HoleRim", hole, EnsureMaterial("LeafHoleRim", "Ball", new Color(0.45f, 0.31f, 0.2f)), keepCollider: false);
+            rim.localScale = new Vector3(0.17f, 0.002f, 0.17f);
+            var pit = Primitive(PrimitiveType.Cylinder, "HolePit", hole, EnsureMaterial("LeafHolePit", "Ball", new Color(0.12f, 0.09f, 0.07f)), keepCollider: false);
+            pit.localPosition = new Vector3(0f, 0.002f, 0f);
+            pit.localScale = new Vector3(0.12f, 0.002f, 0.12f);
+            var leafStalk = stem.gameObject.AddComponent<LeafStalk>();
+            leafStalk.Configure(stalk, hole, LeafCenter - new Vector3(0f, LeafSize.y / 2f, 0f), 0.03f, startGrown: 0f, startOpen: 0f);
+            EditorUtility.SetDirty(leafStalk);
+            return leafStalk;
         }
 
         // One small button on the leaf's front row: a slab facing the player and a tap box a little larger.

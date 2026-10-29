@@ -640,7 +640,10 @@ namespace RoomOrchestra.Tests
             var eye = new Vector3(0f, 1.15f, 0f);
             var toLeaf = leafBody.position - eye;
             Assert.Greater(Vector3.Angle(Vector3.forward, new Vector3(toLeaf.x, 0f, toLeaf.z)), 55f, "the leaf waits out of view");
-            Assert.IsNotNull(pad.Find("LeafStalk"), "the stalk stays on the floor for the leaf to land on");
+            var stem = pad.GetComponentInChildren<LeafStalk>();
+            Assert.IsNotNull(stem, "a stalk for the leaf to land on");
+            Assert.LessOrEqual(stem.Stalk.lossyScale.y, LeafStalk.Stub + 1e-6f, "the stalk has not grown yet");
+            Assert.Less(stem.Hole.lossyScale.x, 0.02f, "the hole has not opened yet");
             var furniture = GameObject.Find("RoomOrchestra").transform.Find("Furniture").GetComponentsInChildren<Collider>();
             foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
             {
@@ -654,6 +657,16 @@ namespace RoomOrchestra.Tests
 
             intro.Finish();
             Assert.AreEqual(Vector3.zero, intro.Leaf.localPosition, "finished: the leaf is home");
+            Assert.AreEqual(0.475f, stem.Stalk.lossyScale.y, 0.005f, "the stalk reaches the leaf's underside");
+            Assert.AreEqual(0f, stem.Stalk.position.y - stem.Stalk.lossyScale.y / 2f, 1e-4f, "standing on the floor");
+            Assert.AreEqual(1f, stem.Hole.lossyScale.x, 1e-5f, "in its open hole");
+            var rig = Object.FindFirstObjectByType<ControlsRig>();
+            rig.Apply(PlayPosture.Standing);
+            stem.Apply();
+            Assert.AreEqual(0f, stem.Stalk.position.y - stem.Stalk.lossyScale.y / 2f, 1e-4f, "standing: the stalk still reaches the floor");
+            Assert.AreEqual(0.475f + PostureLayout.StandingLift, stem.Stalk.lossyScale.y, 0.005f, "and the lifted leaf");
+            rig.Apply(PlayPosture.Seated);
+            stem.Apply();
             Assert.AreEqual(Quaternion.identity, intro.Leaf.localRotation);
             foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
                 Assert.Greater(token.transform.position.y, 0.5f, $"{token.name} is on the leaf");
@@ -749,6 +762,9 @@ namespace RoomOrchestra.Tests
         }
 
         // ---- Rainforest that grows with the music (vines, butterflies, toadstools, sparkles) ----
+        // The largest world size of anything a sprout draws.
+        static float Seen(Component sprout) => sprout.GetComponentsInChildren<Renderer>().Max(r => r.bounds.size.magnitude);
+
         static bool InsideAny(Collider[] solids, Vector3 p) => solids.Any(c => (c.ClosestPoint(p) - p).sqrMagnitude < 1e-8f);
 
         [Test]
@@ -800,23 +816,28 @@ namespace RoomOrchestra.Tests
                     }
             }
 
-            // Toadstools wait as buds, faces toward the seat.
+            // Toadstools and flowers wait out of sight (owner: their waiting state should not be seen).
             var toadstools = rainforest.GetComponentsInChildren<Toadstool>();
             Assert.AreEqual(JungleGrowth.MushroomAt.Length, toadstools.Length);
             foreach (var t in toadstools)
             {
-                Assert.AreEqual(Toadstool.BudScale, t.transform.localScale.x, 1e-6f, $"{t.name} is a bud at startup");
+                Assert.AreEqual(SproutSync.HiddenScale, t.transform.localScale.x, 1e-6f, $"{t.name} hidden at startup");
+                Assert.Less(Seen(t), 0.005f, $"{t.name} too small to see");
                 Assert.Less(t.transform.position.y, 0.01f, $"{t.name} on the floor");
             }
 
-            // Flowers wait as buds on the floor around the room, clear of the furniture, the seat and each other.
+            // Flowers wait on the floor around the room, clear of the furniture, the seat and each other.
             var flowers = rainforest.GetComponentsInChildren<FloorFlower>();
             Assert.AreEqual(20, flowers.Length, "a meadow's worth (RainforestArt.FloorFlowers)");
             var furniture = stage.Find("Furniture").GetComponentsInChildren<Collider>().Select(c => c.bounds).ToArray();
             foreach (var f in flowers)
             {
                 var p = f.transform.position;
-                Assert.AreEqual(Toadstool.BudScale, f.transform.localScale.x, 1e-6f, $"{f.name} is a bud at startup");
+                Assert.AreEqual(SproutSync.HiddenScale, f.transform.localScale.x, 1e-6f, $"{f.name} hidden at startup");
+                Assert.Less(Seen(f), 0.005f, $"{f.name} too small to see");
+                Assert.IsNotNull(f.Bloom, $"{f.name} has petals to open");
+                Assert.IsNotNull(f.Bud, $"{f.name} grows as a bud");
+                Assert.AreEqual(FloorFlower.ClosedScale, f.Bloom.localScale.x, 1e-6f, $"{f.name}'s petals start closed");
                 Assert.Less(Mathf.Abs(p.y), 0.01f, $"{f.name} on the floor");
                 Assert.Greater(new Vector2(p.x, p.z).magnitude, 0.7f, $"{f.name} clear of the player's feet");
                 Assert.IsFalse(furniture.Any(b => p.x > b.min.x && p.x < b.max.x && p.z > b.min.z && p.z < b.max.z), $"{f.name} not under furniture");
