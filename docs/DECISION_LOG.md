@@ -144,3 +144,9 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Icon:** the owner's combination (see AGENT_PROGRESS), with the cover's hand lettering lifted from the owner's own key art (no font file exists for it). If that cover lettering came from an AI image tool, its terms should allow use in a published app icon (flagged to the owner).
 - **Name:** the app is now called "Little Echoes" on the device (was "Room Orchestra"). The package id `com.roomorchestra.app` is unchanged, so updates still install over earlier versions.
 - **Layered icon without the Configurator's manifest edits:** to keep SpatialAdapter's required stock manifests, the launcher entries live in the generated Android library's manifest instead. If PICO adds Spatial-mode support to the Icon Configurator, switch to it.
+
+## 2026-10-29 — Plan for the Version 1 feedback (owner's choices)
+- **This round:** hover feedback on every tappable thing, a title screen with a brief intro, a focused start (ball stand in front) with a step-by-step tutorial that starts with one piece of furniture and a guided tutorial song, and scale tweaks for seated desk play.
+- **Tutorial song (owner: a well-known melody):** "Mary Had a Little Lamb" (public domain). It uses only scale degrees 1, 2, 3 and 5 (D, E, F#, A), all in the instruments' five notes; "Twinkle Twinkle" needs the 4th (G), which the D pentatonic set does not have.
+- **Next version:** start in a fully virtual room that tears down to reveal the real room, once the tutorial works in mixed reality.
+- **Version 3:** instrument packs and assigning any instrument to any furniture (with wall-bounce sounds).

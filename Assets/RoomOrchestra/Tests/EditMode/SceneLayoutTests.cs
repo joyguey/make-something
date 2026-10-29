@@ -41,7 +41,7 @@ namespace RoomOrchestra.Tests
             foreach (var t in tokens)
             {
                 AssertSeated(t.name, t.transform.position);
-                Assert.IsNotNull(t.GetComponent<Collider>(), $"{t.name} must be tappable");
+                Assert.IsNotNull(t.GetComponentInChildren<Collider>(), $"{t.name} must be tappable");
             }
         }
 
@@ -246,7 +246,7 @@ namespace RoomOrchestra.Tests
             var height = Object.FindFirstObjectByType<HeightButton>();
             Assert.IsNotNull(height);
             AssertSeated(height.name, height.transform.position);
-            Assert.IsNotNull(height.GetComponent<Collider>(), "tappable");
+            Assert.IsNotNull(height.GetComponentInChildren<Collider>(), "tappable");
             Assert.AreEqual("Height\nSeated", height.Label.text, "starts seated: nothing moves at startup");
             Assert.Less(Rig().transform.localPosition.sqrMagnitude, 1e-8f, "controls authored at the seated height");
         }
@@ -353,7 +353,7 @@ namespace RoomOrchestra.Tests
                 Assert.AreEqual(1, children.Count(c => c.name == "PlayMarker"), orbit.name);
                 var minis = orbit.GetComponentsInChildren<EchoMini>();
                 Assert.AreEqual(OrbCatalog.Count * EchoSequencer.MaxPerTarget, minis.Length, orbit.name);
-                Assert.IsTrue(minis.All(m => m.Orbit == orbit && m.GetComponent<Collider>() != null), "minis are tappable and wired");
+                Assert.IsTrue(minis.All(m => m.Orbit == orbit && m.GetComponentInChildren<Collider>() != null), "minis are tappable and wired");
                 var park = minis[0].transform.position;
                 Assert.IsTrue(minis.All(m => (m.transform.position - park).sqrMagnitude < 1e-8f), "all minis authored parked");
             }
@@ -381,7 +381,7 @@ namespace RoomOrchestra.Tests
             foreach (var b in buttons)
             {
                 AssertSeated(b.name, b.transform.position);
-                Assert.IsNotNull(b.GetComponent<Collider>(), "tappable");
+                Assert.IsNotNull(b.GetComponentInChildren<Collider>(), "tappable");
                 Assert.IsNotNull(b.Label, "has a label");
                 Assert.AreEqual(b.ButtonKind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", b.Label.text);
             }
@@ -440,7 +440,7 @@ namespace RoomOrchestra.Tests
             var button = Object.FindFirstObjectByType<RecenterButton>();
             Assert.IsNotNull(button, "Recenter button in the scene");
             AssertSeated(button.name, button.transform.position);
-            Assert.IsNotNull(button.GetComponent<Collider>(), "tappable");
+            Assert.IsNotNull(button.GetComponentInChildren<Collider>(), "tappable");
             Assert.AreEqual("Recenter", button.GetComponentInChildren<TMP_Text>().text);
 
             var anchor = Object.FindFirstObjectByType<StageAnchor>();
@@ -621,6 +621,21 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(1, ready, "one ball ready on the cloud");
         }
 
+        // Version 1 feedback: nothing showed what the eye or pointer was on. PICO's system hover highlight
+        // needs the hit collider, a visible mesh and its hover component on the same object.
+        [Test]
+        public void EverythingTappableLightsUpUnderThePointer()
+        {
+            // TapOwner leaves out the echoes on the rings (the pointer tests skip them); they are tappable too.
+            Component Owner(Collider c) => TapOwner(c) ?? c.GetComponentInParent<EchoMini>();
+            var tappable = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None).Where(c => c.enabled && Owner(c) != null).ToArray();
+            Assert.Greater(tappable.Length, 90, "controls, tiles, characters, the 54 echoes and furniture");
+            var missing = tappable
+                .Where(c => !c.TryGetComponent<MeshRenderer>(out _) || !c.GetComponents<MonoBehaviour>().Any(m => m != null && m.GetType().Name == "SpatialAdapterHoverEffect"))
+                .Select(c => $"{Owner(c).name} ({c.name})").ToArray();
+            Assert.IsEmpty(missing, "no hover highlight on: " + string.Join(", ", missing));
+        }
+
         [Test]
         public void ClearsSmokeHasAGentleSoundAndLandingsAreSilent()
         {
@@ -688,7 +703,7 @@ namespace RoomOrchestra.Tests
         {
             var call = Object.FindFirstObjectByType<TrayCallButton>();
             Assert.IsNotNull(call);
-            Assert.IsNotNull(call.GetComponent<Collider>());
+            Assert.IsNotNull(call.GetComponentInChildren<Collider>());
             var label = call.GetComponentInChildren<LocalizedLabel>();
             Assert.IsNotNull(label, "labeled, and the label follows the language");
             Assert.AreEqual("Come here", label.Text.text);

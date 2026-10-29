@@ -123,7 +123,7 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(button, "language button in the scene");
             var p = button.transform.position;
             Assert.AreEqual(ReachResult.Ok, ReachEnvelope.Seated.Check(p.x, p.y, p.z), "reachable seated");
-            Assert.IsNotNull(button.GetComponent<Collider>(), "tappable");
+            Assert.IsNotNull(button.GetComponentInChildren<Collider>(), "tappable");
             Assert.IsTrue(button.transform.IsChildOf(UnityEngine.Object.FindFirstObjectByType<ControlsRig>().transform), "lifts with the controls");
             Assert.AreEqual("中文", button.GetComponentInChildren<TMP_Text>().text);
             Assert.IsNotNull(UnityEngine.Object.FindFirstObjectByType<LanguageDirector>(), "applies the player's language after the start delay");

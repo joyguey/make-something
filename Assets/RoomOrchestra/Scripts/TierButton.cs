@@ -6,7 +6,7 @@ namespace RoomOrchestra
     /// Tappable intensity preset (quiet / medium / strong). Shows the tier as 1-3 raised bars,
     /// so dynamics are chosen without any physical strength and read without color.
     /// </summary>
-    [RequireComponent(typeof(Collider))]
+    // Its tap collider sits on its visible slab, where PICO's hover highlight can show.
     public class TierButton : MonoBehaviour
     {
         [Tooltip("Bars from quiet to strong; bars up to the current tier are raised.")]

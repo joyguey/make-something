@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using ByteDance.PICO.SpatialAdapter.Component;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -102,6 +103,10 @@ namespace RoomOrchestra.EditorTools
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
                 .OrderBy(t => t.AimPosition.x).ToArray();
+            // The furniture lights up under the pointer too (its colliders sit on its visible parts).
+            foreach (var target in targets)
+                foreach (var part in target.GetComponentsInChildren<Collider>())
+                    if (part.TryGetComponent<MeshRenderer>(out _)) Hoverable(part.gameObject);
             const float markerLift = 0.3f;
             var marker = Primitive(PrimitiveType.Cylinder, "FocusMarker", root.transform, focusMaterial, keepCollider: false);
             marker.position = targets[StartTarget].AimPosition + Vector3.up * markerLift;
@@ -208,6 +213,7 @@ namespace RoomOrchestra.EditorTools
 
             var baseScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * TokenDiameter;
             var t = Primitive(PrimitiveType.Sphere, $"Token_{profile.Type}", tray, body, keepCollider: true);
+            Hoverable(t.gameObject);
             t.localPosition = localPosition;
             t.localScale = selected ? baseScale * 1.3f : baseScale;
 
@@ -254,7 +260,7 @@ namespace RoomOrchestra.EditorTools
             var baseScale = Vector3.one * TokenDiameter;
             go.transform.localScale = selected ? baseScale * 1.3f : baseScale;
             CharacterArt.Dress(go, profile.Type, body);
-            go.AddComponent<SphereCollider>().radius = 0.5f;
+            TapSphere(go.transform.Find("Visual"), 0.5f); // on the body, so the system's hover highlight shows
 
             var token = go.AddComponent<OrbToken>();
             var so = new SerializedObject(token);
@@ -269,10 +275,8 @@ namespace RoomOrchestra.EditorTools
             var go = new GameObject("TierButton");
             go.transform.SetParent(root, false);
             go.transform.position = TrayCenter + new Vector3(0.4f, 0f, 0f); // right of Boom, clear of the chair sight line
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.04f, 0f);
-            box.size = new Vector3(0.11f, 0.12f, 0.09f);
-            Box("TierSlab", go.transform, Vector3.zero, new Vector3(0.11f, 0.03f, 0.08f), slab, keepCollider: false);
+            var tierSlab = Box("TierSlab", go.transform, Vector3.zero, new Vector3(0.11f, 0.03f, 0.08f), slab, keepCollider: false);
+            TapBox(tierSlab, new Vector3(0f, 0.04f, 0f), new Vector3(0.11f, 0.12f, 0.09f));
 
             var raised = new Vector3(0.03f, 0.1f, 0.03f);
             var lowered = new Vector3(0.03f, 0.01f, 0.03f);
@@ -349,12 +353,13 @@ namespace RoomOrchestra.EditorTools
                         mini = new GameObject($"Echo_{profile.Type}_{m}").transform;
                         mini.SetParent(go.transform, false);
                         CharacterArt.DressMini(mini.gameObject, profile.Type, orbMaterials[o]);
-                        mini.gameObject.AddComponent<SphereCollider>().radius = 0.5f;
+                        TapSphere(mini.Find("Visual"), 0.5f);
                         mini.localScale = Vector3.one * MiniDiameter;
                     }
                     else
                     {
                         mini = Primitive(PrimitiveType.Sphere, $"Echo_{profile.Type}_{m}", go.transform, orbMaterials[o], keepCollider: true);
+                        Hoverable(mini.gameObject);
                         mini.localScale = new Vector3(profile.ScaleX, profile.ScaleY, profile.ScaleZ) * MiniDiameter;
                     }
                     mini.position = park.position;
@@ -483,11 +488,35 @@ namespace RoomOrchestra.EditorTools
             go.transform.SetParent(root, false);
             go.transform.position = position;
             go.transform.rotation = FacePlayer(position);
-            var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, 0.03f, 0f);
-            box.size = SmallCollider;
-            Box(slabName, go.transform, Vector3.zero, SmallSlab, slab, keepCollider: false);
+            var slabPart = Box(slabName, go.transform, Vector3.zero, SmallSlab, slab, keepCollider: false);
+            TapBox(slabPart, new Vector3(0f, 0.03f, 0f), SmallCollider);
             return go;
+        }
+
+        // PICO's hover highlight (Version 1 feedback: nothing showed what you were pointing at) appears on an
+        // object that carries both the tap collider and a visible mesh, so each tap volume sits on a visible
+        // part. Taps still reach the control: input looks the owner up from the hit collider's parents.
+        static void Hoverable(GameObject visible)
+        {
+            if (!visible.TryGetComponent<SpatialAdapterHoverEffect>(out _)) visible.AddComponent<SpatialAdapterHoverEffect>();
+        }
+
+        // The tap box, given in its control's space, placed on the control's visible part (an unrotated child),
+        // so it keeps exactly the size and place it had on the control itself.
+        static void TapBox(Transform visible, Vector3 center, Vector3 size)
+        {
+            var s = visible.localScale;
+            var box = visible.gameObject.AddComponent<BoxCollider>();
+            box.center = Vector3.Scale(center - visible.localPosition, new Vector3(1f / s.x, 1f / s.y, 1f / s.z));
+            box.size = Vector3.Scale(size, new Vector3(1f / s.x, 1f / s.y, 1f / s.z));
+            Hoverable(visible.gameObject);
+        }
+
+        // A character's tap sphere on its body mesh (the "Visual" child, at the root's origin and scale).
+        static void TapSphere(Transform body, float radius)
+        {
+            body.gameObject.AddComponent<SphereCollider>().radius = radius;
+            Hoverable(body.gameObject);
         }
 
         // The call (roaming option C), first on the front row: a small green leaf, "Come here".
@@ -527,6 +556,7 @@ namespace RoomOrchestra.EditorTools
             for (int i = 0; i < tiles.Length; i++)
             {
                 var tile = Primitive(PrimitiveType.Cube, $"PitchTile{i}", go.transform, slab, keepCollider: true);
+                Hoverable(tile.gameObject);
                 tile.position = new Vector3(go.transform.position.x, ColumnBottom + ColumnStep * i, go.transform.position.z);
                 tile.rotation = FacePlayer(tile.position);
                 tile.localScale = focused && i == StartPetal ? TileScale * 1.2f : TileScale;
@@ -562,6 +592,7 @@ namespace RoomOrchestra.EditorTools
             }
             // The instrument's name tile is also its volume button (tap steps 100/60/30%/Muted).
             var mixTile = Primitive(PrimitiveType.Cube, "MixTile", go.transform, slab, keepCollider: true);
+            Hoverable(mixTile.gameObject);
             mixTile.position = new Vector3(go.transform.position.x, ColumnBottom - 0.14f, go.transform.position.z);
             mixTile.rotation = FacePlayer(mixTile.position);
             mixTile.localScale = new Vector3(0.16f, 0.1f, 0.03f);

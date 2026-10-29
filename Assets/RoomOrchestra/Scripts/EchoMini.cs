@@ -2,8 +2,7 @@ using UnityEngine;
 
 namespace RoomOrchestra
 {
-    /// <summary>Tappable mini echo on an orbit ring.</summary>
-    [RequireComponent(typeof(Collider))]
+    /// <summary>Tappable mini echo on an orbit ring (its tap collider is on its body mesh, for the hover highlight).</summary>
     public class EchoMini : MonoBehaviour
     {
         [SerializeField] OrbitView orbit;

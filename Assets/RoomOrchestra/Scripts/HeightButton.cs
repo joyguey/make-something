@@ -4,7 +4,7 @@ using UnityEngine;
 namespace RoomOrchestra
 {
     /// <summary>Tappable Height toggle (Seated / Standing); the label shows the current setting.</summary>
-    [RequireComponent(typeof(Collider))]
+    // Its tap collider sits on its visible slab, where PICO's hover highlight can show.
     public class HeightButton : MonoBehaviour
     {
         [SerializeField] TMP_Text label;
