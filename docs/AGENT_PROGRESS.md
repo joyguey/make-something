@@ -456,5 +456,12 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - **Evidence:** `docs/evidence/furniture-scale-before-after-2026-10-29.png` (Editor, seated eye), `docs/evidence/furniture-scale-emulator-2026-10-29.png` (emulator after the opening; no app errors).
 - **NOT verified:** how it feels seated at a real desk on a headset.
 
+## 2026-10-29 | The stalk's hole: black, cracked, and gone once the stalk is up
+- **Owner (after watching on the emulator):** the hole looked strange for mixed reality; no light brown ring that stays; the hole should look black, with cracks so the stalk grows literally out of the floor.
+- **Changed:** the hole is a black pit with six short, jagged, forking black cracks. It opens (0.4 s), the stalk grows out of it, and once the stalk reaches the leaf the hole and cracks close again (0.5 s), leaving only the stalk on the floor. The brown rim and its material are gone.
+- **Near-zero scale rule:** the closed hole shrinks only to 0.15 and is parked inside the ball stand's cloud core (PICO Spatial once drew a 0.001-scaled object full size in the wrong place); crack widths stay above 1 mm even then.
+- **Tests:** EditMode 176/176 (the closed hole waits inside the cloud; after the opening it has closed; black pit and cracks), PlayMode 63/63. Build `Builds/RoomOrchestra-hole.apk` installed on the emulator.
+- **Evidence:** `docs/evidence/stalk-hole-cracks-2026-10-29.png` (Editor close-up: open, stalk growing, closing).
+
 ## Resume here (next session)
 1. Dev team evaluating `v2.1` (`Builds/RoomOrchestra-v2.1.apk`, GitHub release `v2.1`) on a headset; then act on their feedback. Owner checks of the same build: growth waits for 3 notes, flowers round the room, the leaf palette and cloud stand (are the small labels readable, are the small buttons easy to tap, does the cloud read as floating), the 1=D plate in Chinese, the weight levels and Clear's smoke sound (landings are now silent). Following was confirmed by the owner on the emulator. Released as `v2.1` (app 0.2.1); `v2` is the earlier cut. Revisit moving an echo by hand after the headset test. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.

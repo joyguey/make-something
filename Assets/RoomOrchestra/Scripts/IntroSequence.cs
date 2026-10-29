@@ -24,8 +24,9 @@ namespace RoomOrchestra
         [Tooltip("The hole that opens and the stalk that grows up to meet the leaf.")]
         [SerializeField] LeafStalk stalk;
 
-        /// <summary>The hole opens over this long; then the stalk grows, reaching the leaf just before it lands.</summary>
-        public const float HoleOpenSeconds = 0.4f, StalkDoneBefore = 0.2f;
+        /// <summary>The hole opens over this long; then the stalk grows, reaching the leaf just before it lands,
+        /// and the hole and its cracks close up around it, leaving the stalk on the floor.</summary>
+        public const float HoleOpenSeconds = 0.4f, StalkDoneBefore = 0.2f, HoleCloseSeconds = 0.5f;
 
         float m_Start = -1f;
         bool m_Done;
@@ -99,7 +100,7 @@ namespace RoomOrchestra
             }
             if (stalk != null)
             {
-                stalk.HoleOpen = 1f;
+                stalk.HoleOpen = 0f; // closed again around the grown stalk
                 stalk.Grown = 1f;
             }
             if (characters != null)
@@ -116,8 +117,11 @@ namespace RoomOrchestra
             leaf.localRotation = Quaternion.Euler(p.pitch, p.yaw, p.roll);
             if (stalk != null)
             {
-                stalk.HoleOpen = Mathf.Clamp01(seconds / HoleOpenSeconds);
-                float grow = Mathf.Clamp01((seconds - HoleOpenSeconds) / (IntroPath.SwoopSeconds - HoleOpenSeconds - StalkDoneBefore));
+                float grownAt = IntroPath.SwoopSeconds - StalkDoneBefore;
+                float opening = Mathf.Clamp01(seconds / HoleOpenSeconds);
+                float closing = Mathf.Clamp01((seconds - grownAt) / HoleCloseSeconds);
+                stalk.HoleOpen = opening * (1f - closing * closing * (3f - 2f * closing));
+                float grow = Mathf.Clamp01((seconds - HoleOpenSeconds) / (grownAt - HoleOpenSeconds));
                 stalk.Grown = grow * grow * (3f - 2f * grow);
             }
         }

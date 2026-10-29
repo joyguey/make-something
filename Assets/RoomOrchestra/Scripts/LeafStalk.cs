@@ -11,8 +11,11 @@ namespace RoomOrchestra
     /// </summary>
     public class LeafStalk : MonoBehaviour
     {
-        /// <summary>The hole's scale while closed: a speck (not zero: PICO Spatial drops zero-size objects).</summary>
-        public const float Hidden = 0.01f;
+        /// <summary>
+        /// The hole's scale while closed. Not near zero (PICO Spatial once drew a 0.001-scaled object full size in
+        /// the wrong place): closed, it is parked inside the ball stand's cloud instead (<see cref="park"/>).
+        /// </summary>
+        public const float Hidden = 0.15f;
         /// <summary>The stalk's smallest size (metres), unseen inside the closed hole.</summary>
         public const float Stub = 0.004f;
         const float HoleLift = 0.002f; // just above the floor, so it never flickers into it
@@ -22,6 +25,8 @@ namespace RoomOrchestra
         [Tooltip("The underside of the leaf at home, in the leaf pad's space (the stalk's top).")]
         [SerializeField] Vector3 leafUnderside;
         [SerializeField] float width = 0.03f;
+        [Tooltip("Where the closed hole waits out of sight (inside the ball stand's cloud).")]
+        [SerializeField] Transform park;
         [SerializeField, Range(0f, 1f)] float grown = 1f;
         [SerializeField, Range(0f, 1f)] float holeOpen = 1f;
 
@@ -30,10 +35,11 @@ namespace RoomOrchestra
         public float Grown { get => grown; set { grown = Mathf.Clamp01(value); Apply(); } }
         public float HoleOpen { get => holeOpen; set { holeOpen = Mathf.Clamp01(value); Apply(); } }
 
-        public void Configure(Transform stalkPart, Transform holePart, Vector3 underside, float stalkWidth, float startGrown, float startOpen)
+        public void Configure(Transform stalkPart, Transform holePart, Vector3 underside, float stalkWidth, float startGrown, float startOpen, Transform parkPoint)
         {
             stalk = stalkPart;
             hole = holePart;
+            park = parkPoint;
             leafUnderside = underside;
             width = stalkWidth;
             grown = startGrown;
@@ -53,7 +59,12 @@ namespace RoomOrchestra
             float thick = Mathf.Max(width * Mathf.Min(1f, grown * 4f), Stub); // thickens as it starts to grow
             var foot = new Vector3(top.x, 0f, top.z);
             Set(stalk, foot + Vector3.up * (height / 2f), new Vector3(thick, height, thick));
-            float open = Mathf.Max(holeOpen, Hidden);
+            if (holeOpen <= 0f && park != null)
+            {
+                Set(hole, park.position, new Vector3(Hidden, 1f, Hidden)); // closed: tucked inside the cloud
+                return;
+            }
+            float open = Mathf.Lerp(Hidden, 1f, holeOpen);
             Set(hole, foot + Vector3.up * HoleLift, new Vector3(open, 1f, open));
         }
 

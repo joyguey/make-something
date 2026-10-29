@@ -643,7 +643,8 @@ namespace RoomOrchestra.Tests
             var stem = pad.GetComponentInChildren<LeafStalk>();
             Assert.IsNotNull(stem, "a stalk for the leaf to land on");
             Assert.LessOrEqual(stem.Stalk.lossyScale.y, LeafStalk.Stub + 1e-6f, "the stalk has not grown yet");
-            Assert.Less(stem.Hole.lossyScale.x, 0.02f, "the hole has not opened yet");
+            var cloud = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/Pedestal").GetComponent<Collider>();
+            Assert.IsTrue(stem.Hole.GetComponentsInChildren<Renderer>().All(r => cloud.bounds.Contains(r.bounds.min) && cloud.bounds.Contains(r.bounds.max)), "the closed hole waits inside the ball stand's cloud");
             var furniture = GameObject.Find("RoomOrchestra").transform.Find("Furniture").GetComponentsInChildren<Collider>();
             foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
             {
@@ -659,7 +660,9 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(Vector3.zero, intro.Leaf.localPosition, "finished: the leaf is home");
             Assert.AreEqual(0.475f, stem.Stalk.lossyScale.y, 0.005f, "the stalk reaches the leaf's underside");
             Assert.AreEqual(0f, stem.Stalk.position.y - stem.Stalk.lossyScale.y / 2f, 1e-4f, "standing on the floor");
-            Assert.AreEqual(1f, stem.Hole.lossyScale.x, 1e-5f, "in its open hole");
+            Assert.Greater(stem.Hole.position.y, 0.5f, "the hole has closed and gone back inside the cloud: just the stalk on the floor");
+            Assert.IsTrue(stem.Hole.GetComponentsInChildren<Renderer>().All(r => r.sharedMaterial.color.maxColorComponent < 0.05f), "a black hole and black cracks");
+            Assert.GreaterOrEqual(stem.Hole.GetComponentsInChildren<Renderer>().Count(r => r.name.StartsWith("Crack")), 7, "cracks run out from it");
             var rig = Object.FindFirstObjectByType<ControlsRig>();
             rig.Apply(PlayPosture.Standing);
             stem.Apply();

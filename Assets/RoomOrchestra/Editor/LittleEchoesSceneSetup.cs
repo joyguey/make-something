@@ -555,14 +555,40 @@ namespace RoomOrchestra.EditorTools
             // and the stalk grows up to meet the swooping leaf. Saved closed: the opening's first frame.
             var stem = Holder("LeafStem", pad, Vector3.zero);
             var stalk = Box("LeafStalk", stem, Vector3.zero, Vector3.one, leafMaterial, keepCollider: false);
+            // A black hole in the floor with jagged cracks running out from it, as if the stalk splits the real
+            // floor open (owner: mixed reality). Once the stalk is up, the hole closes again (IntroSequence).
             var hole = Holder("LeafHole", stem, Vector3.zero);
-            var rim = Primitive(PrimitiveType.Cylinder, "HoleRim", hole, EnsureMaterial("LeafHoleRim", "Ball", new Color(0.45f, 0.31f, 0.2f)), keepCollider: false);
-            rim.localScale = new Vector3(0.17f, 0.002f, 0.17f);
-            var pit = Primitive(PrimitiveType.Cylinder, "HolePit", hole, EnsureMaterial("LeafHolePit", "Ball", new Color(0.12f, 0.09f, 0.07f)), keepCollider: false);
-            pit.localPosition = new Vector3(0f, 0.002f, 0f);
-            pit.localScale = new Vector3(0.12f, 0.002f, 0.12f);
+            var black = EnsureMaterial("LeafHolePit", "Ball", new Color(0.02f, 0.02f, 0.02f));
+            var pit = Primitive(PrimitiveType.Cylinder, "HolePit", hole, black, keepCollider: false);
+            pit.localScale = new Vector3(0.11f, 0.002f, 0.11f);
+            // Short, jagged cracks that zigzag and fork, wide at the hole and thinning out (not long, even
+            // legs: a first try read as a spider).
+            var random = new System.Random(29);
+            void Crack(string name, Vector2 from, float angle, float reach, int segments, float width, int depth)
+            {
+                for (int k = 0; k < segments; k++)
+                {
+                    angle += (float)(random.NextDouble() - 0.5) * 1.4f; // sharp zigzags
+                    var to = from + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (reach / segments);
+                    var mid = (from + to) / 2f;
+                    // Never under 0.001 m once the closed hole is shrunk to LeafStalk.Hidden (the near-zero scale rule).
+                    float w = Mathf.Max(width * (1f - 0.7f * k / segments), 0.0012f / LeafStalk.Hidden);
+                    var piece = Box($"{name}_{k}", hole, new Vector3(mid.x, 0.001f, mid.y),
+                        new Vector3(w, 0.002f, (to - from).magnitude + w * 0.5f), black, keepCollider: false);
+                    piece.localRotation = Quaternion.LookRotation(new Vector3(to.x - from.x, 0f, to.y - from.y), Vector3.up);
+                    if (depth == 0 && k == 1) Crack($"{name}b", to, angle + (random.NextDouble() < 0.5 ? 0.9f : -0.9f), reach * 0.45f, 2, w * 0.7f, 1);
+                    from = to;
+                }
+            }
+            for (int c = 0; c < 6; c++)
+            {
+                float angle = c * Mathf.PI * 2f / 6f + (float)(random.NextDouble() - 0.5) * 0.7f;
+                var from = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 0.048f;
+                Crack($"Crack{c}", from, angle, 0.055f + 0.05f * (float)random.NextDouble(), 4, 0.012f, 0);
+            }
             var leafStalk = stem.gameObject.AddComponent<LeafStalk>();
-            leafStalk.Configure(stalk, hole, LeafCenter - new Vector3(0f, LeafSize.y / 2f, 0f), 0.03f, startGrown: 0f, startOpen: 0f);
+            var cloudCore = GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint");
+            leafStalk.Configure(stalk, hole, LeafCenter - new Vector3(0f, LeafSize.y / 2f, 0f), 0.03f, startGrown: 0f, startOpen: 0f, cloudCore);
             EditorUtility.SetDirty(leafStalk);
             return leafStalk;
         }
