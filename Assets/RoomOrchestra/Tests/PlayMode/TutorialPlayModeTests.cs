@@ -309,5 +309,23 @@ namespace RoomOrchestra.Tests
             yield return Play(InstrumentType.Mbira, 2);
             Assert.AreEqual(1, m_Tutorial.Plan.Index, "and it runs as before");
         }
+
+        [UnityTest]
+        public IEnumerator AfterTheLessonWhatWaitsInTheCloudFollowsTheStand()
+        {
+            m_Tutorial.Skip();
+            yield return new WaitForSeconds(TutorialDirector.PopSeconds + 0.1f);
+            var park = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/ParkPoint");
+            var stand = park.parent;
+            stand.position += new Vector3(-0.4f, 0f, -0.3f); // the leaf and its stand come to the player
+            ComfortSettings.SetPosture(PlayPosture.Standing); // and the controls lift
+            yield return null;
+            yield return null;
+            Assert.Less(Vector3.Distance(m_Tutorial.Bubble.position, park.position), 1e-3f, "the bubble stays in the cloud");
+            Assert.Less(Vector3.Distance(m_Tutorial.Glow.position, park.position), 1e-3f, "the glow too");
+            foreach (var piece in m_Tutorial.CountPieces)
+                Assert.Less(Vector3.Distance(piece.position, park.position), 1e-3f, $"{piece.name} too (not left in mid-air)");
+            ComfortSettings.SetPosture(PlayPosture.Seated);
+        }
     }
 }

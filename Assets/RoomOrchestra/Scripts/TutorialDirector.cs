@@ -137,6 +137,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            KeepParkedInTheCloud();
             if (m_Closed) return;
             if (!m_Started)
             {
@@ -388,6 +389,19 @@ namespace RoomOrchestra
             var from = speaker != null && bubble.parent != null ? bubble.parent.InverseTransformPoint(speaker.position) : bubbleHome;
             bubble.localPosition = Vector3.Lerp(from, bubbleHome, u);
             bubble.localScale = bubbleScale * Mathf.Lerp(ParkedScale, 1f, u);
+        }
+
+        // The ball stand travels with the leaf (Come here) and Height lifts the controls, long after the lesson: what
+        // waits in the cloud goes with it, or it is left in mid-air (owner, emulator: the tiny count words under the
+        // leaf). Written only when the cloud has moved.
+        void KeepParkedInTheCloud()
+        {
+            if (park == null || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            if (bubble != null && !m_BubbleOut && !Popping && !BubbleParked) ParkBubble();
+            if (glow != null && !m_GlowOut && glow.position != park.position) ParkGlow();
+            if (countPieces != null && m_ShownBeat < 0)
+                foreach (var piece in countPieces)
+                    if (piece != null && piece.position != park.position) ParkPiece(piece);
         }
 
         bool BubbleParked => bubble != null && park != null && bubble.position == park.position;
