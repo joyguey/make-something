@@ -25,6 +25,8 @@ namespace RoomOrchestra
         [SerializeField] LeafStalk stalk;
         [Tooltip("The title card; with one, the opening waits for Start instead of beginning by itself.")]
         [SerializeField] TitleScreen title;
+        [Tooltip("The guided song that follows; skipping the opening skips it too.")]
+        [SerializeField] TutorialDirector tutorial;
 
         /// <summary>The hole opens over this long; then the stalk grows, reaching the leaf just before it lands,
         /// and the hole and its cracks close up around it, leaving the stalk on the floor.</summary>
@@ -58,6 +60,8 @@ namespace RoomOrchestra
             for (int i = 0; i < cast.Length; i++) PlaceOnFloor(i);
         }
 
+        public void ConfigureTutorial(TutorialDirector guide) => tutorial = guide;
+
         void OnEnable() => Instance = this;
 
         void OnDisable()
@@ -82,7 +86,7 @@ namespace RoomOrchestra
                 float hop = t - IntroPath.SwoopSeconds - i * IntroPath.HopStagger;
                 if (!Hop(i, hop)) allLanded = false;
             }
-            if (allLanded) Finish();
+            if (allLanded) Land();
         }
 
         /// <summary>Starts the opening (the title's Start calls this; without a title it starts by itself).</summary>
@@ -94,8 +98,17 @@ namespace RoomOrchestra
             Debug.Log("[RoomOrchestra] Intro: the leaf swoops in");
         }
 
-        /// <summary>Everything in its place at once (a skip, and the state tests check the layout in).</summary>
-        public void Finish()
+        /// <summary>
+        /// Everything in its place at once (a skip, and the state tests check the layout in); the guided song is
+        /// skipped too unless <paramref name="skipTutorial"/> is false.
+        /// </summary>
+        public void Finish(bool skipTutorial = true)
+        {
+            Land();
+            if (skipTutorial && tutorial != null) tutorial.SkipNow();
+        }
+
+        void Land()
         {
             if (title != null && !title.Parked) title.ParkNow();
             if (leaf != null)

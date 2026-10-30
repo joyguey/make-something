@@ -68,7 +68,16 @@ namespace RoomOrchestra
 
         public void Select(OrbType orb) => Model.SelectOrb(orb);
         public void CycleOrb(int direction) => Model.CycleOrb(direction);
-        public void CycleTarget(int direction) => Model.CycleTarget(direction);
+        /// <summary>Moves the focus to the next target, passing over any the guided song still keeps hidden.</summary>
+        public void CycleTarget(int direction)
+        {
+            int count = targets != null ? targets.Length : 1;
+            for (int i = 0; i < count; i++)
+            {
+                Model.CycleTarget(direction);
+                if (FocusedTarget == null || !StationReveal.IsHidden(FocusedTarget.Instrument)) return;
+            }
+        }
         public void CycleTier() => Model.CycleTier();
         public void SetTier(IntensityTier tier) => Model.SetTier(tier);
         public void CyclePetal() => Model.CyclePetal();

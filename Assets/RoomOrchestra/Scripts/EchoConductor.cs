@@ -185,6 +185,16 @@ namespace RoomOrchestra
             return true;
         }
 
+        /// <summary>Puts an echo on a chosen step (the tutorial's snap into the tune; Undo takes the note back whole).</summary>
+        public bool MoveEcho(long stableId, int step)
+        {
+            if (!m_Sequencer.MoveTo(stableId, step, AudioSettings.dspTime, undoable: false)) return false;
+            Resync();
+            return true;
+        }
+
+        public IReadOnlyList<EchoEvent> Echoes => m_Sequencer.Echoes;
+
         public bool Nudge(int direction)
         {
             if (!m_Sequencer.Nudge(SelectedEchoId, direction, AudioSettings.dspTime)) return false;

@@ -109,12 +109,16 @@ namespace RoomOrchestra.EditorTools
             var shade = targets.First(t => t.Instrument == InstrumentType.Erhu).GetComponentsInChildren<Renderer>()
                 .First(r => r.name == "Shade").bounds.center; // butterflies wait inside the lamp shade
             var flock = new Butterfly[Butterflies.Length];
+            // The butterflies and their trails under one holder (their stage), so the guided song can keep the
+            // lamp's flock out of sight with the lamp (StationReveal).
+            var flockRoot = new GameObject("Flock").transform;
+            flockRoot.SetParent(root, false);
             for (int b = 0; b < Butterflies.Length; b++)
             {
                 var (wingColor, centre, size, lap, phase) = Butterflies[b];
                 var wing = Material($"Rainforest_Wing{b}", wingColor, glow: 0.25f);
                 var bf = new GameObject($"Butterfly{b}").transform;
-                bf.SetParent(root, false);
+                bf.SetParent(flockRoot, false);
                 var flier = bf.gameObject.AddComponent<Butterfly>();
                 bf.localScale = Vector3.one * 2.2f; // ~22 cm wingspan: readable from the seat
                 Part(bf, "Butterfly_Body", body);
@@ -131,11 +135,11 @@ namespace RoomOrchestra.EditorTools
                 var dots = new Transform[TrailDots];
                 for (int i = 0; i < TrailDots; i++)
                 {
-                    dots[i] = Part(root, "Sparkle", trail);
+                    dots[i] = Part(flockRoot, "Sparkle", trail);
                     dots[i].name = $"Butterfly{b}_Trail{i}";
                     dots[i].localScale = Vector3.one * 0.45f;
                 }
-                var home = root.InverseTransformPoint(shade);
+                var home = flockRoot.InverseTransformPoint(shade);
                 flier.Configure(wings[0], wings[1], dots, centre, size, lap, phase, home);
                 flier.SetWings(Butterfly.RestAngle); // authored resting in a V
                 // Authored at home inside the lamp shade, trail tucked in with it: hidden until the song calls.
@@ -150,13 +154,16 @@ namespace RoomOrchestra.EditorTools
             int seed = 0;
             foreach (var target in targets)
             {
+                // Each instrument's sparkles under one holder, to hide and show with it (StationReveal).
+                var sparkles = new GameObject($"Sparkles_{target.Instrument}").transform;
+                sparkles.SetParent(root, false);
                 for (int i = 0; i < SparklesPerInstrument; i++, seed++)
                 {
                     // A loose ring around the instrument, behind and above it, facing the player.
                     float a = Mathf.Lerp(-150f, 150f, i / (SparklesPerInstrument - 1f)) * Mathf.Deg2Rad;
                     var at = target.AimPosition + new Vector3(Mathf.Sin(a) * 0.5f, 0.25f + 0.2f * ((seed * 7) % 3), 0.25f + Mathf.Cos(a) * 0.1f);
                     var sparkle = new GameObject($"Sparkle_{target.Instrument}_{i}").transform;
-                    sparkle.SetParent(root, false);
+                    sparkle.SetParent(sparkles, false);
                     sparkle.position = at;
                     sparkle.rotation = Quaternion.LookRotation(sparkle.position - Viewer.SeatedEye, Vector3.up);
                     sparkle.localScale = Vector3.one * (0.8f + 0.15f * (seed % 3));

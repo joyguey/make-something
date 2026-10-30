@@ -44,7 +44,27 @@ namespace RoomOrchestra
         /// <summary>The title card's line under the name.</summary>
         TitleSubtitle,
         /// <summary>The title card's button that begins the game.</summary>
-        Start
+        Start,
+        // The guided first song: what Flutter says while each note is wanted (Core/TutorialPlan).
+        TutorialHello,
+        TutorialMa,
+        TutorialMary,
+        TutorialMaryHad,
+        TutorialLamp,
+        TutorialLit,
+        TutorialDrum,
+        TutorialBeat2,
+        TutorialBeat3,
+        TutorialBeat4,
+        TutorialDone,
+        TutorialTryAgain,
+        TutorialOnGo,
+        TutorialEarly,
+        TutorialLate,
+        /// <summary>The count's last word, shown on beat 4.</summary>
+        Go,
+        /// <summary>The leaf that skips the guided song.</summary>
+        Skip
     }
 
     /// <summary>
@@ -83,6 +103,23 @@ namespace RoomOrchestra
             { UiTerm.CallTray, ("Come here", "过来") },
             { UiTerm.TitleSubtitle, ("A mixed-reality musical playground", "混合现实音乐游乐场") },
             { UiTerm.Start, ("Start", "开始") },
+            { UiTerm.TutorialHello, ("Hi, I'm Flutter! Tap the glowing F# by the chair.", "嗨，我是飘飘！点椅子旁发光的 3。") },
+            { UiTerm.TutorialMa, ("\"Ma-\" Now the E, just below.", "\"玛——\" 再点下面的 2。") },
+            { UiTerm.TutorialMary, ("\"Ma-ry\" Now D, the lowest.", "\"玛丽——\" 再点最低的 1。") },
+            { UiTerm.TutorialMaryHad, ("\"Ma-ry had\" Back up to E.", "\"玛丽有——\" 再回到 2。") },
+            { UiTerm.TutorialLamp, ("\"Mary had a\u2026\" Meet the lamp! Tap its F#.", "\"玛丽有只……\" 来认识台灯！点它的 3。") },
+            { UiTerm.TutorialLit, ("\"Lit-\" F# again.", "\"小——\" 再点 3。") },
+            { UiTerm.TutorialDrum, ("Here comes the table! Tap a beat on its drum.", "桌子来啦！在它的鼓上打拍子。") },
+            { UiTerm.TutorialBeat2, ("Keep the beat\u2026 2", "继续打拍子……2") },
+            { UiTerm.TutorialBeat3, ("Keep going\u2026 3", "继续……3") },
+            { UiTerm.TutorialBeat4, ("\u2026and 4!", "……还有 4！") },
+            { UiTerm.TutorialDone, ("You made a song! Try Bop and Boom, or throw a ball from the cloud.", "你做出了一首歌！试试波波和嘭嘭，或者从云上扔个球。") },
+            { UiTerm.TutorialTryAgain, ("Almost! Try the glowing one.", "差一点！试试发光的那个。") },
+            { UiTerm.TutorialOnGo, ("Finish the tune! Throw a ball at the lamp, or tap its F#, right on Go!", "唱完这首歌！在\"开始\"时把球扔向台灯，或点它的 3！") },
+            { UiTerm.TutorialEarly, ("A little early! Wait for Go.", "早了一点！等到\"开始\"。") },
+            { UiTerm.TutorialLate, ("A little late! Right on Go.", "晚了一点！正好在\"开始\"时。") },
+            { UiTerm.Go, ("Go!", "开始！") },
+            { UiTerm.Skip, ("Skip", "跳过") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>

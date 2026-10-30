@@ -7,7 +7,8 @@ namespace RoomOrchestra
     /// the key-art lettering, a line about what it is, and a Start button. While it shows, only Start (a tap,
     /// or the controller's select) does anything. Start sends the card shrinking into the ball stand's cloud,
     /// then the opening plays (<see cref="IntroSequence"/>). It is parked inside the cloud, not shrunk to
-    /// nothing (PICO Spatial once drew a 0.001-scaled object full size in the wrong place).
+    /// nothing (PICO Spatial once drew a 0.001-scaled object full size in the wrong place), and follows the
+    /// cloud wherever the ball stand goes.
     /// </summary>
     public class TitleScreen : MonoBehaviour
     {
@@ -85,7 +86,15 @@ namespace RoomOrchestra
 
         void Update()
         {
-            if (!m_Begun || m_Parked || card == null) return;
+            if (card == null) return;
+            // The ball stand travels with the leaf when the player moves (RoamingTray); the parked card goes with
+            // it. It was left behind at the stand's old place, a little title card in mid-air (owner, emulator).
+            if (m_Parked)
+            {
+                if (park != null && card.position != park.position) card.position = park.position;
+                return;
+            }
+            if (!m_Begun) return;
             // Nothing moves before PICO Spatial's renderer connects; a very early Start waits for it.
             if (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
             if (m_LeaveStart < 0f)

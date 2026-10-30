@@ -145,6 +145,24 @@ namespace RoomOrchestra
             return true;
         }
 
+        /// <summary>
+        /// Puts an echo on <paramref name="step"/> if that step is free on its target (the tutorial snaps each
+        /// guided note into its place in the tune, so nobody needs perfect timing). The tutorial's snap is not
+        /// undoable on its own, so one Undo takes the whole note back.
+        /// </summary>
+        public bool MoveTo(long stableId, int step, double now, bool undoable = true)
+        {
+            var echo = Find(stableId);
+            if (echo == null) return false;
+            step = ((step % MusicClock.StepsPerBar) + MusicClock.StepsPerBar) % MusicClock.StepsPerBar;
+            if (echo.Step == step) return true;
+            if (Occupied(echo.Target, step, echo)) return false;
+            int from = echo.Step;
+            SetStep(echo, step, now);
+            if (undoable) m_Undo.Push(n => SetStep(echo, from, n));
+            return true;
+        }
+
         /// <summary>Moves an echo one step (direction +1 / -1), skipping occupied steps; wraps around the bar.</summary>
         public bool Nudge(long stableId, int direction, double now)
         {

@@ -57,6 +57,8 @@ namespace RoomOrchestra.EditorTools
         {
             KeepExportAlignedWithBuild();
             RemoveRetiredLoopStation();
+            // A saved scene has the guided song's stations parked in the cloud: bring them home before rebuilding.
+            foreach (var station in Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None)) station.ShowNow();
             FitFurnitureToRealSizes();
 
             var parent = GameObject.Find("RoomOrchestra");
@@ -178,14 +180,102 @@ namespace RoomOrchestra.EditorTools
             cso.FindProperty("selector").objectReferenceValue = selector;
             cso.ApplyModifiedPropertiesWithoutUndo();
 
-            CreateIntro(root, swoop, tokens, leafStalk);
+            var intro = CreateIntro(root, swoop, tokens, leafStalk);
+            CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
+        }
+
+        // The guided first song (owner, 2026-10-29): the chair alone at first; the lamp and the table wait in the
+        // ball stand's cloud with their tiles, rings, vines and sparkles, and appear in a big poof when the song
+        // needs them. Flutter talks in a speech bubble above it, with a Skip leaf; the wanted tile glows.
+        static readonly InstrumentType[] Introduced = { InstrumentType.Erhu, InstrumentType.Udu };
+        static readonly Vector3 BubbleAt = new Vector3(-0.55f, 0.80f, 1.28f); // above Flutter, left of the sight lines
+        static readonly Vector3 CountdownAt = new Vector3(0.75f, 1.55f, 2.4f);
+        const float CountdownHeight = 0.22f;
+        static readonly Vector3 BubbleSize = new Vector3(0.46f, 0.15f, 0.03f);  // 3 cm deep: parked, still above the near-zero limit
+
+        static void CreateTutorial(GameObject root, Transform pad, Transform controls, Transform flutter, InstrumentTarget[] targets,
+            PitchColumn[] columns, OrbitView[] orbits, EchoConductor conductor, IntroSequence intro)
+        {
+            var park = GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint");
+            var rainforest = root.transform.Find("Rainforest");
+            var stationsHolder = Holder("Stations", root.transform, Vector3.zero);
+            var stations = new List<StationReveal>();
+            foreach (var type in Introduced)
+            {
+                int i = System.Array.FindIndex(targets, t => t.Instrument == type);
+                if (i < 0) continue;
+                var parts = new List<Transform> { targets[i].transform, columns[i].transform, orbits[i].transform };
+                if (rainforest != null)
+                {
+                    var names = type == InstrumentType.Erhu
+                        ? new[] { "Vine_Lamp", "Sparkles_Erhu", "Flock" }
+                        : new[] { "Vine_TableL", "Vine_TableR", $"Sparkles_{type}" };
+                    foreach (var n in names)
+                    {
+                        var part = rainforest.Find(n);
+                        if (part != null) parts.Add(part);
+                    }
+                }
+                var holder = Holder($"Station_{type}", stationsHolder, Vector3.zero);
+                var station = holder.gameObject.AddComponent<StationReveal>();
+                station.Configure(type, parts.ToArray(), park);
+                station.HideNow();
+                EditorUtility.SetDirty(station);
+                stations.Add(station);
+            }
+
+            // Flutter's speech bubble: a white card with a little tail toward Flutter, plum words that wrap.
+            var bubble = Holder("TutorialBubble", pad, Vector3.zero);
+            bubble.position = BubbleAt;
+            bubble.rotation = FacePlayer(BubbleAt);
+            var white = EnsureMaterial("SpeechBubble", "Ball", new Color(1f, 0.99f, 0.97f));
+            Box("BubblePanel", bubble, Vector3.zero, BubbleSize, white, keepCollider: false);
+            var tail = Box("BubbleTail", bubble, new Vector3(0.06f, -BubbleSize.y / 2f, 0f), new Vector3(0.05f, 0.05f, BubbleSize.z), white, keepCollider: false);
+            tail.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            var words = Label("BubbleLine", "Ag", bubble, new Vector3(0.03f, 0f, -BubbleSize.z / 2f - 0.004f), 0.026f);
+            var tmp = words.GetComponentInChildren<TMP_Text>();
+            tmp.text = UiText.Get(UiTerm.TutorialHello, UiLanguage.English);
+            tmp.color = new Color(0.30f, 0.16f, 0.40f);
+            tmp.textWrappingMode = TextWrappingModes.Normal;
+            tmp.rectTransform.sizeDelta = new Vector2(BubbleSize.x - 0.13f, BubbleSize.y - 0.02f);
+            tmp.enableAutoSizing = true; // the longest lines shrink a little to fit
+            tmp.fontSizeMax = tmp.fontSize;
+            tmp.fontSizeMin = tmp.fontSize * 0.7f;
+            tmp.ForceMeshUpdate(true, true);
+
+            // The Skip leaf on the bubble's left end (left of every sight line to the tiles).
+            var skip = Holder("SkipButton", bubble, new Vector3(-BubbleSize.x / 2f + 0.05f, 0f, -BubbleSize.z / 2f - 0.012f));
+            var leaf = Primitive(PrimitiveType.Sphere, "SkipLeaf", skip, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
+            leaf.localScale = new Vector3(0.085f, 0.06f, 0.03f);
+            leaf.gameObject.AddComponent<BoxCollider>();
+            Hoverable(leaf.gameObject);
+            Localize(Label("SkipLabel", UiText.Get(UiTerm.Skip, UiLanguage.English), skip, new Vector3(0f, 0f, -0.02f), 0.02f), UiTerm.Skip);
+            skip.gameObject.AddComponent<TutorialSkipButton>();
+
+            // The glow behind the wanted tile (the director sizes and places it).
+            var glow = Box("TutorialGlow", controls, Vector3.zero, new Vector3(0.18f, 0.15f, 0.006f),
+                Glow(EnsureMaterial("TutorialGlow", "AimRing", new Color(1f, 0.85f, 0.35f)), new Color(1f, 0.85f, 0.35f)), keepCollider: false);
+
+            // The 3-2-1-Go count for the timed last note: big, above and left of the lamp, clear of its tiles.
+            var count = Label("TutorialCountdown", "3", root.transform, CountdownAt, CountdownHeight);
+            var countText = count.GetComponentInChildren<TMP_Text>();
+            countText.fontStyle = FontStyles.Bold;
+            countText.color = TutorialDirector.CountColours[0];
+
+            var director = root.AddComponent<TutorialDirector>();
+            director.Configure(conductor, stations.ToArray(), columns, bubble, tmp, flutter, glow, park);
+            director.ConfigureCountdown(count, countText);
+            director.ParkForSave();
+            intro.ConfigureTutorial(director);
+            EditorUtility.SetDirty(director);
+            EditorUtility.SetDirty(intro);
         }
 
         // The opening (owner, 2026-10-29): the scene is saved in its first frame, the leaf out of view and the
         // characters sitting on the floor in front of the leaf's home, ready to bounce up onto it.
         const float IntroFloorZ = 1.0f;
 
-        static void CreateIntro(GameObject root, Transform swoop, OrbToken[] tokens, LeafStalk stalk)
+        static IntroSequence CreateIntro(GameObject root, Transform swoop, OrbToken[] tokens, LeafStalk stalk)
         {
             var cast = tokens.Select(t => t.transform).ToArray();
             var floor = cast.Select(t =>
@@ -199,6 +289,7 @@ namespace RoomOrchestra.EditorTools
             intro.Configure(swoop, cast, floor, stalk, title);
             EditorUtility.SetDirty(intro);
             EditorUtility.SetDirty(title);
+            return intro;
         }
 
         // The title card (Version 1 feedback: "boot into a proper title screen"): in front of the player, the
@@ -317,14 +408,22 @@ namespace RoomOrchestra.EditorTools
         public const float TableTop = 0.75f, ChairBackTop = 0.90f;
         public static readonly Vector3 TableAt = new Vector3(-1.1f, 0f, 2.5f), ChairAt = new Vector3(0f, 0f, 2.2f), LampAt = new Vector3(1.1f, 0f, 2.5f);
 
+        // The furniture roots' authored scales (the table in sixths of a metre). Set explicitly so a station the
+        // guided song parked in the cloud (StationReveal) always comes back at full size, even if the scene was
+        // saved with its stations' script unresolved.
+        const float TableScale = 6f, ChairScale = 5.5f, LampScale = 5.5f;
+
         static void FitFurnitureToRealSizes()
         {
             var furniture = GameObject.Find("RoomOrchestra")?.transform.Find("Furniture");
             if (furniture == null) return;
+            // Every furniture collider is a tap and hit area (none is off by design); a hidden station turns them off.
+            foreach (var c in furniture.GetComponentsInChildren<Collider>(true)) c.enabled = true;
             var table = furniture.Find("Table");
             if (table != null)
             {
                 table.localPosition = TableAt;
+                table.localScale = Vector3.one * TableScale;
                 float s = table.localScale.y;                 // 6: the table is authored in sixths of a metre
                 const float topThickness = 0.09f;
                 float legTop = TableTop - topThickness;
@@ -343,6 +442,7 @@ namespace RoomOrchestra.EditorTools
             if (chair != null)
             {
                 chair.localPosition = ChairAt;
+                chair.localScale = Vector3.one * ChairScale;
                 var back = chair.Find("Back");
                 var seat = chair.Find("Seat");
                 if (back != null && seat != null)
@@ -354,7 +454,11 @@ namespace RoomOrchestra.EditorTools
                 }
             }
             var lamp = furniture.Find("Lamp");
-            if (lamp != null) lamp.localPosition = LampAt;
+            if (lamp != null)
+            {
+                lamp.localPosition = LampAt;
+                lamp.localScale = Vector3.one * LampScale;
+            }
             Physics.SyncTransforms();
         }
 
@@ -788,7 +892,7 @@ namespace RoomOrchestra.EditorTools
                 // In English it waits inside the top tile.
                 var plate = Primitive(PrimitiveType.Cube, "KeyBacking", go.transform, slab, keepCollider: false);
                 plate.rotation = key.rotation;
-                plate.localScale = new Vector3(0.09f, 0.06f, 0.006f);
+                plate.localScale = new Vector3(0.09f, 0.06f, 0.015f); // deep enough to stay above the near-zero limit while its station is hidden
                 var shown = go.transform.InverseTransformPoint(key.position + key.forward * 0.008f);
                 var parked = go.transform.InverseTransformPoint(tiles[NoteMapping.Count - 1].transform.position);
                 plate.localPosition = parked;
