@@ -471,5 +471,8 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - **Emulator:** the title card draws with the lettering (`docs/evidence/title-card-emulator-2026-10-29.png`). The emulator needed a cold restart first: after ~12 launches the app hung on PICO's loading placeholder (XR_ERROR_LIMIT_REACHED in the log).
 - **NOT verified:** pressing Start on the emulator (needs the owner's click); a headset.
 
+## 2026-10-29 | Version 3 tagged (app 0.3.0)
+- Owner: "push this under V3". App version 0.3.0 (code 4); `docs/RELEASE_NOTES_v3.md` (icon and name, title screen and opening, hover highlight, real-world furniture sizes, rainforest growth). Tests before tagging: EditMode 177/177, PlayMode 64/64. Tag `v3` and the branch pushed to the private repo. The guided tutorial is next and will join Version 3.
+
 ## Resume here (next session)
 1. Dev team evaluating `v2.1` (`Builds/RoomOrchestra-v2.1.apk`, GitHub release `v2.1`) on a headset; then act on their feedback. Owner checks of the same build: growth waits for 3 notes, flowers round the room, the leaf palette and cloud stand (are the small labels readable, are the small buttons easy to tap, does the cloud read as floating), the 1=D plate in Chinese, the weight levels and Clear's smoke sound (landings are now silent). Following was confirmed by the owner on the emulator. Released as `v2.1` (app 0.2.1); `v2` is the earlier cut. Revisit moving an echo by hand after the headset test. Open: limiter on device, keeping the pad clear of walls once room mapping exists. Ask the owner about a controller call button only once they have a headset and controller to test with. Then Prompt 08. Deferred: UI clean-up, A11Y-04 motion and A11Y-08 scale/contrast options.
