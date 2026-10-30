@@ -188,6 +188,18 @@ namespace RoomOrchestra.EditorTools
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
             CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
             CreateViewSettings(root, controls, pad, slabMaterial, motifMaterial);
+            EnsureRealWalls();
+        }
+
+        // The real room's walls for the balls (RealWalls): at the scene's top level, in the headset's own space, so
+        // recentring the stage never moves the real walls.
+        static void EnsureRealWalls()
+        {
+            var existing = Object.FindFirstObjectByType<RealWalls>();
+            var go = existing != null ? existing.gameObject : new GameObject("RealWalls", typeof(RealWalls));
+            go.transform.SetParent(null, false);
+            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            go.transform.localScale = Vector3.one;
         }
 
         // A11Y-08: what the View setting changes. Large text grows the leaf's labels (the pitch columns' words are
