@@ -42,6 +42,13 @@ namespace RoomOrchestra
         /// <summary>The sound the last burst started, or null if it was silent or shared another cloud's.</summary>
         public AudioClip LastSound { get; private set; }
 
+        /// <summary>Every idle cloud back into the stand at once (the stand moved while nothing updates, e.g. a skip).</summary>
+        public static void ParkIdle()
+        {
+            foreach (var cloud in FindObjectsByType<PoofCloud>(FindObjectsSortMode.None))
+                if (cloud.m_Start < 0f && cloud.parkPoint != null) cloud.transform.position = cloud.parkPoint.position;
+        }
+
         public void Configure(Transform[] cloudPuffs, Transform park)
         {
             puffs = cloudPuffs;

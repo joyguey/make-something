@@ -143,7 +143,11 @@ namespace RoomOrchestra
 
         void Land()
         {
-            if (stand != null && StandAway > 0f) PoseStand(1f);
+            if (stand != null && StandAway > 0f)
+            {
+                PoseStand(1f);
+                PoofCloud.ParkIdle();
+            }
             if (title != null && !title.Parked) title.ParkNow();
             if (leaf != null)
             {

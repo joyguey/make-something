@@ -164,7 +164,8 @@ namespace RoomOrchestra.EditorTools
                 dispenser != null ? dispenser.Find("BallPool") : null, launcher);
             // Focused start (Version 1 feedback): the stand and what travels with it begin directly in front of the
             // player; the opening glides them home (IntroSequence). Moved before anything parks in the cloud.
-            var standCarried = carried.Where(t => t != null).ToArray();
+            // The aim arc's dots rest in the stand's cloud too, so they start in front with it.
+            var standCarried = carried.Append(parent != null ? parent.transform.Find("AimArc") : null).Where(t => t != null).ToArray();
             var standHome = standCarried.Select(t => t.position).ToArray();
             foreach (var t in standCarried) t.position += StandFrontOffset;
             RainforestArt.Build(root.transform, targets);
@@ -194,9 +195,16 @@ namespace RoomOrchestra.EditorTools
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
             intro.ConfigureStand(standCarried, StandFrontOffset, launcher); // and back in front for the first frame
             leafStalk.Apply(); // its closed hole waits in the cloud, wherever the cloud starts
+            var poofPark = root.transform.Find("PoofPark");
+            if (poofPark != null) // idle poof clouds wait in the stand's cloud from the first frame too
+                foreach (var cloud in root.GetComponentsInChildren<PoofCloud>(true)) cloud.transform.position = poofPark.position;
+            // Version 1 feedback ("higher fidelity"): rounded edges on every control and tile, sized while everything is
+            // still at full size (the lesson then tucks the lamp's and table's tiles into the cloud).
+            RoundedShapes.RoundBlocks(controls, 0.012f);
             CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
             CreateViewSettings(root, controls, pad, slabMaterial, motifMaterial);
             EnsureRealWalls();
+            RoundedShapes.RoundBlocks(root.transform.Find("TitleCard"), 0.02f); // softened like the controls
         }
 
         // The real room's walls for the balls (RealWalls): at the scene's top level, in the headset's own space, so
@@ -409,6 +417,7 @@ namespace RoomOrchestra.EditorTools
             tmp.fontSizeMax = tmp.fontSize;
             tmp.fontSizeMin = tmp.fontSize * 0.85f;
             tmp.ForceMeshUpdate(true, true);
+            RoundedShapes.RoundBlocks(bubble, 0.02f); // a soft card, before it is tucked away
 
             // The Skip leaf on the bubble's left end (left of every sight line to the tiles).
             var skip = Holder("SkipButton", bubble, new Vector3(-BubbleSize.x / 2f + 0.06f, 0f, -BubbleSize.z / 2f - 0.012f));
@@ -624,6 +633,9 @@ namespace RoomOrchestra.EditorTools
                 }
             }
             var lamp = furniture.Find("Lamp");
+            var shade = lamp != null ? lamp.Find("Shade") : null;
+            if (shade != null) shade.GetComponent<MeshFilter>().sharedMesh = RoundedShapes.LampShade(); // a shade, not a ball
+            RoundedShapes.RoundBlocks(furniture, 0.02f); // softened edges on the table and chair
             if (lamp != null)
             {
                 lamp.localPosition = LampAt;
