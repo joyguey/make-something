@@ -72,7 +72,13 @@ namespace RoomOrchestra
         /// <summary>The leaf's instrument pack button, and the packs.</summary>
         Sounds,
         PackClassic,
-        PackEarthy
+        PackEarthy,
+        /// <summary>The leaf's View button (A11Y-08) and its settings.</summary>
+        View,
+        ViewStandard,
+        ViewLarge,
+        ViewContrast,
+        ViewLargeContrast
     }
 
     /// <summary>
@@ -133,6 +139,11 @@ namespace RoomOrchestra
             { UiTerm.Sounds, ("Sounds", "音色") },
             { UiTerm.PackClassic, ("Classic", "经典") },
             { UiTerm.PackEarthy, ("Earthy", "质朴") },
+            { UiTerm.View, ("View", "显示") },
+            { UiTerm.ViewStandard, ("Standard", "标准") },
+            { UiTerm.ViewLarge, ("Large text", "大字") },
+            { UiTerm.ViewContrast, ("High contrast", "高对比") },
+            { UiTerm.ViewLargeContrast, ("Large + contrast", "大字+高对比") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>

@@ -91,6 +91,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<TutorialReplayButton>();
             if (owner == null) owner = hit.GetComponentInParent<ChangeInstrumentButton>();
             if (owner == null) owner = hit.GetComponentInParent<SoundPackButton>();
+            if (owner == null) owner = hit.GetComponentInParent<ViewButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -131,6 +132,13 @@ namespace RoomOrchestra
             if (change != null)
             {
                 change.Press();
+                return true;
+            }
+
+            var view = hit.GetComponentInParent<ViewButton>();
+            if (view != null)
+            {
+                view.Press();
                 return true;
             }
 

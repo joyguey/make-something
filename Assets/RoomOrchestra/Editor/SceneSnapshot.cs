@@ -175,6 +175,8 @@ namespace RoomOrchestra.EditorTools
                 if (args[i] == "-snapshotPath") path = args[i + 1];
             EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
             Object.FindFirstObjectByType<IntroSequence>().Finish();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-viewMode") Object.FindFirstObjectByType<ViewSettings>().Preview((ViewMode)int.Parse(args[i + 1]));
             CaptureCloseUp(path, new Vector3(0f, 1.15f, 0f), new Vector3(-0.1f, 0.5f, 1.15f), 28f);
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }

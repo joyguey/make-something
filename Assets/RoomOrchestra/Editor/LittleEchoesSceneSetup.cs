@@ -105,6 +105,7 @@ namespace RoomOrchestra.EditorTools
 
             var tierButton = CreateTierButton(swoop, slabMaterial, motifMaterial);
             CreateSoundsButton(swoop, slabMaterial, motifMaterial);
+            CreateViewButton(swoop, slabMaterial, motifMaterial);
             CreateCallButton(FrontRow(0), swoop, slabMaterial, veinMaterial);
 
             // Targets left to right; one focus marker floats above the focused one
@@ -186,6 +187,22 @@ namespace RoomOrchestra.EditorTools
             CreateInstrumentPacks(root, targets);
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
             CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
+            CreateViewSettings(root, controls, pad, slabMaterial, motifMaterial);
+        }
+
+        // A11Y-08: what the View setting changes. Large text grows the leaf's labels (the pitch columns' words are
+        // already large and fit their tiles, and Flutter's bubble fits its lines); high contrast darkens every
+        // control slab, whitens all control text and brightens the icons (the characters keep their colours).
+        static void CreateViewSettings(GameObject root, Transform controls, Transform pad, Material slab, Material mark)
+        {
+            bool Skip(Component c) => c.GetComponentInParent<OrbToken>() != null || c.transform.IsChildOf(pad.Find("TutorialBubble"));
+            var leafLabels = pad.GetComponentsInChildren<TMP_Text>(true).Where(t => !t.enableAutoSizing && !Skip(t)).ToArray();
+            var slabs = controls.GetComponentsInChildren<Renderer>(true).Where(r => r.sharedMaterial == slab && !Skip(r)).ToArray();
+            var icons = controls.GetComponentsInChildren<Renderer>(true).Where(r => r.sharedMaterial == mark && !Skip(r)).ToArray();
+            var texts = controls.GetComponentsInChildren<TMP_Text>(true).Where(t => !Skip(t)).ToArray();
+            var view = root.AddComponent<ViewSettings>();
+            view.Configure(leafLabels, slabs, icons, texts);
+            EditorUtility.SetDirty(view);
         }
 
         // The guided first song (owner, 2026-10-29): the chair alone at first; the lamp and the table wait in the
@@ -860,6 +877,26 @@ namespace RoomOrchestra.EditorTools
         }
 
         // English / 中文, at the end of the front row: the label names the language a tap switches to.
+        // The back row, left of Flutter: View (A11Y-08), stepping Standard, Large text, High contrast, both.
+        static void CreateViewButton(Transform root, Material slab, Material mark)
+        {
+            var go = new GameObject("ViewButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = TrayCenter + new Vector3(-0.28f, 0f, 0f);
+            go.transform.rotation = FacePlayer(go.transform.position);
+            var slabPart = Box("ViewSlab", go.transform, Vector3.zero, new Vector3(0.1f, 0.03f, 0.08f), slab, keepCollider: false);
+            TapBox(slabPart, new Vector3(0f, 0.04f, 0f), new Vector3(0.1f, 0.12f, 0.09f));
+            // An eye: a flat lens with a dark pupil.
+            var eyeWhite = Primitive(PrimitiveType.Sphere, "ViewEye", go.transform, EnsureMaterial("ViewEyeWhite", "Ball", new Color(0.95f, 0.95f, 0.92f)), keepCollider: false);
+            eyeWhite.localPosition = new Vector3(0f, 0.032f, 0f);
+            eyeWhite.localScale = new Vector3(0.05f, 0.026f, 0.012f);
+            var pupil = Primitive(PrimitiveType.Sphere, "ViewPupil", go.transform, mark, keepCollider: false);
+            pupil.localPosition = new Vector3(0f, 0.032f, -0.006f);
+            pupil.localScale = new Vector3(0.018f, 0.018f, 0.006f);
+            var label = Label("ViewLabel", ViewButton.TextFor(ViewMode.Standard, UiLanguage.English), go.transform, new Vector3(0f, 0.025f, -0.055f), 0.034f);
+            go.AddComponent<ViewButton>().Configure(label.GetComponentInChildren<TMP_Text>());
+        }
+
         // The back row, right of Loudness: Sounds, the next instrument pack (its label names the pack in use).
         static void CreateSoundsButton(Transform root, Material slab, Material mark)
         {
