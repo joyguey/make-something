@@ -30,6 +30,20 @@ namespace RoomOrchestra
         [Tooltip("Character rim and face parts, recoloured for whichever orb this ball is.")]
         [SerializeField] Renderer rim;
         [SerializeField] Renderer[] faceParts;
+        [Tooltip("Plays this character's bounce when it bounces off a wall (BounceSurface).")]
+        [SerializeField] AudioSource bounceVoice;
+        [Tooltip("Each character's bounce, in OrbType order: Flutter, Bop, Boom.")]
+        [SerializeField] AudioClip[] bounceClips;
+        float m_LastBounce = -10f;
+
+        public void ConfigureBounce(AudioSource voice, AudioClip[] clips)
+        {
+            bounceVoice = voice;
+            bounceClips = clips;
+        }
+
+        /// <summary>The bounce sound last played, or null.</summary>
+        public AudioClip LastBounce { get; private set; }
         Material m_RimMaterial, m_FaceMaterial;
         Rigidbody m_Body;
         Renderer m_Renderer;
@@ -206,6 +220,11 @@ namespace RoomOrchestra
                 if (jelly != null) jelly.Kick(1f);
                 return;
             }
+            if (InFlight && collision.collider.GetComponentInParent<BounceSurface>() != null)
+            {
+                Bounce(collision.relativeVelocity.magnitude);
+                return;
+            }
             if (!InFlight || MusicalHitPipeline.HasFired(m_ActionId)) return;
             var target = collision.collider.GetComponentInParent<InstrumentTarget>();
             if (target == null) return;
@@ -217,6 +236,19 @@ namespace RoomOrchestra
             var tier = MusicalHitPipeline.Intensity.FromImpactSpeed(speed);
             if (MusicalHitPipeline.Submit(m_ActionId, target, orb, tier, target.PitchAtHeight(contactY), InputPath.Toss) != null)
                 Hits++;
+        }
+
+        // Its own sound off a wall: this character's voice, louder and a touch brighter the harder it hits.
+        void Bounce(float speed)
+        {
+            float volume = BounceSound.Volume(speed);
+            if (volume <= 0f || Time.time - m_LastBounce < BounceSound.GapSeconds) return;
+            if (bounceVoice == null || bounceClips == null || (int)orb >= bounceClips.Length || bounceClips[(int)orb] == null) return;
+            m_LastBounce = Time.time;
+            LastBounce = bounceClips[(int)orb];
+            bounceVoice.pitch = BounceSound.Pitch(speed);
+            bounceVoice.PlayOneShot(LastBounce, volume);
+            Debug.Log($"[RoomOrchestra] {orb} bounces off a wall ({speed:0.0} m/s, volume {volume:0.00})");
         }
 
         /// <summary>

@@ -218,7 +218,8 @@ namespace RoomOrchestra.EditorTools
                     {
                         float w = length / RoomColumns, h = size.y / RoomRows;
                         var centre = start + along * (w * (c + 0.5f)) + Vector3.up * (h * (r + 0.5f));
-                        var panel = Box($"{name}_{c}_{r}", room, centre, new Vector3(w - Seam, h - Seam, PanelDepth), (c + r) % 2 == 0 ? wallA : wallB, keepCollider: false);
+                        var panel = Box($"{name}_{c}_{r}", room, centre, new Vector3(w - Seam, h - Seam, PanelDepth), (c + r) % 2 == 0 ? wallA : wallB, keepCollider: true);
+                        panel.gameObject.AddComponent<BounceSurface>(); // thrown balls bounce off it with their own sound
                         panel.rotation = Quaternion.LookRotation(Vector3.Cross(along, Vector3.up), Vector3.up);
                         panels.Add(panel);
                     }
@@ -234,7 +235,9 @@ namespace RoomOrchestra.EditorTools
                     float w = size.x / RoomColumns, d = size.z / RoomColumns;
                     var at = new Vector3(RoomMin.x + w * (x + 0.5f), 0f, RoomMin.z + d * (z + 0.5f));
                     panels.Add(Box($"Floor_{x}_{z}", room, at + Vector3.down * (PanelDepth / 2f), new Vector3(w - Seam, PanelDepth, d - Seam), (x + z) % 2 == 0 ? floorA : floorB, keepCollider: false));
-                    panels.Add(Box($"Ceiling_{x}_{z}", room, at + Vector3.up * (size.y + PanelDepth / 2f), new Vector3(w - Seam, PanelDepth, d - Seam), ceiling, keepCollider: false));
+                    var top = Box($"Ceiling_{x}_{z}", room, at + Vector3.up * (size.y + PanelDepth / 2f), new Vector3(w - Seam, PanelDepth, d - Seam), ceiling, keepCollider: true);
+                    top.gameObject.AddComponent<BounceSurface>();
+                    panels.Add(top);
                 }
             // The ceiling must not shade the stage: the room casts no shadows.
             foreach (var panel in panels) panel.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -1118,7 +1121,25 @@ namespace RoomOrchestra.EditorTools
                 }
                 var body = ball.GetComponent<Rigidbody>();
                 if (body != null) body.mass = profile.Mass;
+                // Its own bounce off walls: a quiet 3D voice on the ball itself.
+                if (!ball.TryGetComponent<AudioSource>(out var voice)) voice = ball.gameObject.AddComponent<AudioSource>();
+                voice.playOnAwake = false;
+                voice.spatialBlend = 1f;
+                voice.rolloffMode = AudioRolloffMode.Linear;
+                voice.minDistance = 0.5f;
+                voice.maxDistance = 8f;
+                ball.ConfigureBounce(voice, BounceClips());
+                EditorUtility.SetDirty(ball);
             }
+        }
+
+        // Each character's own bounce (ArtSource/Audio/gen_bounce.py), in OrbType order.
+        static AudioClip[] BounceClips()
+        {
+            var clips = new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom }
+                .Select(o => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/RoomOrchestra/Audio/Effects/Bounce_{o}.wav")).ToArray();
+            if (clips.Any(c => c == null)) Debug.LogWarning("[RoomOrchestra] Bounce sounds missing: run ArtSource/Audio/gen_bounce.py");
+            return clips;
         }
 
         static Material EnsureMaterial(string name, string template, Color color)

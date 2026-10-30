@@ -8,7 +8,8 @@ namespace RoomOrchestra
     /// title, the opening and the guided song. When the song is done (or skipped), it comes apart panel by panel,
     /// a ripple from the far wall outward with little poofs, and the player's own room is the stage from then on.
     /// PICO Spatial: no runtime objects and nothing switched off, so a panel that has gone is shrunk and parked
-    /// inside the ball stand's cloud. The panels have no colliders: nothing hits or taps them.
+    /// inside the ball stand's cloud. Walls and ceiling are solid to thrown balls (each bounces off with its own sound,
+    /// <see cref="BounceSurface"/>) until they go; the floor panels are not. Nothing taps them.
     /// </summary>
     public class VirtualRoom : MonoBehaviour
     {
@@ -127,6 +128,7 @@ namespace RoomOrchestra
             panels[i].position = park.position;
             panels[i].localRotation = homeRotations[i];
             panels[i].localScale = homeScales[i] * ParkedScale;
+            if (panels[i].TryGetComponent<Collider>(out var solid)) solid.enabled = false; // nothing to hit in the cloud
         }
 
         void Update()

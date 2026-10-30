@@ -6,7 +6,7 @@ using UnityEngine;
 namespace RoomOrchestra.Tests
 {
     /// <summary>
-    /// The virtual starting room as saved: standing around the whole stage and the seat, nothing to hit or tap,
+    /// The virtual starting room as saved: standing around the whole stage and the seat, walls solid to balls only,
     /// no shadows on the stage; skipping the opening puts it away in the cloud, safely sized.
     /// </summary>
     public class VirtualRoomTests
@@ -36,11 +36,15 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
-        public void PanelsCatchNothingAndCastNoShadows()
+        public void WallsAreSolidToBallsButCatchNoTapsAndCastNoShadows()
         {
             foreach (var panel in Room.Panels)
             {
-                Assert.IsNull(panel.GetComponent<Collider>(), $"{panel.name} must not catch balls or taps");
+                bool floor = panel.name.StartsWith("Floor");
+                Assert.AreEqual(!floor, panel.GetComponent<Collider>() != null, $"{panel.name}: walls and ceiling stop balls, the floor is the real one");
+                Assert.AreEqual(!floor, panel.GetComponent<BounceSurface>() != null, $"{panel.name}: a ball bounces off it with its own sound");
+                Assert.IsFalse(InstrumentInputRouter.Activate(panel.gameObject), $"a tap on {panel.name} does nothing");
+                Assert.IsFalse(panel.GetComponents<MonoBehaviour>().Any(m => m != null && m.GetType().Name == "SpatialAdapterHoverEffect"), $"{panel.name} does not light up");
                 Assert.AreEqual(UnityEngine.Rendering.ShadowCastingMode.Off, panel.GetComponent<MeshRenderer>().shadowCastingMode, panel.name);
             }
         }
@@ -66,6 +70,7 @@ namespace RoomOrchestra.Tests
                 var s = panel.lossyScale;
                 Assert.Greater(Mathf.Min(s.x, Mathf.Min(s.y, s.z)), 0.001f, $"{panel.name} is not at near-zero scale");
                 Assert.Less(Mathf.Max(s.x, Mathf.Max(s.y, s.z)), 0.06f, $"{panel.name} fits inside the cloud");
+                Assert.IsFalse(panel.TryGetComponent<Collider>(out var c) && c.enabled, $"{panel.name} catches nothing in the cloud");
             }
         }
     }
