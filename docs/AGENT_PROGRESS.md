@@ -555,7 +555,7 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - **Also fixed:** idle poof clouds were saved at the stand's old spot (a stray white puff on the right of the launch view); they now start in the stand's cloud, and skipping the opening tucks them in.
 - **Tests:** EditMode 206/206 (`FidelityTests`: rounded meshes fill a unit box; the shade has a closed diffuser), PlayMode 82/82.
 - **Evidence (Unity renderer):** `docs/evidence/focused-start-editor-2026-10-30.png`, `rounded-furniture-lampshade-editor-2026-10-30.png`, `rounded-controls-editor-2026-10-30.png`.
-- **NOT verified:** on the emulator (host memory) or a headset.
+- **NOT verified:** on the emulator (host memory) or a headset. A later attempt (test build with everything above) booted the emulator but the install never completed and screenshots timed out (emulator ~8 GB, host short of memory); emulator stopped.
 
 ## Resume here (next session)
 0. **2026-10-30 (cont.):** after v3.1, toward a fuller Version 3 before the headset arrives (owner: no release APKs; throwaway emulator test builds OK). Done since v3.1, committed locally: real-wall bounces via AR Foundation meshing (emulator: room mesh arrives), focused start (stand front and centre), the warm-up teaching the throw, rounded shapes and a lampshade. Remaining feedback ideas: textures (blocked on the emulator), more detailed models (Blender) for furniture/leaf. Emulator re-checks pending: the host keeps running short of memory (cold restart + free memory first). Owner prefers the Unity Editor closed (batch mode).
