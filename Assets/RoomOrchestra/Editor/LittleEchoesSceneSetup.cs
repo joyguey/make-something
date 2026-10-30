@@ -104,6 +104,7 @@ namespace RoomOrchestra.EditorTools
             }
 
             var tierButton = CreateTierButton(swoop, slabMaterial, motifMaterial);
+            CreateSoundsButton(swoop, slabMaterial, motifMaterial);
             CreateCallButton(FrontRow(0), swoop, slabMaterial, veinMaterial);
 
             // Targets left to right; one focus marker floats above the focused one
@@ -182,6 +183,7 @@ namespace RoomOrchestra.EditorTools
             cso.FindProperty("selector").objectReferenceValue = selector;
             cso.ApplyModifiedPropertiesWithoutUndo();
 
+            CreateInstrumentPacks(root, targets);
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
             CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
         }
@@ -858,6 +860,43 @@ namespace RoomOrchestra.EditorTools
         }
 
         // English / 中文, at the end of the front row: the label names the language a tap switches to.
+        // The back row, right of Loudness: Sounds, the next instrument pack (its label names the pack in use).
+        static void CreateSoundsButton(Transform root, Material slab, Material mark)
+        {
+            var go = new GameObject("SoundsButton");
+            go.transform.SetParent(root, false);
+            go.transform.position = TrayCenter + new Vector3(0.515f, 0f, 0f);
+            go.transform.rotation = FacePlayer(go.transform.position);
+            var slabPart = Box("SoundsSlab", go.transform, Vector3.zero, new Vector3(0.1f, 0.03f, 0.08f), slab, keepCollider: false);
+            TapBox(slabPart, new Vector3(0f, 0.04f, 0f), new Vector3(0.1f, 0.12f, 0.09f));
+            // A little speaker with two sound waves (unlike Loudness's bars beside it).
+            Box("SoundsSpeaker", go.transform, new Vector3(-0.026f, 0.03f, 0f), new Vector3(0.012f, 0.018f, 0.01f), mark, keepCollider: false);
+            Box("SoundsHorn", go.transform, new Vector3(-0.014f, 0.03f, 0f), new Vector3(0.022f, 0.022f, 0.01f), mark, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Box("SoundsWave0", go.transform, new Vector3(0.008f, 0.03f, 0f), new Vector3(0.005f, 0.018f, 0.008f), mark, keepCollider: false);
+            Box("SoundsWave1", go.transform, new Vector3(0.022f, 0.03f, 0f), new Vector3(0.005f, 0.03f, 0.008f), mark, keepCollider: false);
+            var label = Label("SoundsLabel", SoundPackButton.TextFor(UiTerm.PackClassic, UiLanguage.English), go.transform, new Vector3(0f, 0.025f, -0.055f), 0.034f);
+            go.AddComponent<SoundPackButton>().Configure(label.GetComponentInChildren<TMP_Text>());
+        }
+
+        // The instrument packs, and the furniture they play on (left to right). Each pack's volumes are trimmed to
+        // the approved set's loudness (SoundSets), so switching packs keeps the mix balance.
+        static void CreateInstrumentPacks(GameObject root, InstrumentTarget[] targets)
+        {
+            InstrumentPacks.Pack Make(UiTerm name, string dir)
+            {
+                var pack = new InstrumentPacks.Pack { name = name };
+                pack.udu = SoundSets.Clips(dir, "Udu");
+                pack.mbira = SoundSets.Clips(dir, "Mbira");
+                pack.erhu = SoundSets.Clips(dir, "Erhu");
+                pack.volumes = new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu }
+                    .Select(t => SoundSets.VolumeFor(dir, t.ToString())).ToArray();
+                return pack;
+            }
+            var packs = root.AddComponent<InstrumentPacks>();
+            packs.Configure(new[] { Make(UiTerm.PackClassic, SoundSets.OriginalDir), Make(UiTerm.PackEarthy, SoundSets.SynthDir) }, targets);
+            EditorUtility.SetDirty(packs);
+        }
+
         // Last on the front row: plays the guided song again (it is remembered as done once finished or skipped).
         static void CreateLessonButton(Vector3 position, Transform root, Material slab, Material mark)
         {
@@ -1015,16 +1054,25 @@ namespace RoomOrchestra.EditorTools
                 var note = new MusicalNote(target.Instrument, i);
                 string text = UiText.Tile(note, UiLanguage.English);
                 // Label on the tile's player-facing side, sized in world units (not stretched by the tile).
-                var label = Label($"TileLabel{i}", text, go.transform, Vector3.zero, note.IsPercussion ? 0.034f : 0.045f);
+                // Sized for a note name; any word (a drum sound, Chinese) shrinks to fit the tile, since the furniture
+                // can play any instrument.
+                var label = Label($"TileLabel{i}", "D", go.transform, Vector3.zero, 0.045f);
                 label.position = tile.position - tile.forward * 0.02f;
                 label.rotation = tile.rotation;
-                label.gameObject.AddComponent<LocalizedLabel>().ConfigureTile(label.GetComponentInChildren<TMP_Text>(), target.Instrument, i);
+                var tileText = label.GetComponentInChildren<TMP_Text>();
+                tileText.rectTransform.sizeDelta = new Vector2(TileScale.x - 0.015f, TileScale.y);
+                tileText.enableAutoSizing = true;
+                tileText.fontSizeMax = tileText.fontSize;
+                tileText.fontSizeMin = tileText.fontSize * 0.5f;
+                tileText.text = text;
+                tileText.ForceMeshUpdate(true, true);
+                label.gameObject.AddComponent<LocalizedLabel>().ConfigureTile(tileText, target, i);
                 tiles[i] = tile.gameObject.AddComponent<PitchTile>();
                 tiles[i].Configure(target, i);
                 EditorUtility.SetDirty(tiles[i]);
             }
-            // Jianpu shows its key above the music: "1=D" over the note tiles, in Chinese only.
-            if (!new MusicalNote(target.Instrument, 0).IsPercussion)
+            // Jianpu shows its key above the music: "1=D" over the note tiles, in Chinese only, and only while the
+            // furniture plays a melodic instrument (every column has one: instruments can change places).
             {
                 // Sized from its Chinese text, then authored blank like every label's English start.
                 var key = Label("KeyLabel", UiText.Get(UiTerm.KeyOfD, UiLanguage.Chinese), go.transform, Vector3.zero, 0.045f); // as tall as the tile numbers
@@ -1032,6 +1080,8 @@ namespace RoomOrchestra.EditorTools
                 key.position = new Vector3(go.transform.position.x, ColumnBottom + ColumnStep * (NoteMapping.Count - 1) + 0.11f, go.transform.position.z);
                 key.rotation = FacePlayer(key.position);
                 Localize(key, UiTerm.KeyOfD);
+                key.GetComponent<LocalizedLabel>().ConfigureMelodicOnly(target);
+                if (new MusicalNote(target.Instrument, 0).IsPercussion) key.GetComponentInChildren<TMP_Text>().text = "";
                 // A small dark plate behind it (white text alone may vanish against a light wall).
                 // In English it waits inside the top tile.
                 var plate = Primitive(PrimitiveType.Cube, "KeyBacking", go.transform, slab, keepCollider: false);
@@ -1040,7 +1090,9 @@ namespace RoomOrchestra.EditorTools
                 var shown = go.transform.InverseTransformPoint(key.position + key.forward * 0.008f);
                 var parked = go.transform.InverseTransformPoint(tiles[NoteMapping.Count - 1].transform.position);
                 plate.localPosition = parked;
-                key.gameObject.AddComponent<ChineseOnlyBacking>().Configure(plate, shown, parked);
+                var backing = key.gameObject.AddComponent<ChineseOnlyBacking>();
+                backing.Configure(plate, shown, parked);
+                backing.ConfigureOwner(target);
             }
             // The instrument's name tile is also its volume button (tap steps 100/60/30%/Muted).
             var mixTile = Primitive(PrimitiveType.Cube, "MixTile", go.transform, slab, keepCollider: true);
@@ -1054,6 +1106,18 @@ namespace RoomOrchestra.EditorTools
             var mix = mixTile.gameObject.AddComponent<MixButton>();
             mix.Configure(target, caption.GetComponentInChildren<TMP_Text>());
             EditorUtility.SetDirty(mix);
+
+            // Under the name: Change gives this furniture the next instrument (InstrumentPacks).
+            var changeTile = Primitive(PrimitiveType.Cube, "ChangeTile", go.transform, slab, keepCollider: true);
+            Hoverable(changeTile.gameObject);
+            changeTile.position = new Vector3(go.transform.position.x, ColumnBottom - 0.26f, go.transform.position.z);
+            changeTile.rotation = FacePlayer(changeTile.position);
+            changeTile.localScale = new Vector3(0.14f, 0.07f, 0.03f);
+            var changeLabel = Label("ChangeLabel", UiText.Get(UiTerm.ChangeInstrument, UiLanguage.English), go.transform, Vector3.zero, 0.03f);
+            changeLabel.position = changeTile.position - changeTile.forward * 0.02f;
+            changeLabel.rotation = changeTile.rotation;
+            Localize(changeLabel, UiTerm.ChangeInstrument);
+            changeTile.gameObject.AddComponent<ChangeInstrumentButton>().Configure(target);
 
             var column = go.AddComponent<PitchColumn>();
             column.Configure(target, tiles, TileScale);

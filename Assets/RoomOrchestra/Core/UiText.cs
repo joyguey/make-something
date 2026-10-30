@@ -66,7 +66,13 @@ namespace RoomOrchestra
         /// <summary>The leaf that skips the guided song.</summary>
         Skip,
         /// <summary>The leaf button that plays the guided song again.</summary>
-        Lesson
+        Lesson,
+        /// <summary>Under an instrument's name: give this furniture the next instrument.</summary>
+        ChangeInstrument,
+        /// <summary>The leaf's instrument pack button, and the packs.</summary>
+        Sounds,
+        PackClassic,
+        PackEarthy
     }
 
     /// <summary>
@@ -123,6 +129,10 @@ namespace RoomOrchestra
             { UiTerm.Go, ("Go!", "开始！") },
             { UiTerm.Skip, ("Skip", "跳过") },
             { UiTerm.Lesson, ("Lesson", "教学") },
+            { UiTerm.ChangeInstrument, ("Change", "换乐器") },
+            { UiTerm.Sounds, ("Sounds", "音色") },
+            { UiTerm.PackClassic, ("Classic", "经典") },
+            { UiTerm.PackEarthy, ("Earthy", "质朴") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>

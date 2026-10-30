@@ -114,11 +114,12 @@ namespace RoomOrchestra.Tests
                 var localized = text.GetComponentInParent<LocalizedLabel>();
                 string authored = text.text;
                 if (string.IsNullOrEmpty(authored) && localized != null) text.text = localized.TextFor(UiLanguage.Chinese);
+                bool blankInBoth = string.IsNullOrEmpty(text.text); // 1=D over a drum: nothing to read
                 text.ForceMeshUpdate(true, true);
                 float height = text.textBounds.size.y;
                 text.text = authored;
                 text.ForceMeshUpdate(true, true);
-                Assert.Greater(height, 0.015f, $"{text.transform.parent.name} is readable size");
+                if (!blankInBoth) Assert.Greater(height, 0.015f, $"{text.transform.parent.name} is readable size");
                 Assert.Less(text.transform.localPosition.sqrMagnitude, 1e-8f, "text sits at its holder's origin");
                 Assert.IsFalse(string.IsNullOrWhiteSpace(text.text) && localized == null, $"{text.name} has text (blank only for a Chinese-only label)");
                 var toLabel = text.transform.position - new Vector3(0f, 1.15f, 0f);

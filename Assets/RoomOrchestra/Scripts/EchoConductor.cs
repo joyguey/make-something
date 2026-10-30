@@ -137,6 +137,9 @@ namespace RoomOrchestra
         }
 
         // Cancel what was already handed to audio, then re-queue from now: used after every edit.
+        /// <summary>Re-queues every echo from now (an instrument moved to other furniture, or its sound changed).</summary>
+        public void Requeue() => Resync();
+
         void Resync()
         {
             double now = AudioSettings.dspTime;

@@ -206,6 +206,7 @@ namespace RoomOrchestra
 
         void Begin()
         {
+            InstrumentPacks.Instance?.ResetPlaces(); // the lesson is about the chair's mbira, the lamp's erhu, the table's udu
             m_Started = true;
             Debug.Log("[RoomOrchestra] Tutorial: Flutter starts the first song");
             m_BubbleOut = true;

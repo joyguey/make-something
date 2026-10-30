@@ -98,7 +98,10 @@ namespace RoomOrchestra.Tests
             {
                 Assert.IsNotNull(label.Text, label.name);
                 Assert.AreEqual(label.TextFor(UiLanguage.English), label.Text.text, $"{label.name} authored in English");
-                Assert.AreNotEqual(label.TextFor(UiLanguage.English), label.TextFor(UiLanguage.Chinese), $"{label.name} has Chinese");
+                // 1=D over a drum says nothing in either language (instruments can change furniture).
+                bool keyOverADrum = label.name == "KeyLabel" && label.TextFor(UiLanguage.Chinese) == "" && label.GetComponentInParent<PitchColumn>().Target.Instrument == InstrumentType.Udu;
+                if (!keyOverADrum)
+                    Assert.AreNotEqual(label.TextFor(UiLanguage.English), label.TextFor(UiLanguage.Chinese), $"{label.name} has Chinese");
             }
             // Jianpu key over the melodic columns only (udu tiles are drum sounds, not notes).
             var keys = labels.Where(l => l.TextFor(UiLanguage.Chinese) == "1=D").Select(l => l.transform.parent.name).OrderBy(n => n).ToArray();
@@ -116,7 +119,8 @@ namespace RoomOrchestra.Tests
                     Assert.Less((tile.ClosestPoint(p) - p).sqrMagnitude, 1e-8f, "parked wholly inside the tile");
                 }
             }
-            Assert.AreEqual(2, UnityEngine.Object.FindObjectsByType<ChineseOnlyBacking>(FindObjectsSortMode.None).Length);
+            // One per column (instruments can change furniture); each shows only under a melodic instrument.
+            Assert.AreEqual(3, UnityEngine.Object.FindObjectsByType<ChineseOnlyBacking>(FindObjectsSortMode.None).Length);
             var clear = UnityEngine.Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None).First(b => b.ButtonKind == MusicControlButton.Kind.Clear);
             Assert.IsNotNull(clear.GetComponentInChildren<LocalizedLabel>(), "Clear's label switches");
         }

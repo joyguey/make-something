@@ -27,6 +27,8 @@ namespace RoomOrchestra.Tests
             ComfortSettings.SetPosture(PlayPosture.Seated);
             MusicalHitPipeline.Reset();
             PlayerPrefs.DeleteKey(TutorialDirector.DonePrefKey); // a first launch on this device
+            PlayerPrefs.DeleteKey(InstrumentPacks.PackPrefKey);
+            PlayerPrefs.DeleteKey(InstrumentPacks.PlacesPrefKey);
             LogAssert.ignoreFailingMessages = true; // the PICO SDK's scene components throw in the Editor while loading
             yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Single);
             yield return null;

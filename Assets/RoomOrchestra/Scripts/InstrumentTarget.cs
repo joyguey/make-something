@@ -97,6 +97,29 @@ namespace RoomOrchestra
             notes = clips;
         }
 
+        /// <summary>Plays another instrument from now on (an instrument's place changed): its sound follows (SetSound).</summary>
+        public void SetInstrument(InstrumentType type)
+        {
+            if (instrument == type) return;
+            StopAll();
+            instrument = type;
+        }
+
+        /// <summary>A sound pack's notes and volume for this instrument; the per-character voices are rendered again.</summary>
+        public void SetSound(AudioClip[] clips, float packVolume)
+        {
+            if (clips == null || clips.Length < NoteMapping.Count) return;
+            bool same = notes != null && notes.Length == clips.Length && System.Linq.Enumerable.SequenceEqual(notes, clips)
+                        && Mathf.Approximately(volume, packVolume) && m_Bank != null && m_BankFor == instrument;
+            if (same) return;
+            StopAll();
+            notes = clips;
+            volume = packVolume;
+            BuildVoiceBank();
+        }
+
+        InstrumentType m_BankFor;
+
         /// <summary>True once per-orb voices are rendered; until then hits fall back to the plain samples.</summary>
         public bool HasVoiceBank => m_Bank != null;
 
@@ -128,6 +151,7 @@ namespace RoomOrchestra
                 }
             }
             m_Bank = bank;
+            m_BankFor = instrument;
             int built = 0;
             foreach (var clip in bank) if (clip != null) built++;
             Debug.Log($"[RoomOrchestra] {instrument} voice bank: {built} voices (sound prototype)");

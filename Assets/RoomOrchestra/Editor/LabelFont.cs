@@ -24,7 +24,8 @@ namespace RoomOrchestra.EditorTools
             if (existing != null) AssetDatabase.DeleteAsset(AssetPath);
 
             var source = AssetDatabase.LoadAssetAtPath<Font>(SourcePath);
-            var font = TMP_FontAsset.CreateFontAsset(source, 64, 6, GlyphRenderMode.SDFAA, 1024, 1024, AtlasPopulationMode.Dynamic, false);
+            // 2048 wide: about 230 characters (many of them Chinese) no longer fit a 1024 x 1024 atlas at this size.
+            var font = TMP_FontAsset.CreateFontAsset(source, 64, 6, GlyphRenderMode.SDFAA, 2048, 1024, AtlasPopulationMode.Dynamic, false);
             font.name = "LittleEchoesLabels SDF";
             font.TryAddCharacters(UiText.AllCharacters(), out string missing);
             if (!string.IsNullOrEmpty(missing)) Debug.LogError($"[RoomOrchestra] Label font lacks: {missing} (re-run ArtSource/Fonts/subset_label_font.py)");
