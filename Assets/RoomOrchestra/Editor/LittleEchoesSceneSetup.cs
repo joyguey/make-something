@@ -195,8 +195,96 @@ namespace RoomOrchestra.EditorTools
                 return new Vector3(t.position.x, aboveFeet + 0.003f, IntroFloorZ);
             }).ToArray();
             var intro = root.AddComponent<IntroSequence>();
-            intro.Configure(swoop, cast, floor, stalk);
+            var title = CreateTitle(root, intro);
+            intro.Configure(swoop, cast, floor, stalk, title);
             EditorUtility.SetDirty(intro);
+            EditorUtility.SetDirty(title);
+        }
+
+        // The title card (Version 1 feedback: "boot into a proper title screen"): in front of the player, the
+        // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
+        static readonly Vector3 TitleCardAt = new Vector3(0f, 1.2f, 1.5f);
+
+        static TitleScreen CreateTitle(GameObject root, IntroSequence intro)
+        {
+            var card = Holder("TitleCard", root.transform, Vector3.zero);
+            card.position = TitleCardAt;
+            card.rotation = FacePlayer(TitleCardAt);
+            var cream = new Color(1f, 0.96f, 0.92f);
+            // 3 cm deep, so even parked at TitleScreen.ParkedScale nothing is under the near-zero scale limit.
+            Box("TitleRim", card, new Vector3(0f, 0f, 0.02f), new Vector3(0.95f, 0.59f, 0.03f), EnsureMaterial("TitleRim", "Ball", cream), keepCollider: false);
+            Box("TitlePanel", card, new Vector3(0f, 0f, 0.012f), new Vector3(0.92f, 0.56f, 0.03f), EnsureMaterial("TitlePanel", "Ball", new Color(1f, 0.56f, 0.48f)), keepCollider: false);
+
+            // The key-art lettering as two flat meshes (cream letters on the icon's plum outline): PICO Spatial did
+            // not draw it as a textured quad on the emulator (ArtSource/Icon/lettering_mesh.py explains).
+            var (fill, outline) = TitleLetteringMeshes();
+            var letters = Holder("TitleLettering", card, new Vector3(0f, 0.1f, 0f));
+            MeshPart("LetteringOutline", letters, outline, new Vector3(0f, 0f, -0.005f), EnsureMaterial("TitleLetterOutline", "Ball", new Color(0.23f, 0.14f, 0.31f)));
+            MeshPart("LetteringFill", letters, fill, new Vector3(0f, 0f, -0.007f), EnsureMaterial("TitleLetterFill", "Ball", new Color(1f, 0.965f, 0.92f)));
+
+            Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), card, new Vector3(0f, -0.055f, -0.004f), 0.045f), UiTerm.TitleSubtitle);
+
+            var button = Holder("StartButton", card, new Vector3(0f, -0.18f, -0.02f));
+            var leaf = Primitive(PrimitiveType.Sphere, "StartLeaf", button, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
+            leaf.localScale = new Vector3(0.26f, 0.1f, 0.035f); // its depth parks above the near-zero limit too
+            leaf.gameObject.AddComponent<BoxCollider>(); // the unit box inside the scaled leaf: its tap area
+            Hoverable(leaf.gameObject);
+            Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), button, new Vector3(0f, 0f, -0.02f), 0.04f), UiTerm.Start);
+            button.gameObject.AddComponent<TitleStartButton>();
+
+            var title = root.AddComponent<TitleScreen>();
+            title.Configure(card, GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint"), intro);
+            return title;
+        }
+
+        const string TitleLetteringMeshData = "Assets/RoomOrchestra/Art/Title/TitleLetteringMesh.json";
+
+        [System.Serializable] class FlatShape { public float[] vertices; public int[] triangles; }
+        [System.Serializable] class LetteringShapes { public float width, height; public FlatShape fill, outline; }
+
+        // Mesh assets from the traced lettering, facing the player (-Z), saved beside the other generated meshes.
+        static (Mesh fill, Mesh outline) TitleLetteringMeshes()
+        {
+            var data = JsonUtility.FromJson<LetteringShapes>(System.IO.File.ReadAllText(TitleLetteringMeshData));
+            return (SaveFlatMesh("TitleLetteringFill", data.fill), SaveFlatMesh("TitleLetteringOutline", data.outline));
+        }
+
+        static Mesh SaveFlatMesh(string name, FlatShape shape)
+        {
+            string path = $"Assets/RoomOrchestra/Meshes/{name}.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                if (!AssetDatabase.IsValidFolder("Assets/RoomOrchestra/Meshes")) AssetDatabase.CreateFolder("Assets/RoomOrchestra", "Meshes");
+                mesh = new Mesh { name = name };
+                AssetDatabase.CreateAsset(mesh, path);
+            }
+            var vertices = new Vector3[shape.vertices.Length / 2];
+            for (int i = 0; i < vertices.Length; i++) vertices[i] = new Vector3(shape.vertices[2 * i], shape.vertices[2 * i + 1], 0f);
+            var triangles = (int[])shape.triangles.Clone();
+            mesh.Clear();
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            if (mesh.normals.Length > 0 && mesh.normals[0].z > 0f) // wind every triangle to face the player
+            {
+                for (int i = 0; i < triangles.Length; i += 3) (triangles[i + 1], triangles[i + 2]) = (triangles[i + 2], triangles[i + 1]);
+                mesh.triangles = triangles;
+                mesh.RecalculateNormals();
+            }
+            mesh.RecalculateBounds();
+            EditorUtility.SetDirty(mesh);
+            return mesh;
+        }
+
+        static Transform MeshPart(string name, Transform parent, Mesh mesh, Vector3 localPosition, Material material)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPosition;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = material;
+            return go.transform;
         }
 
         /// <summary>

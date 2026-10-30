@@ -329,9 +329,15 @@ namespace RoomOrchestra.Tests
             Assert.IsFalse(sparkle.Flaring, "another instrument's note");
             MusicalHitPipeline.Submit(MusicalHitPipeline.BeginAction(), chair, OrbType.Bop, IntensityTier.Medium, PitchInput.FromPetal(1), InputPath.Place);
             Assert.IsTrue(sparkle.Flaring, "its own instrument played");
+            // The largest size during the flare (one sampled frame can land just off the peak on a slow frame).
+            float peak = 0f;
+            for (float end = Time.time + SparkleTwinkle.FlareSeconds; Time.time < end;)
+            {
+                yield return null;
+                peak = Mathf.Max(peak, sparkle.transform.localScale.x);
+            }
+            Assert.Greater(peak, 0.02f * 1.5f, "visibly bigger at the peak");
             yield return new WaitForSeconds(SparkleTwinkle.FlareSeconds * 0.5f);
-            Assert.Greater(sparkle.transform.localScale.x, 0.02f * 1.5f, "visibly bigger at the peak");
-            yield return new WaitForSeconds(SparkleTwinkle.FlareSeconds);
             Assert.Less(sparkle.transform.localScale.x, 0.02f * 1.05f, "back to a gentle twinkle");
         }
 

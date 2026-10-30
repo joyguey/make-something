@@ -23,6 +23,8 @@ namespace RoomOrchestra
         [SerializeField] Vector3[] floorSpots;
         [Tooltip("The hole that opens and the stalk that grows up to meet the leaf.")]
         [SerializeField] LeafStalk stalk;
+        [Tooltip("The title card; with one, the opening waits for Start instead of beginning by itself.")]
+        [SerializeField] TitleScreen title;
 
         /// <summary>The hole opens over this long; then the stalk grows, reaching the leaf just before it lands,
         /// and the hole and its cracks close up around it, leaving the stalk on the floor.</summary>
@@ -38,9 +40,10 @@ namespace RoomOrchestra
         public Transform Leaf => leaf;
 
         /// <summary>Wires the opening and puts the scene in its first frame (called by the scene setup).</summary>
-        public void Configure(Transform leafHolder, Transform[] cast, Vector3[] floorWorld, LeafStalk leafStalk = null)
+        public void Configure(Transform leafHolder, Transform[] cast, Vector3[] floorWorld, LeafStalk leafStalk = null, TitleScreen titleCard = null)
         {
             stalk = leafStalk;
+            title = titleCard;
             leaf = leafHolder;
             characters = cast;
             homes = new Vector3[cast.Length];
@@ -67,6 +70,7 @@ namespace RoomOrchestra
             if (m_Done || leaf == null) return;
             if (m_Start < 0f)
             {
+                if (title != null) return; // the title's Start begins it (Play)
                 if (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds + StartAfterSeconds) return;
                 Play();
             }
@@ -81,7 +85,7 @@ namespace RoomOrchestra
             if (allLanded) Finish();
         }
 
-        /// <summary>Starts the opening (the title screen will call this; until then it starts by itself).</summary>
+        /// <summary>Starts the opening (the title's Start calls this; without a title it starts by itself).</summary>
         public void Play()
         {
             if (m_Done || m_Start >= 0f) return;
@@ -93,6 +97,7 @@ namespace RoomOrchestra
         /// <summary>Everything in its place at once (a skip, and the state tests check the layout in).</summary>
         public void Finish()
         {
+            if (title != null && !title.Parked) title.ParkNow();
             if (leaf != null)
             {
                 leaf.localPosition = Vector3.zero;

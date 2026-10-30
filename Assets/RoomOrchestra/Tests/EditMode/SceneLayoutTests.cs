@@ -190,6 +190,7 @@ namespace RoomOrchestra.Tests
             if (owner == null) owner = c.GetComponentInParent<HeightButton>();
             if (owner == null) owner = c.GetComponentInParent<LanguageButton>();
             if (owner == null) owner = c.GetComponentInParent<TrayCallButton>();
+            if (owner == null) owner = c.GetComponentInParent<TitleStartButton>();
             if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
             return owner;
         }
@@ -263,7 +264,7 @@ namespace RoomOrchestra.Tests
             foreach (var c in Object.FindObjectsByType<Collider>(FindObjectsSortMode.None))
             {
                 var owner = TapOwner(c);
-                if (owner == null || owner is InstrumentTarget) continue;
+                if (owner == null || owner is InstrumentTarget || !c.enabled) continue; // off: not tappable (the parked title's Start)
                 Assert.IsTrue(c.transform.IsChildOf(rig.transform), $"{owner.name} must lift with the other controls");
             }
         }
@@ -673,6 +674,37 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(Quaternion.identity, intro.Leaf.localRotation);
             foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
                 Assert.Greater(token.transform.position.y, 0.5f, $"{token.name} is on the leaf");
+        }
+
+        // ---- The title card (Version 1 feedback: "boot into a proper title screen") ----
+        [Test]
+        public void TheGameOpensOnATitleCardInFrontWithAStartButton()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single); // as saved, without Finish()
+            var title = Object.FindFirstObjectByType<TitleScreen>();
+            Assert.IsNotNull(title, "a title card");
+            Assert.IsTrue(title.Showing, "showing at launch");
+            var p = title.Card.position;
+            Assert.GreaterOrEqual(new Vector2(p.x, p.z).magnitude, 1f, "at least 1 m out (PICO Spatial draws nearer props wrongly)");
+            Assert.Less(Vector3.Angle(Vector3.forward, new Vector3(p.x, 0f, p.z)), 10f, "straight in front");
+            Assert.AreEqual(1.15f, p.y, 0.15f, "at eye height");
+            var start = title.Card.GetComponentInChildren<TitleStartButton>();
+            Assert.IsNotNull(start, "a Start button");
+            var hit = start.GetComponentInChildren<Collider>();
+            Assert.IsNotNull(hit, "Start is tappable");
+            Assert.IsTrue(hit.GetComponents<MonoBehaviour>().Any(m => m.GetType().Name == "SpatialAdapterHoverEffect"), "and lights up under the pointer");
+            var texts = title.Card.GetComponentsInChildren<LocalizedLabel>().Select(l => l.TextFor(UiLanguage.English)).ToArray();
+            CollectionAssert.Contains(texts, "Start");
+            CollectionAssert.Contains(texts, "A mixed-reality musical playground");
+            var letters = title.Card.Find("TitleLettering").GetComponentsInChildren<MeshFilter>();
+            Assert.AreEqual(2, letters.Length, "the key-art lettering: cream letters on a plum outline");
+            Assert.IsTrue(letters.All(f => f.sharedMesh.triangles.Length / 3 > 100), "traced shapes, not a textured quad (PICO Spatial did not draw that)");
+
+            Object.FindFirstObjectByType<IntroSequence>().Finish();
+            var cloud = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/Pedestal").GetComponent<Collider>();
+            Assert.IsTrue(title.Parked);
+            Assert.IsTrue(title.Card.GetComponentsInChildren<Renderer>().All(r => cloud.bounds.Contains(r.bounds.center)), "parked inside the ball stand's cloud");
+            Assert.IsFalse(hit.enabled, "and its button no longer catches taps");
         }
 
         // Version 1 feedback: nothing showed what the eye or pointer was on. PICO's system hover highlight

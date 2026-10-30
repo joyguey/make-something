@@ -86,6 +86,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<HeightButton>();
             if (owner == null) owner = hit.GetComponentInParent<LanguageButton>();
             if (owner == null) owner = hit.GetComponentInParent<TrayCallButton>();
+            if (owner == null) owner = hit.GetComponentInParent<TitleStartButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
             if (owner == null) return false;
@@ -104,6 +105,16 @@ namespace RoomOrchestra
         {
             if (hit == null)
                 return false;
+
+            // The title card: only Start does anything until the game has begun.
+            var title = TitleScreen.Instance;
+            if (title != null && title.Showing)
+            {
+                var start = hit.GetComponentInParent<TitleStartButton>();
+                if (start == null) return false;
+                start.Press();
+                return true;
+            }
 
             var selector = OrbSelector.Instance;
             var token = hit.GetComponentInParent<OrbToken>();

@@ -40,7 +40,11 @@ namespace RoomOrchestra
         /// <summary>The key above a jianpu note column ("1=D"); Chinese only, English tiles name the notes.</summary>
         KeyOfD,
         /// <summary>The leaf that calls the ball tray and buttons to the player.</summary>
-        CallTray
+        CallTray,
+        /// <summary>The title card's line under the name.</summary>
+        TitleSubtitle,
+        /// <summary>The title card's button that begins the game.</summary>
+        Start
     }
 
     /// <summary>
@@ -77,6 +81,8 @@ namespace RoomOrchestra
             { UiTerm.SwitchLanguage, ("中文", "English") },
             { UiTerm.KeyOfD, ("", "1=D") },
             { UiTerm.CallTray, ("Come here", "过来") },
+            { UiTerm.TitleSubtitle, ("A mixed-reality musical playground", "混合现实音乐游乐场") },
+            { UiTerm.Start, ("Start", "开始") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>
