@@ -14,5 +14,6 @@ EditorBuildSettings:
   m_configObjects:
     ByteDance.PICO.XR.Settings: {fileID: 11400000, guid: d85bc91f5cc54a748bac4a7a1bc46e66, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 2fdf087abb259484e943d26b4575a169, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: fdeac57730d81e645be4de21f7b797f5, type: 2}
   m_UseUCBPForAssetBundles: 0
