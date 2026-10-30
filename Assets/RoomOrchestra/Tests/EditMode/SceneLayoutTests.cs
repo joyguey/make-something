@@ -690,6 +690,7 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(1.15f, p.y, 0.15f, "at eye height");
             var start = title.Card.GetComponentInChildren<TitleStartButton>();
             Assert.IsNotNull(start, "a Start button");
+            Assert.Greater(Mathf.Abs(title.Card.InverseTransformPoint(start.transform.position).x), 0.15f, "off the centre line, clear of PICO's window handle");
             var hit = start.GetComponentInChildren<Collider>();
             Assert.IsNotNull(hit, "Start is tappable");
             Assert.IsTrue(hit.GetComponents<MonoBehaviour>().Any(m => m.GetType().Name == "SpatialAdapterHoverEffect"), "and lights up under the pointer");

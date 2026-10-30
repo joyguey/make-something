@@ -224,12 +224,16 @@ namespace RoomOrchestra.EditorTools
 
             Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), card, new Vector3(0f, -0.055f, -0.004f), 0.045f), UiTerm.TitleSubtitle);
 
-            var button = Holder("StartButton", card, new Vector3(0f, -0.18f, -0.02f));
+            // Bottom right, off the centre line: PICO draws its own window handle (the round grabber that opens
+            // Back / Close / Minimize) on the app's centre line, and centred it covered Start (owner, emulator).
+            var button = Holder("StartButton", card, new Vector3(0.27f, -0.18f, -0.02f));
             var leaf = Primitive(PrimitiveType.Sphere, "StartLeaf", button, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
             leaf.localScale = new Vector3(0.26f, 0.1f, 0.035f); // its depth parks above the near-zero limit too
             leaf.gameObject.AddComponent<BoxCollider>(); // the unit box inside the scaled leaf: its tap area
             Hoverable(leaf.gameObject);
-            Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), button, new Vector3(0f, 0f, -0.02f), 0.04f), UiTerm.Start);
+            // Well clear of the leaf's curved face: off-centre, the label turns to face the player and its near
+            // edge dipped behind the leaf ("tart" on the emulator).
+            Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), button, new Vector3(0f, 0f, -0.045f), 0.04f), UiTerm.Start);
             button.gameObject.AddComponent<TitleStartButton>();
 
             var title = root.AddComponent<TitleScreen>();
