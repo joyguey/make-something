@@ -68,6 +68,7 @@ namespace RoomOrchestra.Tests
         [UnityTest]
         public IEnumerator FlutterAsksForTheFirstNoteOnTheChairAlone()
         {
+            Assert.IsTrue(VirtualRoom.Instance.Standing, "the lesson happens in the virtual room");
             Assert.AreEqual(UiTerm.TutorialHello, m_Tutorial.Line);
             Assert.IsTrue(m_Tutorial.BubbleOut);
             Assert.IsTrue(Station(InstrumentType.Udu).Hidden, "the table waits in the cloud");
@@ -200,6 +201,13 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(-1, m_Tutorial.CountdownBeat, "the count is put away");
             Assert.AreEqual(TutorialDirector.CheerHops - 1, m_Tutorial.CheerHopsLeft, "the friends start cheering: the lesson is clearly over");
             Assert.IsFalse(m_Tutorial.GlowOut, "nothing glows once the song is made");
+
+            var room = VirtualRoom.Instance;
+            Assert.IsTrue(room.TearingDown, "the virtual room comes apart: the lesson is over");
+            yield return new WaitForSeconds(room.TearDownSeconds + 0.2f);
+            Assert.IsTrue(room.Gone, "and the player's own room is the stage");
+            var park = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/ParkPoint");
+            Assert.IsTrue(room.Panels.All(p => Vector3.Distance(p.position, park.position) < 1e-3f), "every panel waits in the cloud");
         }
 
         [UnityTest]
@@ -237,6 +245,7 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(InstrumentInputRouter.Activate(hit.collider.gameObject));
 
             Assert.IsTrue(m_Tutorial.Plan.Skipped);
+            Assert.IsTrue(VirtualRoom.Instance.TearingDown, "Skip also brings the real room in");
             yield return new WaitForSeconds(Mathf.Max(StationReveal.AppearAfterSeconds, TutorialDirector.PopSeconds) + 0.1f);
             Assert.IsFalse(Station(InstrumentType.Udu).Hidden);
             Assert.IsFalse(Station(InstrumentType.Erhu).Hidden);

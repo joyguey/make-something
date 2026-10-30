@@ -134,5 +134,35 @@ namespace RoomOrchestra.EditorTools
             Debug.Log($"[RoomOrchestra] Tutorial snapshots saved to {path}-*.png");
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
+
+        /// <summary>
+        /// The virtual starting room coming apart, from the seated eye (Unity's renderer, not PICO's; never saved):
+        /// frames at 0, 1, 2 s and after. Batch: -executeMethod RoomOrchestra.EditorTools.SceneSnapshot.CaptureRoom
+        /// -snapshotPath out (writes out-0.png ... out-3.png).
+        /// </summary>
+        public static void CaptureRoom()
+        {
+            string path = "docs/evidence/virtual-room";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
+            foreach (var station in Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None)) station.ShowNow();
+            var room = Object.FindFirstObjectByType<VirtualRoom>();
+            var so = new SerializedObject(room);
+            var from = room.transform.TransformPoint(so.FindProperty("rippleFrom").vector3Value);
+            var delays = room.Panels.Select(p => VirtualRoom.DelayFor(Vector3.Distance(p.position, from))).ToArray();
+            var eye = new Vector3(0f, 1.15f, 0f);
+            float[] times = { 0f, 1f, 2f, 9f };
+            for (int f = 0; f < times.Length; f++)
+            {
+                for (int i = 0; i < room.Panels.Count; i++)
+                    room.PosePanel(i, (times[f] - delays[i]) / VirtualRoom.PanelSeconds);
+                CaptureCloseUp($"{path}-{f}.png", eye, new Vector3(0f, 1.1f, 2f), 95f);
+            }
+            Debug.Log($"[RoomOrchestra] Room snapshots saved to {path}-*.png");
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
     }
 }

@@ -189,6 +189,60 @@ namespace RoomOrchestra.EditorTools
         // needs them. Flutter talks in a speech bubble above it, with a Skip leaf; the wanted tile glows.
         static readonly InstrumentType[] Introduced = { InstrumentType.Erhu, InstrumentType.Udu };
         static readonly Vector3 BubbleAt = new Vector3(-0.62f, 0.85f, 1.28f); // above Flutter, left of the sight lines
+        // The virtual starting room (owner: start in a virtual room that tears down to reveal the real room): a
+        // simple, cosy room of panels around the stage, the seat and everything the music grows. Sage walls in two
+        // tones, a warm plank floor, a cream ceiling; thin seams hint that it comes apart. No colliders.
+        public static readonly Vector3 RoomMin = new Vector3(-2.6f, 0f, -1.6f), RoomMax = new Vector3(2.6f, 2.7f, 3.8f);
+        const int RoomColumns = 5, RoomRows = 2;
+        const float PanelDepth = 0.04f, Seam = 0.02f;
+
+        static VirtualRoom CreateVirtualRoom(Transform root, Transform park)
+        {
+            var room = Holder("VirtualRoom", root, Vector3.zero);
+            Material Tone(string name, Color c) => EnsureMaterial(name, "Ball", c);
+            var wallA = Tone("RoomWallA", new Color(0.78f, 0.87f, 0.76f));
+            var wallB = Tone("RoomWallB", new Color(0.72f, 0.82f, 0.71f));
+            var floorA = Tone("RoomFloorA", new Color(0.78f, 0.6f, 0.44f));
+            var floorB = Tone("RoomFloorB", new Color(0.71f, 0.54f, 0.39f));
+            var ceiling = Glow(Tone("RoomCeiling", new Color(0.98f, 0.95f, 0.9f)), new Color(0.5f, 0.48f, 0.45f)); // lit from below too
+            var panels = new List<Transform>();
+            var size = RoomMax - RoomMin;
+
+            // A wall: a grid of upright panels on the plane through 'at', spanning 'along' (one axis) and the height.
+            void Wall(string name, Vector3 start, Vector3 along, float length)
+            {
+                for (int c = 0; c < RoomColumns; c++)
+                    for (int r = 0; r < RoomRows; r++)
+                    {
+                        float w = length / RoomColumns, h = size.y / RoomRows;
+                        var centre = start + along * (w * (c + 0.5f)) + Vector3.up * (h * (r + 0.5f));
+                        var panel = Box($"{name}_{c}_{r}", room, centre, new Vector3(w - Seam, h - Seam, PanelDepth), (c + r) % 2 == 0 ? wallA : wallB, keepCollider: false);
+                        panel.rotation = Quaternion.LookRotation(Vector3.Cross(along, Vector3.up), Vector3.up);
+                        panels.Add(panel);
+                    }
+            }
+            Wall("WallFar", new Vector3(RoomMin.x, 0f, RoomMax.z), Vector3.right, size.x);
+            Wall("WallNear", new Vector3(RoomMax.x, 0f, RoomMin.z), Vector3.left, size.x);
+            Wall("WallLeft", new Vector3(RoomMin.x, 0f, RoomMin.z), Vector3.forward, size.z);
+            Wall("WallRight", new Vector3(RoomMax.x, 0f, RoomMax.z), Vector3.back, size.z);
+            // Floor and ceiling: flat grids.
+            for (int x = 0; x < RoomColumns; x++)
+                for (int z = 0; z < RoomColumns; z++)
+                {
+                    float w = size.x / RoomColumns, d = size.z / RoomColumns;
+                    var at = new Vector3(RoomMin.x + w * (x + 0.5f), 0f, RoomMin.z + d * (z + 0.5f));
+                    panels.Add(Box($"Floor_{x}_{z}", room, at + Vector3.down * (PanelDepth / 2f), new Vector3(w - Seam, PanelDepth, d - Seam), (x + z) % 2 == 0 ? floorA : floorB, keepCollider: false));
+                    panels.Add(Box($"Ceiling_{x}_{z}", room, at + Vector3.up * (size.y + PanelDepth / 2f), new Vector3(w - Seam, PanelDepth, d - Seam), ceiling, keepCollider: false));
+                }
+            // The ceiling must not shade the stage: the room casts no shadows.
+            foreach (var panel in panels) panel.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var virtualRoom = room.gameObject.AddComponent<VirtualRoom>();
+            var farMiddle = new Vector3(0f, size.y / 2f, RoomMax.z);
+            virtualRoom.Configure(panels.ToArray(), room.InverseTransformPoint(farMiddle), room.InverseTransformPoint((RoomMin + RoomMax) / 2f), park);
+            EditorUtility.SetDirty(virtualRoom);
+            return virtualRoom;
+        }
+
         static readonly Vector3 CountdownAt = new Vector3(0.45f, 1.72f, 2.45f); // between the chair and the lamp, above both
         const string CountdownMeshData = "Assets/RoomOrchestra/Art/Countdown/CountdownMeshes.json";
 
@@ -334,6 +388,7 @@ namespace RoomOrchestra.EditorTools
             var director = root.AddComponent<TutorialDirector>();
             director.Configure(conductor, stations.ToArray(), columns, bubble, tmp, flutter, glow, park);
             director.ConfigureCountdown(count.holder, count.pieces);
+            director.ConfigureRoom(CreateVirtualRoom(root.transform, park));
             director.ParkForSave();
             intro.ConfigureTutorial(director);
             EditorUtility.SetDirty(director);

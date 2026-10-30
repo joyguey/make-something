@@ -34,6 +34,8 @@ namespace RoomOrchestra
                  "origin and the others wait in the cloud. Order: 3, 2, 1, GO!, 开始！")]
         [SerializeField] Transform countdown;
         [SerializeField] Transform[] countPieces;
+        [Tooltip("The virtual starting room: it comes apart when the song is done or skipped.")]
+        [SerializeField] VirtualRoom room;
         [Tooltip("Where the bubble and glow wait (inside the ball stand's cloud).")]
         [SerializeField] Transform park;
 
@@ -67,6 +69,8 @@ namespace RoomOrchestra
             new Color(0.25f, 0.55f, 1f), new Color(0.65f, 0.38f, 0.95f), new Color(1f, 0.88f, 0.15f), new Color(0.3f, 0.82f, 0.38f),
         };
         public const int GoChinese = 4;
+
+        public void ConfigureRoom(VirtualRoom startingRoom) => room = startingRoom;
 
         public void ConfigureCountdown(Transform holder, Transform[] pieces)
         {
@@ -216,6 +220,7 @@ namespace RoomOrchestra
         {
             Debug.Log("[RoomOrchestra] Tutorial: the first song is finished");
             RevealAll();
+            if (room != null) room.TearDown(); // the virtual room comes apart: the player's own room is the stage now
             Say(UiTerm.TutorialDone);
             m_TryAgainUntil = -1f;
             m_GlowOut = false;
@@ -257,6 +262,7 @@ namespace RoomOrchestra
             m_Plan.Skip();
             Debug.Log("[RoomOrchestra] Tutorial: skipped");
             RevealAll();
+            if (room != null) room.TearDown();
             Close();
         }
 
@@ -266,6 +272,7 @@ namespace RoomOrchestra
             if (!m_Plan.Done) m_Plan.Skip();
             foreach (var station in stations)
                 if (station != null) station.ShowNow();
+            if (room != null) room.HideNow();
             m_BubbleOut = false;
             m_GlowOut = false;
             ParkBubble();
