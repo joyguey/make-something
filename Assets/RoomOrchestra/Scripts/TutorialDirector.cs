@@ -44,7 +44,20 @@ namespace RoomOrchestra
 
         static readonly Vector3 GlowParked = new Vector3(0.01f, 0.01f, GlowDepth);
 
-        readonly TutorialPlan m_Plan = new();
+        /// <summary>Set once the song is finished or skipped on this device (local only; nothing leaves it).</summary>
+        public const string DonePrefKey = "RoomOrchestra.TutorialDone";
+
+        TutorialPlan m_Plan = new();
+        bool m_Replaying;
+
+        /// <summary>Has this device finished or skipped the lesson before? Then it starts in free play.</summary>
+        public static bool RememberedDone => PlayerPrefs.GetInt(DonePrefKey, 0) == 1;
+
+        static void Remember()
+        {
+            PlayerPrefs.SetInt(DonePrefKey, 1);
+            PlayerPrefs.Save();
+        }
         int m_Misses, m_ShownBeat = -1;
         bool m_Started, m_Closed, m_BubbleOut, m_GlowOut;
         float m_PopStart = -10f, m_TryAgainUntil = -1f, m_CloseAt = -1f;
@@ -130,6 +143,11 @@ namespace RoomOrchestra
                 var intro = IntroSequence.Instance;
                 if (intro != null && !intro.Done) return;
                 if (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+                if (RememberedDone && !m_Replaying)
+                {
+                    StartInFreePlay();
+                    return;
+                }
                 Begin();
             }
             if (conductor != null && m_Plan.Sync(conductor.Echoes))
@@ -147,6 +165,43 @@ namespace RoomOrchestra
             AnimateBubble();
             PlaceGlow();
             ShowCountdown();
+        }
+
+        // A returning player: no lesson. Everything appears in its poof and the virtual room comes apart at once.
+        void StartInFreePlay()
+        {
+            m_Plan.Skip();
+            m_Closed = true;
+            RevealAll();
+            if (room != null) room.TearDown();
+            Debug.Log("[RoomOrchestra] Tutorial: done before on this device; straight to free play (Lesson replays it)");
+        }
+
+        /// <summary>
+        /// The leaf's Lesson button: the guided song again, from the first note. The song so far is cleared (Undo
+        /// brings it back) and the lamp and table go back into the cloud in a poof until the song needs them.
+        /// </summary>
+        public void Replay()
+        {
+            if (Active) return;
+            Debug.Log("[RoomOrchestra] Tutorial: replaying the lesson");
+            conductor?.Clear();
+            foreach (var station in stations)
+                if (station != null && !station.Hidden)
+                {
+                    PoofCloud.PoofAt(station.PoofCentre, JungleDirector.ClearSmokeSize * 0.5f);
+                    station.HideNow();
+                }
+            var chair = TargetFor(TutorialPlan.Song[0].Instrument);
+            if (chair != null) OrbSelector.Instance?.Focus(chair);
+            m_Plan = new TutorialPlan();
+            m_Misses = 0;
+            m_CheerHops = 0;
+            m_CloseAt = -1f;
+            m_TryAgainUntil = -1f;
+            m_Closed = false;
+            m_Started = false;
+            m_Replaying = true; // Update begins it at once (the opening is over)
         }
 
         void Begin()
@@ -226,6 +281,7 @@ namespace RoomOrchestra
             m_GlowOut = false;
             ParkGlow();
             ParkCountdown();
+            Remember();
             m_CloseAt = Time.time + DoneLineSeconds;
             // A clear ending (owner: "I didn't know when the tutorial was over"): the friends beam and bounce
             // a few times and every sparkle flares, while Flutter says it's done and play is free from now on.
@@ -260,6 +316,7 @@ namespace RoomOrchestra
         {
             if (m_Closed || m_Plan.Done) return;
             m_Plan.Skip();
+            Remember();
             Debug.Log("[RoomOrchestra] Tutorial: skipped");
             RevealAll();
             if (room != null) room.TearDown();

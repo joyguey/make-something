@@ -164,5 +164,19 @@ namespace RoomOrchestra.EditorTools
             Debug.Log($"[RoomOrchestra] Room snapshots saved to {path}-*.png");
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
+
+        /// <summary>Close-up of the leaf's controls from the seated eye (Unity's renderer). Batch: -executeMethod
+        /// RoomOrchestra.EditorTools.SceneSnapshot.CaptureLeaf -snapshotPath out.png</summary>
+        public static void CaptureLeaf()
+        {
+            string path = "docs/evidence/leaf.png";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            Object.FindFirstObjectByType<IntroSequence>().Finish();
+            CaptureCloseUp(path, new Vector3(0f, 1.15f, 0f), new Vector3(-0.1f, 0.5f, 1.15f), 28f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
     }
 }

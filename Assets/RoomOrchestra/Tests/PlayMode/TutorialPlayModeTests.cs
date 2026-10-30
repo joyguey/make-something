@@ -26,6 +26,7 @@ namespace RoomOrchestra.Tests
         {
             ComfortSettings.SetPosture(PlayPosture.Seated);
             MusicalHitPipeline.Reset();
+            PlayerPrefs.DeleteKey(TutorialDirector.DonePrefKey); // a first launch on this device
             LogAssert.ignoreFailingMessages = true; // the PICO SDK's scene components throw in the Editor while loading
             yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Single);
             yield return null;
@@ -48,6 +49,7 @@ namespace RoomOrchestra.Tests
             var real = SceneManager.GetSceneByPath(ScenePath);
             if (real.isLoaded) yield return SceneManager.UnloadSceneAsync(real);
             MusicalHitPipeline.Reset();
+            PlayerPrefs.DeleteKey(TutorialDirector.DonePrefKey);
         }
 
         static StationReveal Station(InstrumentType type) =>
@@ -255,6 +257,55 @@ namespace RoomOrchestra.Tests
 
             yield return Play(InstrumentType.Mbira, 4);
             Assert.AreEqual(1, m_Conductor.Echoes.Count, "free play: any note stays");
+        }
+
+        [UnityTest]
+        public IEnumerator FinishingIsRememberedAndTheNextLaunchStartsInFreePlay()
+        {
+            Assert.IsFalse(TutorialDirector.RememberedDone);
+            m_Tutorial.Skip();
+            Assert.IsTrue(TutorialDirector.RememberedDone, "skipping (or finishing) is remembered on this device");
+
+            // The next launch: same scene, the opening done.
+            LogAssert.ignoreFailingMessages = true;
+            yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Single);
+            yield return null;
+            LogAssert.ignoreFailingMessages = false;
+            var tutorial = TutorialDirector.Instance;
+            Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
+            while (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds + 0.1f) yield return null;
+            yield return null;
+            Assert.IsFalse(tutorial.Active, "no lesson the second time");
+            Assert.IsFalse(tutorial.BubbleOut);
+            Assert.IsTrue(VirtualRoom.Instance.TearingDown || VirtualRoom.Instance.Gone, "the real room straight away");
+            yield return new WaitForSeconds(StationReveal.AppearAfterSeconds + 0.1f);
+            Assert.IsFalse(Station(InstrumentType.Udu).Hidden, "every instrument is out");
+            Assert.IsFalse(Station(InstrumentType.Erhu).Hidden);
+        }
+
+        [UnityTest]
+        public IEnumerator TheLessonButtonPlaysTheSongAgainFromTheStart()
+        {
+            m_Tutorial.Skip();
+            yield return new WaitForSeconds(StationReveal.AppearAfterSeconds + TutorialDirector.PopSeconds + 0.1f);
+            yield return Play(InstrumentType.Erhu, 4); // free play
+            Assert.AreEqual(1, m_Conductor.Echoes.Count);
+
+            var lesson = Object.FindFirstObjectByType<TutorialReplayButton>();
+            Assert.IsNotNull(lesson, "a Lesson button on the leaf");
+            Assert.IsTrue(InstrumentInputRouter.Activate(lesson.GetComponentInChildren<Collider>().gameObject));
+            Assert.AreEqual(0, m_Conductor.Echoes.Count, "a fresh song (Undo brings the old one back)");
+            Assert.IsTrue(Station(InstrumentType.Erhu).Hidden, "the lamp waits in the cloud again");
+            Assert.IsTrue(Station(InstrumentType.Udu).Hidden);
+            yield return null;
+            yield return new WaitForSeconds(TutorialDirector.PopSeconds + 0.05f);
+            Assert.IsTrue(m_Tutorial.Active);
+            Assert.AreEqual(0, m_Tutorial.Plan.Index);
+            Assert.AreEqual(UiTerm.TutorialHello, m_Tutorial.Line);
+            Assert.IsTrue(m_Tutorial.BubbleOut);
+            Assert.AreEqual(InstrumentType.Mbira, m_Selector.FocusedTarget.Instrument, "the controller's focus back on the chair");
+            yield return Play(InstrumentType.Mbira, 2);
+            Assert.AreEqual(1, m_Tutorial.Plan.Index, "and it runs as before");
         }
     }
 }

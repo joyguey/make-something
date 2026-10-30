@@ -32,15 +32,16 @@ namespace RoomOrchestra.EditorTools
         // along the back, a row of small buttons along the front. Left of the chair sight line (x = 0)
         // where it is tall, at least 1 m out, and low enough that hand pointer rays to every tile pass over it.
         static readonly Vector3 LeafCenter = new Vector3(-0.2f, 0.49f, 1.17f);
-        static readonly Vector3 LeafSize = new Vector3(0.95f, 0.03f, 0.42f); // back edge below the standing sight line to the chair
+        static readonly Vector3 LeafSize = new Vector3(1.02f, 0.03f, 0.42f); // back edge below the standing sight line to the chair
         static readonly Vector3 TrayCenter = new Vector3(-0.3f, 0.5f, 1.28f); // the back row
-        const float ButtonRowZ = 1.1f, ButtonY = 0.5f, ButtonStep = 0.105f;
+        const float ButtonRowZ = 1.1f, ButtonY = 0.5f, ButtonStep = 0.1f;
         static readonly Vector3 SmallSlab = new Vector3(0.09f, 0.03f, 0.07f);
         static readonly Vector3 SmallCollider = new Vector3(0.095f, 0.08f, 0.08f);
         static readonly Vector3 SmallLabelOffset = new Vector3(0f, 0.02f, -0.05f);
         const float SmallLabelHeight = 0.017f;
 
-        static Vector3 FrontRow(int slot) => new Vector3(LeafCenter.x + ButtonStep * (slot - 3), ButtonY, ButtonRowZ);
+        // Eight buttons centred on the leaf (Lesson joined the row).
+        static Vector3 FrontRow(int slot) => new Vector3(LeafCenter.x + ButtonStep * (slot - 3.3f), ButtonY, ButtonRowZ);
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]
         public static void ApplyAndSave()
@@ -139,6 +140,7 @@ namespace RoomOrchestra.EditorTools
             CreateRecenterButton(FrontRow(4), swoop, slabMaterial, motifMaterial);
             CreateHeightButton(FrontRow(5), swoop, slabMaterial, motifMaterial);
             CreateLanguageButton(FrontRow(6), swoop, slabMaterial);
+            CreateLessonButton(FrontRow(7), swoop, slabMaterial, motifMaterial);
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
@@ -853,6 +855,21 @@ namespace RoomOrchestra.EditorTools
         }
 
         // English / 中文, at the end of the front row: the label names the language a tap switches to.
+        // Last on the front row: plays the guided song again (it is remembered as done once finished or skipped).
+        static void CreateLessonButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("LessonButton", position, root, slab, "LessonSlab");
+            // A music note standing on the slab, like the other buttons' icons: a round head, a stem and a flag.
+            var head = Primitive(PrimitiveType.Sphere, "LessonNoteHead", go.transform, mark, keepCollider: false);
+            head.localPosition = new Vector3(-0.008f, 0.026f, 0f);
+            head.localRotation = Quaternion.Euler(0f, 0f, 20f);
+            head.localScale = new Vector3(0.026f, 0.018f, 0.012f);
+            Box("LessonNoteStem", go.transform, new Vector3(0.004f, 0.045f, 0f), new Vector3(0.005f, 0.04f, 0.008f), mark, keepCollider: false);
+            Box("LessonNoteFlag", go.transform, new Vector3(0.012f, 0.058f, 0f), new Vector3(0.016f, 0.006f, 0.008f), mark, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, -35f);
+            Localize(Label("LessonLabel", UiText.Get(UiTerm.Lesson, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Lesson);
+            go.AddComponent<TutorialReplayButton>();
+        }
+
         static void CreateLanguageButton(Vector3 position, Transform root, Material slab)
         {
             var go = SmallButton("LanguageButton", position, root, slab, "LanguageSlab");

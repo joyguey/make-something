@@ -40,6 +40,8 @@ namespace RoomOrchestra
         /// <summary>The poof has burst and the station is about to appear in it.</summary>
         public bool Appearing => m_AppearAt >= 0f;
         public IReadOnlyList<Transform> Parts => parts;
+        /// <summary>The station's middle at home, where its poof bursts.</summary>
+        public Vector3 PoofCentre => transform.TransformPoint(poofCentre);
 
         /// <summary>Is this instrument's station out of sight (so the controller skips it)?</summary>
         public static bool IsHidden(InstrumentType type)

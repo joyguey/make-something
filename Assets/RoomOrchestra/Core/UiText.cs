@@ -64,7 +64,9 @@ namespace RoomOrchestra
         /// <summary>The count's last word, shown on beat 4.</summary>
         Go,
         /// <summary>The leaf that skips the guided song.</summary>
-        Skip
+        Skip,
+        /// <summary>The leaf button that plays the guided song again.</summary>
+        Lesson
     }
 
     /// <summary>
@@ -120,6 +122,7 @@ namespace RoomOrchestra
             { UiTerm.TutorialLate, ("A little late! Right on Go.", "晚了一点！正好在\"开始\"时。") },
             { UiTerm.Go, ("Go!", "开始！") },
             { UiTerm.Skip, ("Skip", "跳过") },
+            { UiTerm.Lesson, ("Lesson", "教学") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>
