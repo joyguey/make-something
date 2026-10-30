@@ -89,6 +89,20 @@ namespace RoomOrchestra
         public static int CountdownBeat(double barPhase) =>
             Math.Min(MusicClock.BeatsPerBar - 1, Math.Max(0, (int)Math.Floor(barPhase * MusicClock.BeatsPerBar)));
 
+        /// <summary>
+        /// The warm-up before the song teaches the main mechanic (Version 1 feedback: "teach them the main mechanic
+        /// before introducing additional items"): any note on the warm-up instrument, thrown or tapped. It is not part
+        /// of the song: the director takes that note back and the song starts.
+        /// </summary>
+        public const InstrumentType WarmupInstrument = InstrumentType.Mbira;
+        public bool WarmupDone { get; private set; }
+        public bool InWarmup => !WarmupDone && !Done;
+
+        /// <summary>Is a note just played the warm-up's (any note on the chair)?</summary>
+        public bool CompletesWarmup(InstrumentType instrument) => InWarmup && instrument == WarmupInstrument;
+
+        public void FinishWarmup() => WarmupDone = true;
+
         public int Index { get; private set; }
         /// <summary>The song is finished or skipped: from then on it stays out of the way (even after Clear).</summary>
         public bool Done { get; private set; }
@@ -99,7 +113,7 @@ namespace RoomOrchestra
             instrument == step.Instrument && (step.Note == AnyNote || noteIndex == step.Note);
 
         /// <summary>Is a note just played the one asked for now?</summary>
-        public bool Wants(InstrumentType instrument, int noteIndex) => !Done && Matches(Song[Index], instrument, noteIndex);
+        public bool Wants(InstrumentType instrument, int noteIndex) => !Done && !InWarmup && Matches(Song[Index], instrument, noteIndex);
 
         /// <summary>
         /// How many steps of the song, from the first, are in place in <paramref name="echoes"/>. Progress is
@@ -121,7 +135,7 @@ namespace RoomOrchestra
         /// <summary>Follows the song; true if the step changed. Reaching the end finishes the lesson.</summary>
         public bool Sync(IReadOnlyList<EchoEvent> echoes)
         {
-            if (Done) return false;
+            if (Done || InWarmup) return false;
             int progress = Progress(echoes);
             if (progress == Index) return false;
             Index = progress;
@@ -139,6 +153,7 @@ namespace RoomOrchestra
 
         public void Skip()
         {
+            WarmupDone = true;
             Skipped = true;
             Done = true;
         }

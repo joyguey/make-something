@@ -27,6 +27,12 @@ namespace RoomOrchestra
         [SerializeField] TitleScreen title;
         [Tooltip("The guided song that follows; skipping the opening skips it too.")]
         [SerializeField] TutorialDirector tutorial;
+        [Tooltip("The ball stand (and what travels with it): directly in front at launch (Version 1 feedback: the podium " +
+                 "with the ball is the first thing the user sees), gliding to its place beside the leaf during the swoop.")]
+        [SerializeField] Transform[] stand;
+        [SerializeField] Vector3[] standHomes;
+        [SerializeField] Vector3 standFrontOffset;
+        [SerializeField] BallLauncher launcher;
 
         /// <summary>The hole opens over this long; then the stalk grows, reaching the leaf just before it lands,
         /// and the hole and its cracks close up around it, leaving the stalk on the floor.</summary>
@@ -61,6 +67,33 @@ namespace RoomOrchestra
         }
 
         public void ConfigureTutorial(TutorialDirector guide) => tutorial = guide;
+
+        /// <summary>Puts the ball stand <paramref name="frontOffset"/> from its home, in front of the player, for the
+        /// first frame (scene setup); the opening glides it home.</summary>
+        public void ConfigureStand(Transform[] carried, Vector3 frontOffset, BallLauncher balls)
+        {
+            stand = carried;
+            standFrontOffset = frontOffset;
+            launcher = balls;
+            standHomes = new Vector3[carried.Length];
+            for (int i = 0; i < carried.Length; i++)
+            {
+                standHomes[i] = carried[i].position;
+                carried[i].position = standHomes[i] + frontOffset;
+            }
+        }
+
+        /// <summary>How far the stand still is from home (0 once it has glided into place).</summary>
+        public float StandAway => stand == null || stand.Length == 0 ? 0f : Vector3.Distance(stand[0].position, standHomes[0]);
+
+        void PoseStand(float u)
+        {
+            if (stand == null) return;
+            float e = u * u * (3f - 2f * u);
+            for (int i = 0; i < stand.Length; i++)
+                if (stand[i] != null) stand[i].position = standHomes[i] + standFrontOffset * (1f - e);
+            if (launcher != null && Application.isPlaying) launcher.FollowStand(); // the ready ball rides along on the cloud
+        }
 
         void OnEnable() => Instance = this;
 
@@ -110,6 +143,7 @@ namespace RoomOrchestra
 
         void Land()
         {
+            if (stand != null && StandAway > 0f) PoseStand(1f);
             if (title != null && !title.Parked) title.ParkNow();
             if (leaf != null)
             {
@@ -130,6 +164,7 @@ namespace RoomOrchestra
 
         void Pose(float seconds)
         {
+            if (seconds > 0f) PoseStand(Mathf.Clamp01(seconds / IntroPath.SwoopSeconds));
             var p = IntroPath.LeafAt(seconds);
             leaf.localPosition = new Vector3(p.x, p.y, p.z);
             leaf.localRotation = Quaternion.Euler(p.pitch, p.yaw, p.roll);

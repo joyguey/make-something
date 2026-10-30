@@ -69,9 +69,21 @@ namespace RoomOrchestra.Tests
 
         int Count(InstrumentType type) => m_Conductor.Echoes.Count(e => e.Target == type);
 
-        [UnityTest]
-        public IEnumerator FlutterAsksForTheFirstNoteOnTheChairAlone()
+        // The warm-up: any note on the chair (here a tap), which is taken back before the song starts.
+        IEnumerator WarmUp()
         {
+            Assert.IsTrue(m_Tutorial.Plan.InWarmup);
+            yield return Play(InstrumentType.Mbira, 4);
+            Assert.IsFalse(m_Tutorial.Plan.InWarmup);
+            Assert.AreEqual(0, m_Conductor.Echoes.Count, "the warm-up note isn't part of the song");
+        }
+
+        [UnityTest]
+        public IEnumerator FlutterTeachesTheThrowFirstThenAsksForTheFirstNote()
+        {
+            Assert.AreEqual(UiTerm.TutorialWarmup, m_Tutorial.Line, "first: toss me at the chair (or tap)");
+            Assert.AreSame(Tile(InstrumentType.Mbira, 2).transform, m_Tutorial.WantedTile(), "a tile glows as the tap alternative");
+            yield return WarmUp();
             Assert.IsTrue(VirtualRoom.Instance.Standing, "the lesson happens in the virtual room");
             Assert.AreEqual(UiTerm.TutorialHello, m_Tutorial.Line);
             Assert.IsTrue(m_Tutorial.BubbleOut);
@@ -89,6 +101,7 @@ namespace RoomOrchestra.Tests
         [UnityTest]
         public IEnumerator RightNotesSnapIntoTheTuneAndWrongOnesAreTakenBack()
         {
+            yield return WarmUp();
             yield return Play(InstrumentType.Mbira, 2);
             Assert.AreEqual(1, m_Tutorial.Plan.Index, "F# done");
             Assert.AreEqual(0, m_Conductor.Echoes.Single().Step, "on the bar's first step, whatever the timing");
@@ -113,6 +126,7 @@ namespace RoomOrchestra.Tests
         [UnityTest]
         public IEnumerator TheLampAndThenTheTableAppearInAPoofWhenTheSongNeedsThem()
         {
+            yield return WarmUp();
             foreach (var note in new[] { 2, 1, 0 }) yield return Play(InstrumentType.Mbira, note);
             Assert.IsTrue(Station(InstrumentType.Erhu).Hidden, "not yet");
             yield return Play(InstrumentType.Mbira, 1);
@@ -143,6 +157,7 @@ namespace RoomOrchestra.Tests
         // Plays the guided steps up to the timed last note (tile taps, snapped into place).
         IEnumerator ReachTheCount()
         {
+            yield return WarmUp();
             for (int i = 0; i < TutorialPlan.Song.Length - 1; i++)
             {
                 var step = TutorialPlan.Song[i];
@@ -303,9 +318,10 @@ namespace RoomOrchestra.Tests
             yield return new WaitForSeconds(TutorialDirector.PopSeconds + 0.05f);
             Assert.IsTrue(m_Tutorial.Active);
             Assert.AreEqual(0, m_Tutorial.Plan.Index);
-            Assert.AreEqual(UiTerm.TutorialHello, m_Tutorial.Line);
+            Assert.AreEqual(UiTerm.TutorialWarmup, m_Tutorial.Line, "from the warm-up");
             Assert.IsTrue(m_Tutorial.BubbleOut);
             Assert.AreEqual(InstrumentType.Mbira, m_Selector.FocusedTarget.Instrument, "the controller's focus back on the chair");
+            yield return WarmUp();
             yield return Play(InstrumentType.Mbira, 2);
             Assert.AreEqual(1, m_Tutorial.Plan.Index, "and it runs as before");
         }

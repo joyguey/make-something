@@ -690,7 +690,18 @@ namespace RoomOrchestra.Tests
             var p = title.Card.position;
             Assert.GreaterOrEqual(new Vector2(p.x, p.z).magnitude, 1f, "at least 1 m out (PICO Spatial draws nearer props wrongly)");
             Assert.Less(Vector3.Angle(Vector3.forward, new Vector3(p.x, 0f, p.z)), 10f, "straight in front");
-            Assert.AreEqual(1.15f, p.y, 0.15f, "at eye height");
+            Assert.That(p.y, Is.InRange(1.15f, 1.45f), "at or just above seated eye height (the ball stand sits below it)");
+            // Focused start (Version 1 feedback): the ball stand with its ball is the first thing in front of the player,
+            // at least 1 m out, and the title card does not cover it.
+            var stand = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser");
+            var s = stand.position;
+            Assert.Less(Mathf.Abs(s.x), 0.05f, "the ball stand is directly in front");
+            Assert.GreaterOrEqual(new Vector2(s.x, s.z).magnitude, 1f, "at least 1 m out");
+            Assert.Less(s.z, p.z, "in front of the title card");
+            var ball = stand.Find("SpawnPoint").position;
+            var eye = new Vector3(0f, 1.15f, 0f);
+            var onCard = eye + (ball - eye) * ((p.z - eye.z) / (ball.z - eye.z)); // where the ball appears on the card's plane
+            Assert.Less(onCard.y, p.y - 0.29f, "the ball shows below the card, not hidden behind it");
             var start = title.Card.GetComponentInChildren<TitleStartButton>();
             Assert.IsNotNull(start, "a Start button");
             Assert.Greater(Mathf.Abs(title.Card.InverseTransformPoint(start.transform.position).x), 0.15f, "off the centre line, clear of PICO's window handle");

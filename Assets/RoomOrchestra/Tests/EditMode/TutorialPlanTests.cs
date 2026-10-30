@@ -54,6 +54,7 @@ namespace RoomOrchestra.Tests
         public void ProgressFollowsTheSongThroughUndoAndClear()
         {
             var plan = new TutorialPlan();
+            plan.FinishWarmup();
             Assert.IsTrue(plan.Wants(InstrumentType.Mbira, 2));
             Assert.IsFalse(plan.Wants(InstrumentType.Mbira, 1), "E isn't the first note");
             Assert.IsFalse(plan.Wants(InstrumentType.Erhu, 2), "nor the lamp's F#");
@@ -82,6 +83,7 @@ namespace RoomOrchestra.Tests
         public void ANoteOffItsPlaceDoesNotCount()
         {
             var plan = new TutorialPlan();
+            plan.FinishWarmup();
             Play(InstrumentType.Mbira, 2); // left at step 7
             Assert.IsFalse(plan.Sync(m_Seq.Echoes));
             Assert.AreEqual(0, plan.Index);
@@ -91,6 +93,7 @@ namespace RoomOrchestra.Tests
         public void AnyUduSoundKeepsTheBeatAndTheEndStaysFinished()
         {
             var plan = new TutorialPlan();
+            plan.FinishWarmup();
             int i = 0;
             foreach (var step in TutorialPlan.Song)
                 Play(step.Instrument, step.Note == TutorialPlan.AnyNote ? i++ % NoteMapping.Count : step.Note, step.BarStep);
@@ -148,6 +151,23 @@ namespace RoomOrchestra.Tests
             plan.Skip();
             Assert.IsTrue(plan.Done && plan.Skipped);
             Assert.IsFalse(plan.Wants(InstrumentType.Mbira, 2));
+        }
+
+        [Test]
+        public void TheWarmUpComesFirstAndTakesAnyNoteOnTheChair()
+        {
+            var plan = new TutorialPlan();
+            Assert.IsTrue(plan.InWarmup, "the main mechanic before the song");
+            Assert.IsFalse(plan.Wants(InstrumentType.Mbira, 2), "no song notes yet");
+            Assert.IsFalse(plan.CompletesWarmup(InstrumentType.Erhu));
+            Assert.IsTrue(plan.CompletesWarmup(InstrumentType.Mbira), "any chair note: a throw lands wherever it lands");
+            Play(InstrumentType.Mbira, 2, snapTo: 0);
+            Assert.IsFalse(plan.Sync(m_Seq.Echoes), "the song doesn't count during the warm-up");
+            plan.FinishWarmup();
+            Assert.IsTrue(plan.Wants(InstrumentType.Mbira, 2));
+            var skipped = new TutorialPlan();
+            skipped.Skip();
+            Assert.IsFalse(skipped.InWarmup);
         }
     }
 }

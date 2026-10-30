@@ -162,6 +162,11 @@ namespace RoomOrchestra.EditorTools
             if (dispenser != null) carried.Insert(0, dispenser);
             pad.gameObject.AddComponent<RoamingTray>().Configure(root.transform, carried.ToArray(),
                 dispenser != null ? dispenser.Find("BallPool") : null, launcher);
+            // Focused start (Version 1 feedback): the stand and what travels with it begin directly in front of the
+            // player; the opening glides them home (IntroSequence). Moved before anything parks in the cloud.
+            var standCarried = carried.Where(t => t != null).ToArray();
+            var standHome = standCarried.Select(t => t.position).ToArray();
+            foreach (var t in standCarried) t.position += StandFrontOffset;
             RainforestArt.Build(root.transform, targets);
 
             var selector = root.AddComponent<OrbSelector>();
@@ -185,7 +190,10 @@ namespace RoomOrchestra.EditorTools
             cso.ApplyModifiedPropertiesWithoutUndo();
 
             CreateInstrumentPacks(root, targets);
+            for (int i = 0; i < standCarried.Length; i++) standCarried[i].position = standHome[i]; // home, to record it
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
+            intro.ConfigureStand(standCarried, StandFrontOffset, launcher); // and back in front for the first frame
+            leafStalk.Apply(); // its closed hole waits in the cloud, wherever the cloud starts
             CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
             CreateViewSettings(root, controls, pad, slabMaterial, motifMaterial);
             EnsureRealWalls();
@@ -454,7 +462,9 @@ namespace RoomOrchestra.EditorTools
 
         // The title card (Version 1 feedback: "boot into a proper title screen"): in front of the player, the
         // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
-        static readonly Vector3 TitleCardAt = new Vector3(0f, 1.2f, 1.5f);
+        static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
+        // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
+        static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
 
         static TitleScreen CreateTitle(GameObject root, IntroSequence intro)
         {

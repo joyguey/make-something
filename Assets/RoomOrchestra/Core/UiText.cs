@@ -46,6 +46,7 @@ namespace RoomOrchestra
         /// <summary>The title card's button that begins the game.</summary>
         Start,
         // The guided first song: what Flutter says while each note is wanted (Core/TutorialPlan).
+        TutorialWarmup,
         TutorialHello,
         TutorialMa,
         TutorialMary,
@@ -117,7 +118,8 @@ namespace RoomOrchestra
             { UiTerm.CallTray, ("Come here", "过来") },
             { UiTerm.TitleSubtitle, ("A mixed-reality musical playground", "混合现实音乐游乐场") },
             { UiTerm.Start, ("Start", "开始") },
-            { UiTerm.TutorialHello, ("Hi, I'm Flutter! Tap the glowing F# by the chair.", "嗨，我是飘飘！点椅子旁发光的 3。") },
+            { UiTerm.TutorialWarmup, ("Hi, I'm Flutter! Pick me up from the cloud and toss me at the chair. (Or tap a glowing tile.)", "嗨，我是飘飘！从云上拿起我，扔向椅子。（也可以点发光的方块。）") },
+            { UiTerm.TutorialHello, ("Yes! Every hit plays a note. Now a song: tap the glowing F#.", "对啦！每次击中都会奏出一个音。现在来唱首歌：点发光的 3。") },
             { UiTerm.TutorialMa, ("\"Ma-\" Now the E, just below.", "\"玛——\" 再点下面的 2。") },
             { UiTerm.TutorialMary, ("\"Ma-ry\" Now D, the lowest.", "\"玛丽——\" 再点最低的 1。") },
             { UiTerm.TutorialMaryHad, ("\"Ma-ry had\" Back up to E.", "\"玛丽有——\" 再回到 2。") },

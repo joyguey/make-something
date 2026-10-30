@@ -159,7 +159,7 @@ namespace RoomOrchestra
             if (m_TryAgainUntil >= 0f && Time.time >= m_TryAgainUntil)
             {
                 m_TryAgainUntil = -1f;
-                if (!m_Plan.Done) Say(m_Plan.Current.Line);
+                if (!m_Plan.Done) Say(CurrentLine);
             }
             Cheer();
             if (m_CloseAt >= 0f && Time.time >= m_CloseAt) Close();
@@ -227,9 +227,10 @@ namespace RoomOrchestra
                     if (target != null) OrbSelector.Instance?.Focus(target); // the controller's focus moves to the newcomer
                 }
             m_TryAgainUntil = -1f;
-            Say(step.Line);
+            Say(CurrentLine);
             m_GlowOut = true;
-            Debug.Log($"[RoomOrchestra] Tutorial: step {m_Plan.Index + 1}/{TutorialPlan.Song.Length}, {step.Instrument} note {step.GlowNote}");
+            if (m_Plan.InWarmup) Debug.Log("[RoomOrchestra] Tutorial: warm-up, toss Flutter at the chair (or tap a tile)");
+            else Debug.Log($"[RoomOrchestra] Tutorial: step {m_Plan.Index + 1}/{TutorialPlan.Song.Length}, {step.Instrument} note {step.GlowNote}");
         }
 
         InstrumentTarget TargetFor(InstrumentType type)
@@ -240,9 +241,28 @@ namespace RoomOrchestra
             return null;
         }
 
+        UiTerm CurrentLine => m_Plan.InWarmup ? UiTerm.TutorialWarmup : m_Plan.Current.Line;
+
         void OnNoteAdded(EchoEvent echo)
         {
             if (!Active || conductor == null) return;
+            if (m_Plan.InWarmup)
+            {
+                // The warm-up note sounded; it isn't part of the song, so it goes back out and the song begins.
+                conductor.Undo();
+                if (m_Plan.CompletesWarmup(echo.Target))
+                {
+                    m_Plan.FinishWarmup();
+                    Debug.Log($"[RoomOrchestra] Tutorial: warm-up done ({echo.Target} note {echo.NoteIndex})");
+                    ShowStep();
+                }
+                else
+                {
+                    Say(UiTerm.TutorialTryAgain);
+                    m_TryAgainUntil = Time.time + TryAgainSeconds;
+                }
+                return;
+            }
             var step = m_Plan.Current;
             if (step.OnTime && m_Plan.Wants(echo.Target, echo.NoteIndex))
             {
