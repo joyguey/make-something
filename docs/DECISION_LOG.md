@@ -163,3 +163,10 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Timed finish (owner: rhythm-game count):** only the last note ("lamb") is timed, landing on Go (beat 4) with +/-2 sixteenths (about +/-0.34 s at 88 BPM); after 2 misses it counts anywhere. Accessibility gate: no mechanic requires throwing or fast reflexes, so a tap or the controller's place counts like a throw, and timing is never required to finish.
 - **Any lamp note counts on Go:** a thrown ball's pitch comes from the height it hits, so requiring F# would make throwing frustrating; F# glows as the suggestion. Owner may prefer to require F#.
 - **Colours are never the only cue:** the count's numbers carry the meaning; blue/purple/gold/green are as asked.
+
+## 2026-10-30 — Virtual room, bounces, packs, View
+- **Virtual room** comes apart only at the lesson's end or Skip (returning players: straight after the opening). The Lesson replay happens in the real room (no room again).
+- **Wall bounces** play only off `BounceSurface` walls: the virtual room's walls and ceiling until real walls can be mapped on a headset. Floor landings stay silent (owner 2026-10-28).
+- **Packs:** "Classic" (approved) and "Earthy" (the alternative synthesized set); names are placeholders the owner may change. Places and pack are remembered locally; the lesson always uses the first arrangement and refuses Change while running.
+- **View (A11Y-08):** one button cycling four settings rather than separate size and contrast buttons (the leaf has no more room); large text skips the pitch columns (already large, auto-fit).
+- **PxrPlatform launch error:** not patched (SDK git package); documented.
