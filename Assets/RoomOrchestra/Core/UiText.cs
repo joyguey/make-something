@@ -113,7 +113,7 @@ namespace RoomOrchestra
             { UiTerm.TutorialBeat2, ("Keep the beat\u2026 2", "继续打拍子……2") },
             { UiTerm.TutorialBeat3, ("Keep going\u2026 3", "继续……3") },
             { UiTerm.TutorialBeat4, ("\u2026and 4!", "……还有 4！") },
-            { UiTerm.TutorialDone, ("You made a song! Try Bop and Boom, or throw a ball from the cloud.", "你做出了一首歌！试试波波和嘭嘭，或者从云上扔个球。") },
+            { UiTerm.TutorialDone, ("You did it! That's \"Mary Had a Little Lamb\". The lesson's over: now play anything you like!", "你做到了！这就是《玛丽有只小羊羔》。教学结束：现在随便玩吧！") },
             { UiTerm.TutorialTryAgain, ("Almost! Try the glowing one.", "差一点！试试发光的那个。") },
             { UiTerm.TutorialOnGo, ("Finish the tune! Throw a ball at the lamp, or tap its F#, right on Go!", "唱完这首歌！在\"开始\"时把球扔向台灯，或点它的 3！") },
             { UiTerm.TutorialEarly, ("A little early! Wait for Go.", "早了一点！等到\"开始\"。") },

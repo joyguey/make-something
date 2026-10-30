@@ -122,7 +122,9 @@ namespace RoomOrchestra.Tests
                 Assert.Less(text.transform.localPosition.sqrMagnitude, 1e-8f, "text sits at its holder's origin");
                 Assert.IsFalse(string.IsNullOrWhiteSpace(text.text) && localized == null, $"{text.name} has text (blank only for a Chinese-only label)");
                 var toLabel = text.transform.position - new Vector3(0f, 1.15f, 0f);
-                Assert.Greater(Vector3.Dot(text.transform.forward, toLabel.normalized), 0.5f, $"{text.name} faces the player");
+                // Words parked inside the ball stand's cloud (Flutter's bubble between lessons) are out of sight.
+                if (text.transform.lossyScale.x > 0.2f)
+                    Assert.Greater(Vector3.Dot(text.transform.forward, toLabel.normalized), 0.5f, $"{text.transform.parent.name} faces the player");
             }
         }
 

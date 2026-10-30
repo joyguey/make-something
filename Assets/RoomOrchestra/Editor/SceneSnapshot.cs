@@ -1,3 +1,4 @@
+using System.Linq;
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -82,6 +83,56 @@ namespace RoomOrchestra.EditorTools
             {
                 Object.DestroyImmediate(go);
             }
+        }
+
+        /// <summary>
+        /// The guided song from the seated eye (Unity's renderer, not PICO's; never saved): its first step, the chair
+        /// alone with Flutter's bubble and the glowing F#, and its last, everything out with the 3D count.
+        /// Batch: Unity -batchmode -quit -executeMethod RoomOrchestra.EditorTools.SceneSnapshot.CaptureTutorial -snapshotPath out
+        /// (writes out-start.png, out-count3.png, out-countgo.png).
+        /// </summary>
+        public static void CaptureTutorial()
+        {
+            string path = "docs/evidence/tutorial";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
+            var tutorial = Object.FindFirstObjectByType<TutorialDirector>();
+            var so = new SerializedObject(tutorial);
+            var bubble = tutorial.Bubble;
+            bubble.localPosition = so.FindProperty("bubbleHome").vector3Value;
+            bubble.localScale = so.FindProperty("bubbleScale").vector3Value;
+            var text = bubble.GetComponentInChildren<TMPro.TMP_Text>();
+            var eye = new Vector3(0f, 1.15f, 0f);
+
+            // The first step: the chair's F# glows behind its tile.
+            text.text = UiText.Get(UiTerm.TutorialHello, UiLanguage.English);
+            text.ForceMeshUpdate();
+            var tile = Object.FindObjectsByType<PitchTile>(FindObjectsSortMode.None).First(t => t.Target.Instrument == InstrumentType.Mbira && t.Petal == 2).transform;
+            tutorial.Glow.SetPositionAndRotation(tile.position + tile.forward * (tile.lossyScale.z / 2f + 0.006f), tile.rotation);
+            tutorial.Glow.localScale = new Vector3(tile.lossyScale.x + 0.035f, tile.lossyScale.y + 0.035f, 0.006f);
+            CaptureCloseUp(path + "-start.png", eye, new Vector3(0f, 0.85f, 1.6f), 70f);
+
+            // The last step: everything out, the count on show.
+            foreach (var station in Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None)) station.ShowNow();
+            tutorial.Glow.localScale = Vector3.one * 0.001f;
+            text.text = UiText.Get(UiTerm.TutorialOnGo, UiLanguage.English);
+            text.ForceMeshUpdate();
+            var pieces = tutorial.CountPieces;
+            void Show(int index)
+            {
+                foreach (var p in pieces) p.localScale = Vector3.one * 0.001f;
+                pieces[index].localPosition = Vector3.zero;
+                pieces[index].localScale = Vector3.one;
+            }
+            Show(0);
+            CaptureCloseUp(path + "-count3.png", eye, new Vector3(0.1f, 1.0f, 1.8f), 80f);
+            Show(3);
+            CaptureCloseUp(path + "-countgo.png", eye, new Vector3(0.1f, 1.0f, 1.8f), 80f);
+            Debug.Log($"[RoomOrchestra] Tutorial snapshots saved to {path}-*.png");
+            if (Application.isBatchMode) EditorApplication.Exit(0);
         }
     }
 }

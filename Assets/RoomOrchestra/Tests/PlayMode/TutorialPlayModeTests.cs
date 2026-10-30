@@ -160,18 +160,22 @@ namespace RoomOrchestra.Tests
         public IEnumerator TheCountShowsThreeTwoOneGoOnTheBeatsInItsColours()
         {
             yield return ReachTheCount();
-            var text = Object.FindObjectsByType<TMPro.TMP_Text>(FindObjectsSortMode.None).First(t => t.transform.parent.name == "TutorialCountdown");
-            var expected = new[] { "3", "2", "1", "Go!" };
+            var park = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/ParkPoint");
             for (int beat = 0; beat < 4; beat++)
             {
                 yield return WaitForPhase(beat * 0.25 + 0.05, beat * 0.25 + 0.2);
                 yield return null;
                 Assert.AreEqual(beat, m_Tutorial.CountdownBeat);
-                Assert.AreEqual(expected[beat], text.text, $"beat {beat + 1}");
-                Assert.AreEqual(TutorialDirector.CountColours[beat], text.color);
+                var shown = m_Tutorial.ShownCountPiece;
+                Assert.AreSame(m_Tutorial.CountPieces[beat], shown, $"beat {beat + 1} shows {new[] { "3", "2", "1", "GO!" }[beat]}");
+                Assert.Greater(Vector3.Distance(shown.position, park.position), 0.5f, "out over the stage");
+                Assert.Greater(shown.localScale.x, 0.99f, "full size");
+                var face = shown.Find("Solid").GetComponent<MeshRenderer>().sharedMaterials[0];
+                Assert.Less(Vector4.Distance(TutorialDirector.CountColours[beat], face.color), 1e-3f, "its colour");
+                Assert.AreEqual(2, shown.Find("Solid").GetComponent<MeshFilter>().sharedMesh.subMeshCount, "a 3D solid: face and sides");
+                foreach (var other in m_Tutorial.CountPieces)
+                    if (other != shown) Assert.Less(Vector3.Distance(other.position, park.position), 1e-3f, $"{other.name} waits in the cloud");
             }
-            var park = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/ParkPoint");
-            Assert.Greater(Vector3.Distance(text.transform.position, park.position), 0.5f, "out over the stage");
 
             m_Conductor.TogglePause();
             yield return null;
@@ -194,6 +198,7 @@ namespace RoomOrchestra.Tests
             CollectionAssert.AreEquivalent(new[] { 8, 10, 12 }, m_Conductor.Echoes.Where(e => e.Target == InstrumentType.Erhu).Select(e => e.Step));
             CollectionAssert.AreEquivalent(new[] { 0, 4, 8, 12 }, m_Conductor.Echoes.Where(e => e.Target == InstrumentType.Udu).Select(e => e.Step));
             Assert.AreEqual(-1, m_Tutorial.CountdownBeat, "the count is put away");
+            Assert.AreEqual(TutorialDirector.CheerHops - 1, m_Tutorial.CheerHopsLeft, "the friends start cheering: the lesson is clearly over");
             Assert.IsFalse(m_Tutorial.GlowOut, "nothing glows once the song is made");
         }
 

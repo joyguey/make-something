@@ -188,10 +188,77 @@ namespace RoomOrchestra.EditorTools
         // ball stand's cloud with their tiles, rings, vines and sparkles, and appear in a big poof when the song
         // needs them. Flutter talks in a speech bubble above it, with a Skip leaf; the wanted tile glows.
         static readonly InstrumentType[] Introduced = { InstrumentType.Erhu, InstrumentType.Udu };
-        static readonly Vector3 BubbleAt = new Vector3(-0.55f, 0.80f, 1.28f); // above Flutter, left of the sight lines
-        static readonly Vector3 CountdownAt = new Vector3(0.75f, 1.55f, 2.4f);
-        const float CountdownHeight = 0.22f;
-        static readonly Vector3 BubbleSize = new Vector3(0.46f, 0.15f, 0.03f);  // 3 cm deep: parked, still above the near-zero limit
+        static readonly Vector3 BubbleAt = new Vector3(-0.62f, 0.85f, 1.28f); // above Flutter, left of the sight lines
+        static readonly Vector3 CountdownAt = new Vector3(0.45f, 1.72f, 2.45f); // between the chair and the lamp, above both
+        const string CountdownMeshData = "Assets/RoomOrchestra/Art/Countdown/CountdownMeshes.json";
+
+        [System.Serializable] class SolidPart { public float[] vertices; public int[] triangles; }
+        [System.Serializable] class CountPiece { public string name, text; public float width, height; public SolidPart faces, sides, outline; }
+        [System.Serializable] class CountPieces { public CountPiece[] pieces; }
+
+        // Solid words traced and extruded by ArtSource/Countdown/countdown_mesh.py: a coloured solid with darker
+        // sides (two sub-meshes) on a dark plum rim, like the title lettering.
+        static (Transform holder, Transform[] pieces) CreateCountdown(Transform root, Transform park)
+        {
+            var holder = Holder("TutorialCountdown", root, Vector3.zero);
+            holder.position = CountdownAt;
+            holder.rotation = FacePlayer(CountdownAt);
+            var data = JsonUtility.FromJson<CountPieces>(System.IO.File.ReadAllText(CountdownMeshData));
+            var rim = EnsureMaterial("CountRim", "Ball", new Color(0.23f, 0.14f, 0.31f));
+            var pieces = new Transform[data.pieces.Length];
+            for (int i = 0; i < pieces.Length; i++)
+            {
+                var piece = data.pieces[i];
+                var colour = TutorialDirector.CountColours[Mathf.Min(i, TutorialDirector.CountColours.Length - 1)];
+                var face = Glow(EnsureMaterial($"Count{Mathf.Min(i, 3)}Face", "Ball", colour), colour * 0.5f);
+                var side = EnsureMaterial($"Count{Mathf.Min(i, 3)}Side", "Ball", colour * 0.6f + new Color(0f, 0f, 0f, 0.4f));
+                var word = Holder(piece.name, holder, Vector3.zero);
+                var solid = MeshPart("Solid", word, SaveSolidMesh(piece.name, piece.faces, piece.sides), Vector3.zero, face);
+                solid.GetComponent<MeshRenderer>().sharedMaterials = new[] { face, side };
+                MeshPart("Rim", word, SaveSolidMesh(piece.name + "Rim", piece.outline, null), Vector3.zero, rim);
+                if (park != null)
+                {
+                    word.position = park.position; // waits in the cloud
+                    word.localScale = Vector3.one * TutorialDirector.ParkedScale;
+                }
+                pieces[i] = word;
+            }
+            return (holder, pieces);
+        }
+
+        // A solid from a traced shape: already wound outward (Unity's normals), one sub-mesh per part given.
+        static Mesh SaveSolidMesh(string name, SolidPart main, SolidPart second)
+        {
+            string path = $"Assets/RoomOrchestra/Meshes/{name}.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                if (!AssetDatabase.IsValidFolder("Assets/RoomOrchestra/Meshes")) AssetDatabase.CreateFolder("Assets/RoomOrchestra", "Meshes");
+                mesh = new Mesh { name = name };
+                AssetDatabase.CreateAsset(mesh, path);
+            }
+            var parts = second != null ? new[] { main, second } : new[] { main };
+            var vertices = new List<Vector3>();
+            var offsets = new int[parts.Length];
+            for (int p = 0; p < parts.Length; p++)
+            {
+                offsets[p] = vertices.Count;
+                for (int i = 0; i < parts[p].vertices.Length; i += 3)
+                    vertices.Add(new Vector3(parts[p].vertices[i], parts[p].vertices[i + 1], parts[p].vertices[i + 2]));
+            }
+            mesh.Clear();
+            mesh.indexFormat = vertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+            mesh.SetVertices(vertices);
+            mesh.subMeshCount = parts.Length;
+            for (int p = 0; p < parts.Length; p++)
+                mesh.SetTriangles(parts[p].triangles.Select(t => t + offsets[p]).ToArray(), p);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            EditorUtility.SetDirty(mesh);
+            return mesh;
+        }
+
+        static readonly Vector3 BubbleSize = new Vector3(0.64f, 0.21f, 0.03f);  // 3 cm deep: parked, still above the near-zero limit
 
         static void CreateTutorial(GameObject root, Transform pad, Transform controls, Transform flutter, InstrumentTarget[] targets,
             PitchColumn[] columns, OrbitView[] orbits, EchoConductor conductor, IntroSequence intro)
@@ -232,39 +299,41 @@ namespace RoomOrchestra.EditorTools
             Box("BubblePanel", bubble, Vector3.zero, BubbleSize, white, keepCollider: false);
             var tail = Box("BubbleTail", bubble, new Vector3(0.06f, -BubbleSize.y / 2f, 0f), new Vector3(0.05f, 0.05f, BubbleSize.z), white, keepCollider: false);
             tail.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            var words = Label("BubbleLine", "Ag", bubble, new Vector3(0.03f, 0f, -BubbleSize.z / 2f - 0.004f), 0.026f);
+            // Big, dark plum on white (owner: the text was hard to read): about 3.4 cm letters, never under 2.9 cm.
+            var words = Label("BubbleLine", "Ag", bubble, new Vector3(0.045f, 0f, -BubbleSize.z / 2f - 0.01f), 0.034f);
+            words.localRotation = Quaternion.identity; // flat on the card: turned to face the eye, its left end went behind it
             var tmp = words.GetComponentInChildren<TMP_Text>();
             tmp.text = UiText.Get(UiTerm.TutorialHello, UiLanguage.English);
-            tmp.color = new Color(0.30f, 0.16f, 0.40f);
+            tmp.color = new Color(0.23f, 0.12f, 0.32f);
             tmp.textWrappingMode = TextWrappingModes.Normal;
-            tmp.rectTransform.sizeDelta = new Vector2(BubbleSize.x - 0.13f, BubbleSize.y - 0.02f);
+            tmp.rectTransform.sizeDelta = new Vector2(BubbleSize.x - 0.15f, BubbleSize.y - 0.02f);
             tmp.enableAutoSizing = true; // the longest lines shrink a little to fit
             tmp.fontSizeMax = tmp.fontSize;
-            tmp.fontSizeMin = tmp.fontSize * 0.7f;
+            tmp.fontSizeMin = tmp.fontSize * 0.85f;
             tmp.ForceMeshUpdate(true, true);
 
             // The Skip leaf on the bubble's left end (left of every sight line to the tiles).
-            var skip = Holder("SkipButton", bubble, new Vector3(-BubbleSize.x / 2f + 0.05f, 0f, -BubbleSize.z / 2f - 0.012f));
+            var skip = Holder("SkipButton", bubble, new Vector3(-BubbleSize.x / 2f + 0.06f, 0f, -BubbleSize.z / 2f - 0.012f));
             var leaf = Primitive(PrimitiveType.Sphere, "SkipLeaf", skip, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
-            leaf.localScale = new Vector3(0.085f, 0.06f, 0.03f);
+            leaf.localScale = new Vector3(0.1f, 0.07f, 0.03f);
             leaf.gameObject.AddComponent<BoxCollider>();
             Hoverable(leaf.gameObject);
-            Localize(Label("SkipLabel", UiText.Get(UiTerm.Skip, UiLanguage.English), skip, new Vector3(0f, 0f, -0.02f), 0.02f), UiTerm.Skip);
+            var skipLabel = Label("SkipLabel", UiText.Get(UiTerm.Skip, UiLanguage.English), skip, new Vector3(0f, 0f, -0.02f), 0.024f);
+            skipLabel.localRotation = Quaternion.identity;
+            Localize(skipLabel, UiTerm.Skip);
             skip.gameObject.AddComponent<TutorialSkipButton>();
 
             // The glow behind the wanted tile (the director sizes and places it).
             var glow = Box("TutorialGlow", controls, Vector3.zero, new Vector3(0.18f, 0.15f, 0.006f),
                 Glow(EnsureMaterial("TutorialGlow", "AimRing", new Color(1f, 0.85f, 0.35f)), new Color(1f, 0.85f, 0.35f)), keepCollider: false);
 
-            // The 3-2-1-Go count for the timed last note: big, above and left of the lamp, clear of its tiles.
-            var count = Label("TutorialCountdown", "3", root.transform, CountdownAt, CountdownHeight);
-            var countText = count.GetComponentInChildren<TMP_Text>();
-            countText.fontStyle = FontStyles.Bold;
-            countText.color = TutorialDirector.CountColours[0];
+            // The 3-2-1-Go count for the timed last note (owner: large, coloured 3D words): above and left of the
+            // lamp, clear of its tiles. Each word waits in the cloud until its beat.
+            var count = CreateCountdown(root.transform, park);
 
             var director = root.AddComponent<TutorialDirector>();
             director.Configure(conductor, stations.ToArray(), columns, bubble, tmp, flutter, glow, park);
-            director.ConfigureCountdown(count, countText);
+            director.ConfigureCountdown(count.holder, count.pieces);
             director.ParkForSave();
             intro.ConfigureTutorial(director);
             EditorUtility.SetDirty(director);

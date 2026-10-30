@@ -64,6 +64,28 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void TheCountIsSolidColouredWordsWaitingInTheCloud()
+        {
+            var tutorial = Object.FindFirstObjectByType<TutorialDirector>();
+            Assert.AreEqual(5, tutorial.CountPieces.Count, "3, 2, 1, GO! and 开始！");
+            for (int i = 0; i < tutorial.CountPieces.Count; i++)
+            {
+                var piece = tutorial.CountPieces[i];
+                Assert.Less(Vector3.Distance(piece.position, Park), 1e-3f, $"{piece.name} waits in the cloud");
+                var solid = piece.Find("Solid").GetComponent<MeshFilter>().sharedMesh;
+                Assert.AreEqual(2, solid.subMeshCount, $"{piece.name} has a face and sides");
+                Assert.Greater(solid.bounds.size.z, 0.05f, $"{piece.name} is 3D");
+                Assert.Greater(solid.bounds.size.y, 0.28f, $"{piece.name} is large (about 30 cm)");
+                Assert.IsNotNull(piece.Find("Rim"), "a dark rim keeps it readable against the room");
+            }
+            for (int i = 0; i < 4; i++) // 3 blue, 2 purple, 1 yellow, GO! green
+            {
+                var colour = tutorial.CountPieces[i].Find("Solid").GetComponent<MeshRenderer>().sharedMaterials[0].color;
+                Assert.Less(Vector4.Distance(TutorialDirector.CountColours[i], colour), 1e-3f, tutorial.CountPieces[i].name);
+            }
+        }
+
+        [Test]
         public void SkippingTheOpeningBringsEveryStationHome()
         {
             Object.FindFirstObjectByType<IntroSequence>().Finish();

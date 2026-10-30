@@ -30,10 +30,10 @@ namespace RoomOrchestra
         [SerializeField] TMP_Text line;
         [SerializeField] Transform speaker;
         [SerializeField] Transform glow;
-        [Tooltip("The 3-2-1-Go count over the stage, and its place and size there (it is saved parked).")]
+        [Tooltip("The 3-2-1-Go count: solid 3D words over the stage. The holder stays put; the word on show sits at its " +
+                 "origin and the others wait in the cloud. Order: 3, 2, 1, GO!, 开始！")]
         [SerializeField] Transform countdown;
-        [SerializeField] TMP_Text countdownText;
-        [SerializeField] Vector3 countdownHome, countdownScale = Vector3.one;
+        [SerializeField] Transform[] countPieces;
         [Tooltip("Where the bubble and glow wait (inside the ball stand's cloud).")]
         [SerializeField] Transform park;
 
@@ -64,14 +64,19 @@ namespace RoomOrchestra
         /// <summary>The count's colours: 3 blue, 2 purple, 1 gold, Go! green (the numbers themselves say which).</summary>
         public static readonly Color[] CountColours =
         {
-            new Color(0.25f, 0.55f, 1f), new Color(0.65f, 0.38f, 0.95f), new Color(1f, 0.78f, 0.2f), new Color(0.3f, 0.82f, 0.38f),
+            new Color(0.25f, 0.55f, 1f), new Color(0.65f, 0.38f, 0.95f), new Color(1f, 0.88f, 0.15f), new Color(0.3f, 0.82f, 0.38f),
         };
+        public const int GoChinese = 4;
 
-        public void ConfigureCountdown(Transform holder, TMP_Text text)
+        public void ConfigureCountdown(Transform holder, Transform[] pieces)
         {
             countdown = holder;
-            countdownText = text;
+            countPieces = pieces;
         }
+
+        /// <summary>The count word on show now (3, 2, 1 or GO!), or null.</summary>
+        public Transform ShownCountPiece { get; private set; }
+        public System.Collections.Generic.IReadOnlyList<Transform> CountPieces => countPieces;
 
         public void Configure(EchoConductor echoes, StationReveal[] hiddenStations, PitchColumn[] pitchColumns,
             Transform speechBubble, TMP_Text speech, Transform flutter, Transform glowPlate, Transform parkPoint)
@@ -108,11 +113,6 @@ namespace RoomOrchestra
                 bubbleHome = bubble.localPosition;
                 bubbleScale = bubble.localScale;
             }
-            if (countdown != null)
-            {
-                countdownHome = countdown.localPosition;
-                countdownScale = countdown.localScale;
-            }
             ParkBubble();
             ParkGlow();
             ParkCountdown();
@@ -138,6 +138,7 @@ namespace RoomOrchestra
                 m_TryAgainUntil = -1f;
                 if (!m_Plan.Done) Say(m_Plan.Current.Line);
             }
+            Cheer();
             if (m_CloseAt >= 0f && Time.time >= m_CloseAt) Close();
             AnimateBubble();
             PlaceGlow();
@@ -221,6 +222,32 @@ namespace RoomOrchestra
             ParkGlow();
             ParkCountdown();
             m_CloseAt = Time.time + DoneLineSeconds;
+            // A clear ending (owner: "I didn't know when the tutorial was over"): the friends beam and bounce
+            // a few times and every sparkle flares, while Flutter says it's done and play is free from now on.
+            m_CheerHops = CheerHops;
+            m_NextCheer = Time.time;
+            foreach (var sparkle in FindObjectsByType<SparkleTwinkle>(FindObjectsSortMode.None)) sparkle.Flare();
+        }
+
+        public const int CheerHops = 3;
+        public const float CheerGapSeconds = 0.4f;
+        int m_CheerHops;
+        float m_NextCheer;
+        /// <summary>Hops still to come in the ending's cheer.</summary>
+        public int CheerHopsLeft => m_CheerHops;
+
+        void Cheer()
+        {
+            if (m_CheerHops <= 0 || Time.time < m_NextCheer) return;
+            m_CheerHops--;
+            m_NextCheer = Time.time + CheerGapSeconds;
+            foreach (var token in FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
+            {
+                var face = token.GetComponentInChildren<CharacterFace>();
+                if (face != null) face.Beam();
+                var body = token.GetComponentInChildren<JellyBody>();
+                if (body != null) body.Kick(0.6f);
+            }
         }
 
         /// <summary>The Skip leaf: everything appears, and Flutter's bubble tucks away.</summary>
@@ -325,37 +352,44 @@ namespace RoomOrchestra
         void ParkCountdown()
         {
             m_ShownBeat = -1;
-            if (countdown == null || park == null) return;
-            countdown.position = park.position;
-            countdown.localScale = countdownScale * ParkedScale;
+            ShownCountPiece = null;
+            if (countPieces == null || park == null) return;
+            foreach (var piece in countPieces) ParkPiece(piece);
         }
 
-        // While the timed note is wanted: the count for this beat of the bar, read from the audio clock (not the
+        void ParkPiece(Transform piece)
+        {
+            if (piece == null || park == null) return;
+            piece.position = park.position;
+            piece.localScale = Vector3.one * ParkedScale;
+        }
+
+        Transform PieceFor(int beat) =>
+            beat < 3 ? countPieces[beat] : countPieces[Localization.Current == UiLanguage.Chinese && countPieces.Length > GoChinese ? GoChinese : 3];
+
+        // While the timed note is wanted: the word for this beat of the bar, read from the audio clock (not the
         // frame rate), popping a little bigger as each beat starts and settling. Parked while the music is paused.
         void ShowCountdown()
         {
-            if (countdown == null) return;
+            if (countdown == null || countPieces == null || countPieces.Length < 4) return;
             bool counting = Active && m_Plan.Current.OnTime && conductor != null && conductor.Clock != null && !conductor.IsPaused;
             if (!counting)
             {
-                if (m_ShownBeat >= 0 || (park != null && countdown.position != park.position)) ParkCountdown();
+                if (m_ShownBeat >= 0 || (park != null && countPieces[0].position != park.position)) ParkCountdown();
                 return;
             }
             double phase = conductor.Clock.BarPhase(AudioSettings.dspTime);
             int beat = TutorialPlan.CountdownBeat(phase);
             if (beat != m_ShownBeat)
             {
+                ParkCountdown();
                 m_ShownBeat = beat;
-                if (countdownText != null)
-                {
-                    countdownText.text = beat < 3 ? (3 - beat).ToString() : UiText.Get(UiTerm.Go, Localization.Current);
-                    countdownText.color = CountColours[beat];
-                }
-                countdown.localPosition = countdownHome;
+                ShownCountPiece = PieceFor(beat);
+                ShownCountPiece.localPosition = Vector3.zero;
             }
             float inBeat = (float)(phase * MusicClock.BeatsPerBar - beat);
             float pop = 1f + 0.25f * (1f - inBeat) * (1f - inBeat);
-            countdown.localScale = countdownScale * pop;
+            ShownCountPiece.localScale = Vector3.one * pop;
         }
 
         // Behind the wanted tile, a little bigger than it, breathing slowly (no flashing).
