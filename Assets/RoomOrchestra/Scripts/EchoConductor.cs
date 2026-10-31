@@ -196,6 +196,33 @@ namespace RoomOrchestra
             return true;
         }
 
+        /// <summary>
+        /// Takes out the echo on <paramref name="type"/> at <paramref name="step"/>, if any (the lesson clearing a note it
+        /// didn't ask for from the place a right note belongs). Silenced at once; Undo can bring it back.
+        /// </summary>
+        public bool RemoveAt(InstrumentType type, int step)
+        {
+            EchoEvent found = null;
+            foreach (var e in m_Sequencer.Echoes)
+                if (e.Target == type && e.Step == step) found = e;
+            if (found == null || !m_Sequencer.Remove(found.StableId)) return false;
+            TargetFor(type)?.CancelScheduled(found.StableId);
+            if (SelectedEchoId == found.StableId) SelectedEchoId = 0;
+            Resync();
+            Debug.Log($"[RoomOrchestra] Took out {found} to make room");
+            return true;
+        }
+
+        /// <summary>An empty song with nothing to undo (the lesson starts from scratch; no Clear smoke).</summary>
+        public void StartFresh()
+        {
+            if (m_Sequencer.Echoes.Count == 0) return;
+            m_Sequencer.Reset();
+            Resync();
+            SelectedEchoId = 0;
+            Debug.Log("[RoomOrchestra] Song started fresh");
+        }
+
         public IReadOnlyList<EchoEvent> Echoes => m_Sequencer.Echoes;
 
         public bool Nudge(int direction)

@@ -164,7 +164,10 @@ namespace RoomOrchestra.EditorTools
                 dispenser != null ? dispenser.Find("BallPool") : null, launcher);
             // Focused start (Version 1 feedback): the stand and what travels with it begin directly in front of the
             // player; the opening glides them home (IntroSequence). Moved before anything parks in the cloud.
-            // The aim arc's dots rest in the stand's cloud too, so they start in front with it.
+            // The aim arc's dots rest in the stand's cloud too, so they start in front with it. The arc is not rebuilt,
+            // so it goes back to its home (the stage origin) first, or every rebuild would shift it again.
+            var aimArc = parent != null ? parent.transform.Find("AimArc") : null;
+            if (aimArc != null) aimArc.localPosition = Vector3.zero;
             var standCarried = carried.Append(parent != null ? parent.transform.Find("AimArc") : null).Where(t => t != null).ToArray();
             var standHome = standCarried.Select(t => t.position).ToArray();
             foreach (var t in standCarried) t.position += StandFrontOffset;

@@ -343,5 +343,40 @@ namespace RoomOrchestra.Tests
                 Assert.Less(Vector3.Distance(piece.position, park.position), 1e-3f, $"{piece.name} too (not left in mid-air)");
             ComfortSettings.SetPosture(PlayPosture.Seated);
         }
+
+        [UnityTest]
+        public IEnumerator ANoteAlreadyWhereARightNoteBelongsMakesRoom()
+        {
+            yield return WarmUp();
+            foreach (var note in new[] { 2, 1, 0 }) yield return Play(InstrumentType.Mbira, note);
+            Assert.AreEqual(3, m_Tutorial.Plan.Index, "next: E on step 6");
+            // A stray F# on step 6 that the lesson never heard (as from a throw during the opening, owner's emulator run).
+            var clock = m_Conductor.Clock;
+            long bar = clock.BarIndex(AudioSettings.dspTime) + 1;
+            var stray = new MusicalHitEvent(9001, 9001, InstrumentType.Mbira, OrbType.Flutter, IntensityTier.Medium, PitchInput.FromPetal(2), InputPath.Toss, clock.TimeOf(bar, 6));
+            Assert.AreEqual(EchoAddResult.Added, m_Conductor.Sequencer.TryAdd(stray, out var strayEcho));
+            Assert.AreEqual(6, strayEcho.Step);
+
+            yield return Play(InstrumentType.Mbira, 1);
+            Assert.AreEqual(4, m_Tutorial.Plan.Index, "the right E still counts");
+            Assert.IsTrue(m_Conductor.Echoes.Any(e => e.Step == 6 && e.NoteIndex == 1), "E is on step 6");
+            Assert.IsFalse(m_Conductor.Echoes.Contains(strayEcho), "the stray made room");
+        }
+
+        [UnityTest]
+        public IEnumerator NotesPlayedDuringTheOpeningAreClearedWhenTheLessonStarts()
+        {
+            PlayerPrefs.DeleteKey(TutorialDirector.DonePrefKey);
+            LogAssert.ignoreFailingMessages = true;
+            yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Single);
+            yield return null;
+            LogAssert.ignoreFailingMessages = false;
+            var tutorial = TutorialDirector.Instance;
+            Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
+            Assert.IsTrue(InstrumentInputRouter.Activate(Tile(InstrumentType.Mbira, 2).gameObject), "a note before Flutter speaks");
+            Assert.AreEqual(1, EchoConductor.Instance.Echoes.Count);
+            while (!tutorial.Active) yield return null;
+            Assert.AreEqual(0, EchoConductor.Instance.Echoes.Count, "the lesson starts from an empty song");
+        }
     }
 }

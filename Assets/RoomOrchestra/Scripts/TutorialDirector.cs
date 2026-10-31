@@ -208,6 +208,9 @@ namespace RoomOrchestra
         void Begin()
         {
             InstrumentPacks.Instance?.ResetPlaces(); // the lesson is about the chair's mbira, the lamp's erhu, the table's udu
+            // Notes played during the opening (a ball thrown before Flutter spoke) are not part of the tune: one sat
+            // where "had" belongs and jammed the lesson (owner, emulator).
+            conductor?.StartFresh();
             m_Started = true;
             Debug.Log("[RoomOrchestra] Tutorial: Flutter starts the first song");
             m_BubbleOut = true;
@@ -241,6 +244,15 @@ namespace RoomOrchestra
             return null;
         }
 
+        // A right note goes to its place in the bar; anything else already there (not part of the tune) makes room.
+        void SnapIntoPlace(EchoEvent echo, int step)
+        {
+            if (conductor.MoveEcho(echo.StableId, step)) return;
+            conductor.RemoveAt(echo.Target, step);
+            if (!conductor.MoveEcho(echo.StableId, step))
+                Debug.LogWarning($"[RoomOrchestra] Tutorial: couldn't put {echo} on step {step}");
+        }
+
         UiTerm CurrentLine => m_Plan.InWarmup ? UiTerm.TutorialWarmup : m_Plan.Current.Line;
 
         void OnNoteAdded(EchoEvent echo)
@@ -270,7 +282,7 @@ namespace RoomOrchestra
                 var timing = TutorialPlan.Judge(step.BarStep, landed, m_Misses);
                 if (timing == TutorialPlan.Timing.OnTime)
                 {
-                    conductor.MoveEcho(echo.StableId, step.BarStep);
+                    SnapIntoPlace(echo, step.BarStep);
                     Debug.Log($"[RoomOrchestra] Tutorial: on Go (landed on step {landed}, {m_Misses} misses before)");
                     return;
                 }
@@ -283,7 +295,7 @@ namespace RoomOrchestra
             }
             if (m_Plan.Wants(echo.Target, echo.NoteIndex))
             {
-                conductor.MoveEcho(echo.StableId, m_Plan.Current.BarStep); // into its place in the tune
+                SnapIntoPlace(echo, m_Plan.Current.BarStep); // into its place in the tune
                 return;                                                     // Update follows the song
             }
             // Not the note asked for: it played, and is taken straight back out of the song.

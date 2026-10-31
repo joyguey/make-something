@@ -679,6 +679,8 @@ namespace RoomOrchestra.Tests
                 Assert.Greater(token.transform.position.y, 0.5f, $"{token.name} is on the leaf");
         }
 
+        static readonly Vector3 DispenserHome = new Vector3(0.62f, 0f, 1.15f); // the stand's place beside the leaf
+
         // ---- The title card (Version 1 feedback: "boot into a proper title screen") ----
         [Test]
         public void TheGameOpensOnATitleCardInFrontWithAStartButton()
@@ -702,6 +704,8 @@ namespace RoomOrchestra.Tests
             var eye = new Vector3(0f, 1.15f, 0f);
             var onCard = eye + (ball - eye) * ((p.z - eye.z) / (ball.z - eye.z)); // where the ball appears on the card's plane
             Assert.Less(onCard.y, p.y - 0.29f, "the ball shows below the card, not hidden behind it");
+            var arc = GameObject.Find("RoomOrchestra").transform.Find("AimArc");
+            Assert.Less(Vector3.Distance(arc.localPosition, stand.position - DispenserHome), 1e-3f, "the aim arc starts with the stand, offset once (never more)");
             var start = title.Card.GetComponentInChildren<TitleStartButton>();
             Assert.IsNotNull(start, "a Start button");
             Assert.Greater(Mathf.Abs(title.Card.InverseTransformPoint(start.transform.position).x), 0.15f, "off the centre line, clear of PICO's window handle");
