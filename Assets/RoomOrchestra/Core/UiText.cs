@@ -79,7 +79,29 @@ namespace RoomOrchestra
         ViewStandard,
         ViewLarge,
         ViewContrast,
-        ViewLargeContrast
+        ViewLargeContrast,
+        // The Echo Battle (easter egg): the card's words. {0}/{1} are filled in (round, scores, points).
+        BattleTitle,
+        BattleFound,
+        BattleHost,
+        BattleJoin,
+        BattleLeave,
+        BattleWaiting,
+        BattleLooking,
+        BattleReady,
+        BattleYourCall,
+        BattleTheyEcho,
+        BattleTheyCall,
+        BattleListen,
+        BattleEcho,
+        BattleGotPoints,
+        BattleRound,
+        BattleScore,
+        BattleWin,
+        BattleLose,
+        BattleDraw,
+        BattleGone,
+        BattleFinishLesson
     }
 
     /// <summary>
@@ -146,6 +168,27 @@ namespace RoomOrchestra
             { UiTerm.ViewLarge, ("Large text", "大字") },
             { UiTerm.ViewContrast, ("High contrast", "高对比") },
             { UiTerm.ViewLargeContrast, ("Large + contrast", "大字+高对比") },
+            { UiTerm.BattleTitle, ("Echo Battle", "回声对决") },
+            { UiTerm.BattleFound, ("You found the Echo Battle! Two headsets on the same Wi-Fi: one taps Host, the other Join.", "你发现了回声对决！两台头显连同一个Wi-Fi：一台点\"主持\"，另一台点\"加入\"。") },
+            { UiTerm.BattleHost, ("Host", "主持") },
+            { UiTerm.BattleJoin, ("Join", "加入") },
+            { UiTerm.BattleLeave, ("Leave", "离开") },
+            { UiTerm.BattleWaiting, ("Waiting for the other headset to join...", "等待另一台头显加入……") },
+            { UiTerm.BattleLooking, ("Looking for a host on this Wi-Fi...", "正在这个Wi-Fi上寻找主持……") },
+            { UiTerm.BattleReady, ("Get ready...", "准备……") },
+            { UiTerm.BattleYourCall, ("GO! Your call: play up to 4 notes", "开始！你来出题：最多弹4个音") },
+            { UiTerm.BattleTheyEcho, ("They're echoing your call...", "对方正在模仿你的旋律……") },
+            { UiTerm.BattleTheyCall, ("Their turn to call. Listen...", "轮到对方出题。仔细听……") },
+            { UiTerm.BattleListen, ("Listen to their call...", "听对方的旋律……") },
+            { UiTerm.BattleEcho, ("GO! Echo it back", "开始！模仿出来") },
+            { UiTerm.BattleGotPoints, ("+{0} points", "+{0} 分") },
+            { UiTerm.BattleRound, ("Round {0} of 3", "第 {0} 轮，共 3 轮") },
+            { UiTerm.BattleScore, ("You {0}  -  {1} Them", "你 {0}  -  {1} 对方") },
+            { UiTerm.BattleWin, ("You win! Tap Host or Join to play again.", "你赢了！点\"主持\"或\"加入\"再玩一次。") },
+            { UiTerm.BattleLose, ("They win! Tap Host or Join for a rematch.", "对方赢了！点\"主持\"或\"加入\"再比一次。") },
+            { UiTerm.BattleDraw, ("A draw! Tap Host or Join to play again.", "平局！点\"主持\"或\"加入\"再玩一次。") },
+            { UiTerm.BattleGone, ("The other headset stopped answering.", "另一台头显没有回应了。") },
+            { UiTerm.BattleFinishLesson, ("Finish or skip the lesson first, then try again.", "先完成或跳过教学，再试一次。") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>

@@ -180,5 +180,23 @@ namespace RoomOrchestra.EditorTools
             CaptureCloseUp(path, new Vector3(0f, 1.15f, 0f), new Vector3(-0.1f, 0.5f, 1.15f), 28f);
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
+
+        /// <summary>The Echo Battle card (easter egg) out beside the leaf, from the seated eye (Unity's renderer; never
+        /// saved). Batch: -executeMethod RoomOrchestra.EditorTools.SceneSnapshot.CaptureBattle -snapshotPath out.png</summary>
+        public static void CaptureBattle()
+        {
+            string path = "docs/evidence/echo-battle.png";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            Object.FindFirstObjectByType<IntroSequence>().Finish();
+            var battle = Object.FindFirstObjectByType<EchoBattleDirector>();
+            var so = new SerializedObject(battle);
+            battle.Card.localPosition = so.FindProperty("cardHome").vector3Value;
+            battle.Card.localScale = so.FindProperty("cardScale").vector3Value;
+            CaptureCloseUp(path, new Vector3(0f, 1.15f, 0f), new Vector3(-0.55f, 0.85f, 1.1f), 60f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
     }
 }

@@ -197,12 +197,16 @@ namespace RoomOrchestra.EditorTools
             CreateInstrumentPacks(root, targets);
             for (int i = 0; i < standCarried.Length; i++) standCarried[i].position = standHome[i]; // home, to record it
             BackLabels(pad, lift: true); // while the leaf is still at home (the opening then poses it out of view)
+            CreateEchoBattle(root, conductor);
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
             intro.ConfigureStand(standCarried, StandFrontOffset, launcher); // and back in front for the first frame
             leafStalk.Apply(); // its closed hole waits in the cloud, wherever the cloud starts
             var poofPark = root.transform.Find("PoofPark");
             if (poofPark != null) // idle poof clouds wait in the stand's cloud from the first frame too
                 foreach (var cloud in root.GetComponentsInChildren<PoofCloud>(true)) cloud.transform.position = poofPark.position;
+            var battleCard = root.transform.Find("EchoBattleCard");
+            var parkPoint = parent != null ? parent.transform.Find("BallDispenser/ParkPoint") : null;
+            if (battleCard != null && parkPoint != null) battleCard.position = parkPoint.position; // the hidden card too
             // Version 1 feedback ("higher fidelity"): rounded edges on every control and tile, sized while everything is
             // still at full size (the lesson then tucks the lamp's and table's tiles into the cloud).
             RoundedShapes.RoundBlocks(controls, 0.012f);
@@ -356,6 +360,69 @@ namespace RoomOrchestra.EditorTools
             virtualRoom.Configure(panels.ToArray(), room.InverseTransformPoint(farMiddle), room.InverseTransformPoint((RoomMin + RoomMax) / 2f), park);
             EditorUtility.SetDirty(virtualRoom);
             return virtualRoom;
+        }
+
+        // The Echo Battle's card (easter egg): left of the leaf, clear of the sight lines to the table, waiting in the cloud
+        // until the secret (Flutter, Bop, Boom, twice) brings it out. A deep plum card on a cream rim, white words.
+        static readonly Vector3 BattleCardAt = new Vector3(-0.95f, 1.0f, 0.95f);
+        static readonly Vector3 BattleCardSize = new Vector3(0.5f, 0.36f, 0.03f);
+
+        static void CreateEchoBattle(GameObject root, EchoConductor conductor)
+        {
+            var park = GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint");
+            var card = Holder("EchoBattleCard", root.transform, Vector3.zero);
+            card.position = BattleCardAt;
+            card.rotation = FacePlayer(BattleCardAt);
+            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            Box("BattleRim", card, new Vector3(0f, 0f, 0.006f), BattleCardSize + new Vector3(0.024f, 0.024f, 0f), cream, keepCollider: false);
+            Box("BattlePanel", card, Vector3.zero, BattleCardSize, plum, keepCollider: false);
+            float front = -BattleCardSize.z / 2f - 0.006f;
+            var title = Label("BattleTitle", UiText.Get(UiTerm.BattleTitle, UiLanguage.English), card, new Vector3(0f, 0.13f, front), 0.04f);
+            title.localRotation = Quaternion.identity;
+            Localize(title, UiTerm.BattleTitle);
+            TMP_Text Words(string name, Vector3 at, float height, float width, float lines)
+            {
+                var holder = Label(name, "Ag", card, at, height);
+                holder.localRotation = Quaternion.identity;
+                var t = holder.GetComponentInChildren<TMP_Text>();
+                t.textWrappingMode = TextWrappingModes.Normal;
+                t.rectTransform.sizeDelta = new Vector2(width, height * 1.4f * lines);
+                t.enableAutoSizing = true;
+                t.fontSizeMax = t.fontSize;
+                t.fontSizeMin = t.fontSize * 0.75f;
+                t.text = "";
+                return t;
+            }
+            var status = Words("BattleStatus", new Vector3(0f, 0.035f, front), 0.026f, BattleCardSize.x - 0.05f, 3f);
+            status.text = UiText.Get(UiTerm.BattleFound, UiLanguage.English);
+            var score = Words("BattleScore", new Vector3(0f, -0.06f, front), 0.022f, BattleCardSize.x - 0.05f, 2f);
+            score.text = string.Format(UiText.Get(UiTerm.BattleScore, UiLanguage.English), 0, 0);
+            var green = EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f));
+            var kinds = new[] { (EchoBattleButton.Kind.Host, UiTerm.BattleHost), (EchoBattleButton.Kind.Join, UiTerm.BattleJoin), (EchoBattleButton.Kind.Leave, UiTerm.BattleLeave) };
+            for (int i = 0; i < kinds.Length; i++)
+            {
+                var (kind, term) = kinds[i];
+                var button = Holder($"Battle{kind}", card, new Vector3(-0.155f + 0.155f * i, -0.13f, front - 0.004f));
+                var slab = Box($"Battle{kind}Slab", button, Vector3.zero, new Vector3(0.13f, 0.06f, 0.03f), green, keepCollider: false);
+                slab.gameObject.AddComponent<BoxCollider>();
+                Hoverable(slab.gameObject);
+                var label = Label($"Battle{kind}Label", UiText.Get(term, UiLanguage.English), button, new Vector3(0f, 0f, -0.02f), 0.024f);
+                label.localRotation = Quaternion.identity;
+                Localize(label, term);
+                button.gameObject.AddComponent<EchoBattleButton>().Configure(kind);
+            }
+            RoundedShapes.RoundBlocks(card, 0.015f);
+            var director = root.AddComponent<EchoBattleDirector>();
+            director.Configure(card, park, status, score, conductor);
+            // Saved hidden in the cloud, buttons off, until the secret.
+            if (park != null)
+            {
+                card.position = park.position;
+                card.localScale = Vector3.one * EchoBattleDirector.ParkedScale;
+            }
+            foreach (var c in card.GetComponentsInChildren<Collider>(true)) c.enabled = false;
+            EditorUtility.SetDirty(director);
         }
 
         // A bright arrow that bobs above the ball on the cloud whenever the lesson wants a throw (owner: it wasn't clear

@@ -94,7 +94,7 @@ namespace RoomOrchestra
             foreach (var due in m_Sequencer.Collect(now))
             {
                 var target = TargetFor(due.Echo.Target);
-                if (target != null) target.PlayEcho(due.Echo, due.DspTime);
+                if (target != null && !SongMuted) target.PlayEcho(due.Echo, due.DspTime);
                 m_ScheduledThisBar++;
                 Scheduled?.Invoke(due);
             }
@@ -224,6 +224,27 @@ namespace RoomOrchestra
         }
 
         public IReadOnlyList<EchoEvent> Echoes => m_Sequencer.Echoes;
+
+        /// <summary>The song keeps its place but makes no sound (the Echo Battle mode borrows the instruments for a while).</summary>
+        public bool SongMuted { get; private set; }
+
+        public void SetSongMuted(bool muted)
+        {
+            if (SongMuted == muted) return;
+            SongMuted = muted;
+            Resync(); // drops what was queued; unmuted, the song picks up from now
+            Debug.Log($"[RoomOrchestra] Song {(muted ? "set aside (kept, silent)" : "back")}");
+        }
+
+        /// <summary>Takes one echo out of the song by its id (a one-shot note in the Echo Battle). Undo can bring it back.</summary>
+        public bool RemoveEcho(long stableId)
+        {
+            var echo = Find(stableId);
+            if (echo == null || !m_Sequencer.Remove(stableId)) return false;
+            TargetFor(echo.Target)?.CancelScheduled(stableId);
+            if (SelectedEchoId == stableId) SelectedEchoId = 0;
+            return true;
+        }
 
         public bool Nudge(int direction)
         {
