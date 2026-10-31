@@ -3,7 +3,7 @@
 A hidden two-player mode in Little Echoes Version 3, for trying a turn-based mixed-reality music battle on two PICO headsets. It is a separate mode: normal play is unchanged, and the player's own song is set aside (kept, silent) during a battle and plays on when they leave.
 
 ## Unlock
-In free play (after the lesson, or Skip), pick the three friends in order **Flutter, Bop, Boom, Flutter, Bop, Boom** within 6 seconds: tap them on the leaf, or use the controller's next-character button. The **Echo Battle** card appears left of the leaf. The same secret hides it again.
+In free play (after the lesson, or Skip; a device that has done the lesson starts in free play, and the leaf's Lesson button replays it), pick the three friends in order **Flutter, Bop, Boom, Flutter, Bop, Boom** within 6 seconds: tap them on the leaf, or use the controller's next-character button. The **Echo Battle** card appears in a poof, up and a little left, above the leaf. **Leave** puts it away (during a battle, Leave ends the battle first).
 
 ## Play
 1. Both headsets on the **same Wi-Fi network**. On one, tap **Host**; on the other, tap **Join**. They find each other automatically (no IP addresses, no accounts, no internet).

@@ -9,7 +9,7 @@ namespace RoomOrchestra
     /// One calls a phrase of up to 4 notes in one bar; the other hears it played on their own furniture and echoes it in the
     /// next bar; exact notes score 2, one 16th off 1 (<see cref="EchoBattleRules"/>). Unlock: pick Flutter, Bop, Boom,
     /// Flutter, Bop, Boom within 6 s (<see cref="SecretUnlock"/>); the same again hides it. A card beside the leaf has Host,
-    /// Join and Leave, a status line (with a 3-2-1-GO count) and the score. Each headset judges its own player against its
+    /// Join and Leave (Leave also puts the card away), a status line (with a 3-2-1-GO count) and the score. Each headset judges its own player against its
     /// own beat (the music clock), so Wi-Fi delay never decides a point; only notes and scores travel (<see cref="EchoBattleLink"/>).
     /// During a battle notes are one-shots: they sound and are taken straight back out of the song, so nothing loops. The
     /// battle is a separate mode that never takes over normal play (owner): the player's own song is set aside (kept,
@@ -112,16 +112,14 @@ namespace RoomOrchestra
             m_HaveOrb = true;
             m_LastOrb = orb;
             if (first || !m_Unlock.Selected(orb, Time.time)) return;
-            if (State == Phase.Hidden)
+            // The secret only ever brings the card out (repeating it must not put away what it just showed); Leave closes it.
+            if (State != Phase.Hidden) return;
+            if (TutorialDirector.Instance != null && TutorialDirector.Instance.Active)
             {
-                if (TutorialDirector.Instance != null && TutorialDirector.Instance.Active)
-                {
-                    Debug.Log("[RoomOrchestra] Echo Battle: found, but the lesson is on (finish or skip it first)");
-                    return;
-                }
-                Show();
+                Debug.Log("[RoomOrchestra] Echo Battle: found, but the lesson is on (finish or skip it first)");
+                return;
             }
-            else Hide();
+            Show();
         }
 
         public void Show()
@@ -135,6 +133,7 @@ namespace RoomOrchestra
             }
             Say(UiTerm.BattleFound);
             SetScore("");
+            if (card != null) PoofCloud.PoofAt(card.position, 2.5f); // it arrives in a poof, so it's noticed
             Debug.Log("[RoomOrchestra] Echo Battle: unlocked (the secret: Flutter, Bop, Boom, twice)");
         }
 
@@ -162,6 +161,11 @@ namespace RoomOrchestra
                 case EchoBattleButton.Kind.Host: Open(EchoBattleLink.Role.Host); break;
                 case EchoBattleButton.Kind.Join: Open(EchoBattleLink.Role.Guest); break;
                 case EchoBattleButton.Kind.Leave:
+                    if (State == Phase.Menu || State == Phase.Over)
+                    {
+                        Hide(); // not in a battle: put the card away
+                        break;
+                    }
                     Leave(sendBye: true);
                     State = Phase.Menu;
                     Say(UiTerm.BattleFound);

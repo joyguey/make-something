@@ -55,7 +55,7 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheSecretBringsOutTheCardAndHidesItAgain()
+        public IEnumerator TheSecretBringsOutTheCardInViewAndLeavePutsItAway()
         {
             var battle = EchoBattleDirector.Instance;
             Assert.IsFalse(battle.Shown, "hidden until the secret");
@@ -65,10 +65,14 @@ namespace RoomOrchestra.Tests
             yield return Secret();
             Assert.IsTrue(battle.Shown, "Flutter, Bop, Boom, twice: the Echo Battle");
             Assert.Greater(Vector3.Distance(battle.Card.position, park.position), 0.5f, "out beside the leaf");
+            var p = battle.Card.position;
+            Assert.Less(Vector3.Angle(Vector3.forward, new Vector3(p.x, 0f, p.z)), 30f, "in view from the seat, not off to the side");
             StringAssert.Contains("Echo Battle", battle.StatusText);
             Assert.IsTrue(battle.Card.GetComponentsInChildren<EchoBattleButton>().All(b => b.GetComponentInChildren<Collider>().enabled), "Host, Join and Leave can be tapped");
             yield return Secret();
-            Assert.IsFalse(battle.Shown, "the secret again hides it");
+            Assert.IsTrue(battle.Shown, "repeating the secret never puts it away");
+            Assert.IsTrue(InstrumentInputRouter.Activate(battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Leave).GetComponentInChildren<Collider>().gameObject));
+            Assert.IsFalse(battle.Shown, "Leave, outside a battle, puts the card away");
         }
 
         [UnityTest]
@@ -135,6 +139,7 @@ namespace RoomOrchestra.Tests
 
             Assert.IsTrue(InstrumentInputRouter.Activate(battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Leave).GetComponentInChildren<Collider>().gameObject));
             Assert.IsFalse(EchoConductor.Instance.SongMuted, "leaving the battle: the player's own song plays on");
+            Assert.IsTrue(battle.Shown, "leaving a battle goes back to the card's menu");
             Assert.AreSame(ownSong, EchoConductor.Instance.Echoes.Single(), "exactly as it was");
         }
     }

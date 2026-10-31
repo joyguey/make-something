@@ -364,7 +364,9 @@ namespace RoomOrchestra.EditorTools
 
         // The Echo Battle's card (easter egg): left of the leaf, clear of the sight lines to the table, waiting in the cloud
         // until the secret (Flutter, Bop, Boom, twice) brings it out. A deep plum card on a cream rim, white words.
-        static readonly Vector3 BattleCardAt = new Vector3(-0.95f, 1.0f, 0.95f);
+        // Up and a little left, above the leaf and Flutter's bubble, in view (owner, emulator: 45 degrees to the left it
+        // opened out of sight); above the sight lines to the table and its tiles.
+        static readonly Vector3 BattleCardAt = new Vector3(-0.55f, 1.25f, 1.3f);
         static readonly Vector3 BattleCardSize = new Vector3(0.5f, 0.36f, 0.03f);
 
         static void CreateEchoBattle(GameObject root, EchoConductor conductor)
