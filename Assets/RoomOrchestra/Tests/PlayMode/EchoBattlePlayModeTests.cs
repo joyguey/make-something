@@ -67,7 +67,21 @@ namespace RoomOrchestra.Tests
             Assert.Greater(Vector3.Distance(battle.Card.position, park.position), 0.5f, "out beside the leaf");
             var p = battle.Card.position;
             Assert.Less(Vector3.Angle(Vector3.forward, new Vector3(p.x, 0f, p.z)), 30f, "in view from the seat, not off to the side");
-            StringAssert.Contains("Echo Battle", battle.StatusText);
+            // It never covers an instrument's tiles from the seat (the battle is played on them).
+            Physics.SyncTransforms();
+            var eye = new Vector3(0f, 1.15f, 0f);
+            var cardBounds = battle.Card.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+            foreach (var tile in Object.FindObjectsByType<PitchTile>(FindObjectsSortMode.None))
+            {
+                var ray = new Ray(eye, tile.transform.position - eye);
+                Assert.IsFalse(cardBounds.IntersectRay(ray, out float d) && d < Vector3.Distance(eye, tile.transform.position), $"the card covers {tile.Target.Instrument} tile {tile.Petal}");
+            }
+            StringAssert.StartsWith("Unlocked", battle.StatusText);
+            Assert.AreEqual("BattleTitle", battle.ShownTitle.name, "the street tag, in English");
+            Localization.Set(UiLanguage.Chinese, remember: false);
+            Assert.AreEqual("BattleTitleZh", battle.ShownTitle.name, "回声对决 in Chinese");
+            Assert.Greater(Vector3.Distance(battle.Card.Find("BattleTitle").localPosition, battle.ShownTitle.localPosition), 0.05f, "the English tag waits behind the wall");
+            Localization.Set(UiLanguage.English, remember: false);
             Assert.IsTrue(battle.Card.GetComponentsInChildren<EchoBattleButton>().All(b => b.GetComponentInChildren<Collider>().enabled), "Host, Join and Leave can be tapped");
             yield return Secret();
             Assert.IsTrue(battle.Shown, "repeating the secret never puts it away");

@@ -370,23 +370,80 @@ namespace RoomOrchestra.EditorTools
         // until the secret (Flutter, Bop, Boom, twice) brings it out. A deep plum card on a cream rim, white words.
         // Up and a little left, above the leaf and Flutter's bubble, in view (owner, emulator: 45 degrees to the left it
         // opened out of sight); above the sight lines to the table and its tiles.
-        static readonly Vector3 BattleCardAt = new Vector3(-0.55f, 1.25f, 1.3f);
+        static readonly Vector3 BattleCardAt = new Vector3(-0.62f, 1.3f, 1.3f); // its wall clear of the table's drum tiles too
         static readonly Vector3 BattleCardSize = new Vector3(0.5f, 0.36f, 0.03f);
 
         static void CreateEchoBattle(GameObject root, EchoConductor conductor)
         {
+            // Street style (owner 2026-10-31: the battle should look like teens and adults play it, "street / graffiti";
+            // the characters stay as approved): a poster taped to a little brick wall, the title as a chunky graffiti tag
+            // with a white sticker outline and spray drips, bold colour blocks, sticker buttons. Shapes only (textures did
+            // not draw on the emulator).
             var park = GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint");
             var card = Holder("EchoBattleCard", root.transform, Vector3.zero);
             card.position = BattleCardAt;
             card.rotation = FacePlayer(BattleCardAt);
-            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
-            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
-            Box("BattleRim", card, new Vector3(0f, 0f, 0.006f), BattleCardSize + new Vector3(0.024f, 0.024f, 0f), cream, keepCollider: false);
-            Box("BattlePanel", card, Vector3.zero, BattleCardSize, plum, keepCollider: false);
+            Material Paint(string name, Color c) => EnsureMaterial(name, "Ball", c);
+            var brickA = Paint("BattleBrickA", new Color(0.27f, 0.25f, 0.28f));
+            var brickB = Paint("BattleBrickB", new Color(0.22f, 0.21f, 0.24f));
+            var asphalt = Paint("BattleAsphalt", new Color(0.08f, 0.08f, 0.1f));
+            var pink = Glow(Paint("BattlePink", new Color(1f, 0.18f, 0.55f)), new Color(1f, 0.18f, 0.55f) * 0.35f);
+            var blue = Glow(Paint("BattleBlue", new Color(0.15f, 0.45f, 1f)), new Color(0.15f, 0.45f, 1f) * 0.35f);
+            var orange = Paint("BattleOrange", new Color(1f, 0.45f, 0.08f));
+            var yellow = Glow(Paint("BattleYellow", new Color(1f, 0.84f, 0.12f)), new Color(1f, 0.84f, 0.12f) * 0.3f);
+            var white = Paint("BattleWhite", new Color(0.97f, 0.97f, 0.95f));
+            var tape = Paint("BattleTape", new Color(0.93f, 0.9f, 0.78f));
+
+            // The wall: rows of offset bricks behind the poster.
+            var wall = Holder("BattleWall", card, new Vector3(0f, 0f, 0.035f));
+            const int rows = 6, perRow = 5;
+            float wallW = BattleCardSize.x + 0.04f, wallH = BattleCardSize.y + 0.06f; // just peeking out round the poster
+            float bw = wallW / perRow, bh = wallH / rows;
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c <= perRow; c++)
+                {
+                    float x = -(wallW / 2f) + bw * (c + (r % 2 == 0 ? 0f : 0.5f)) - bw * 0.25f;
+                    if (Mathf.Abs(x) > wallW / 2f - bw * 0.2f) continue;
+                    float y = -(wallH / 2f) + bh * (r + 0.5f);
+                    Box($"Brick{r}_{c}", wall, new Vector3(x, y, 0f), new Vector3(bw - 0.008f, bh - 0.008f, 0.03f), (r + c) % 3 == 0 ? brickB : brickA, keepCollider: false);
+                }
+            // The poster: dark asphalt with a white sticker edge, taped at two corners.
+            Box("BattleRim", card, new Vector3(0f, 0f, 0.006f), BattleCardSize + new Vector3(0.016f, 0.016f, 0f), white, keepCollider: false);
+            Box("BattlePanel", card, Vector3.zero, BattleCardSize, asphalt, keepCollider: false);
+            foreach (var sx in new[] { -1f, 1f })
+                Box($"BattleTape{(sx < 0 ? "L" : "R")}", card, new Vector3(sx * (BattleCardSize.x / 2f - 0.02f), BattleCardSize.y / 2f - 0.01f, -0.008f),
+                    new Vector3(0.09f, 0.03f, 0.022f), tape, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, sx * -35f);
             float front = -BattleCardSize.z / 2f - 0.006f;
-            var title = Label("BattleTitle", UiText.Get(UiTerm.BattleTitle, UiLanguage.English), card, new Vector3(0f, 0.13f, front), 0.04f);
-            title.localRotation = Quaternion.identity;
-            Localize(title, UiTerm.BattleTitle);
+            // Decorations are 2 cm deep, set mostly into the poster (their faces sit 2-4 mm proud of it): shrunk into the
+            // cloud with the hidden card they must stay above the 1 mm limit.
+            const float decorDepth = 0.02f;
+            float decorZ = -BattleCardSize.z / 2f - 0.002f + decorDepth / 2f;
+            // Colour blocks behind the title and the score, a little askew.
+            Box("BattleTitleBlock", card, new Vector3(0f, 0.125f, decorZ), new Vector3(BattleCardSize.x - 0.02f, 0.085f, decorDepth), pink, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, -2.5f);
+            Box("BattleScoreBlock", card, new Vector3(0f, -0.06f, decorZ), new Vector3(BattleCardSize.x * 0.7f, 0.05f, decorDepth), blue, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, 1.5f);
+
+            // The title tag (English and Chinese words; the one not in use waits behind the wall).
+            var titleData = JsonUtility.FromJson<CountPieces>(System.IO.File.ReadAllText(BattleTitleMeshData));
+            var titles = new Transform[titleData.pieces.Length];
+            for (int i = 0; i < titles.Length; i++)
+            {
+                var piece = titleData.pieces[i];
+                var word = Holder(piece.name, card, new Vector3(0f, 0.128f, front - 0.012f));
+                var solid = MeshPart("Solid", word, SaveSolidMesh(piece.name, piece.faces, piece.sides), Vector3.zero, yellow);
+                solid.GetComponent<MeshRenderer>().sharedMaterials = new[] { yellow, pink };
+                MeshPart("Rim", word, SaveSolidMesh(piece.name + "Rim", piece.outline, null), Vector3.zero, white);
+                if (piece.name.EndsWith("Zh")) word.localScale = Vector3.one * 0.62f; // the same height as the tag
+                titles[i] = word;
+            }
+            // Spray drips under the tag.
+            foreach (var (x, len) in new[] { (-0.15f, 0.014f), (0.04f, 0.018f), (0.17f, 0.011f) }) // short: clear of the status line
+            {
+                Box($"Drip{x:0.00}", card, new Vector3(x, 0.083f - len / 2f, decorZ - 0.002f), new Vector3(0.01f, len, decorDepth), yellow, keepCollider: false);
+                var blob = Primitive(PrimitiveType.Sphere, $"DripEnd{x:0.00}", card, yellow, keepCollider: false);
+                blob.localPosition = new Vector3(x, 0.083f - len, decorZ - 0.002f);
+                blob.localScale = new Vector3(0.013f, 0.015f, decorDepth);
+            }
+
             TMP_Text Words(string name, Vector3 at, float height, float width, float lines)
             {
                 var holder = Label(name, "Ag", card, at, height);
@@ -400,27 +457,31 @@ namespace RoomOrchestra.EditorTools
                 t.text = "";
                 return t;
             }
-            var status = Words("BattleStatus", new Vector3(0f, 0.035f, front), 0.026f, BattleCardSize.x - 0.05f, 3f);
+            var status = Words("BattleStatus", new Vector3(0f, 0.025f, front - 0.004f), 0.026f, BattleCardSize.x - 0.05f, 3f);
             status.text = UiText.Get(UiTerm.BattleFound, UiLanguage.English);
-            var score = Words("BattleScore", new Vector3(0f, -0.06f, front), 0.022f, BattleCardSize.x - 0.05f, 2f);
+            var score = Words("BattleScore", new Vector3(0f, -0.06f, front - 0.01f), 0.026f, BattleCardSize.x * 0.68f, 1.5f);
             score.text = string.Format(UiText.Get(UiTerm.BattleScore, UiLanguage.English), 0, 0);
-            var green = EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f));
-            var kinds = new[] { (EchoBattleButton.Kind.Host, UiTerm.BattleHost), (EchoBattleButton.Kind.Join, UiTerm.BattleJoin), (EchoBattleButton.Kind.Leave, UiTerm.BattleLeave) };
+
+            // Sticker buttons: bold colour, white edge, each a little askew.
+            var kinds = new[] { (EchoBattleButton.Kind.Host, UiTerm.BattleHost, pink, -3f), (EchoBattleButton.Kind.Join, UiTerm.BattleJoin, blue, 2f), (EchoBattleButton.Kind.Leave, UiTerm.BattleLeave, orange, -1.5f) };
             for (int i = 0; i < kinds.Length; i++)
             {
-                var (kind, term) = kinds[i];
+                var (kind, term, colour, tilt) = kinds[i];
                 var button = Holder($"Battle{kind}", card, new Vector3(-0.155f + 0.155f * i, -0.13f, front - 0.004f));
-                var slab = Box($"Battle{kind}Slab", button, Vector3.zero, new Vector3(0.13f, 0.06f, 0.03f), green, keepCollider: false);
+                button.localRotation = Quaternion.Euler(0f, 0f, tilt);
+                Box($"Battle{kind}Edge", button, new Vector3(0f, 0f, 0.004f), new Vector3(0.142f, 0.072f, 0.03f), white, keepCollider: false);
+                var slab = Box($"Battle{kind}Slab", button, Vector3.zero, new Vector3(0.13f, 0.06f, 0.03f), colour, keepCollider: false);
                 slab.gameObject.AddComponent<BoxCollider>();
                 Hoverable(slab.gameObject);
-                var label = Label($"Battle{kind}Label", UiText.Get(term, UiLanguage.English), button, new Vector3(0f, 0f, -0.02f), 0.024f);
+                var label = Label($"Battle{kind}Label", UiText.Get(term, UiLanguage.English), button, new Vector3(0f, 0f, -0.02f), 0.026f);
                 label.localRotation = Quaternion.identity;
                 Localize(label, term);
                 button.gameObject.AddComponent<EchoBattleButton>().Configure(kind);
             }
-            RoundedShapes.RoundBlocks(card, 0.015f);
+            RoundedShapes.RoundBlocks(card, 0.012f);
             var director = root.AddComponent<EchoBattleDirector>();
             director.Configure(card, park, status, score, conductor);
+            director.ConfigureTitles(titles);
             // Saved hidden in the cloud, buttons off, until the secret.
             if (park != null)
             {
@@ -430,6 +491,8 @@ namespace RoomOrchestra.EditorTools
             foreach (var c in card.GetComponentsInChildren<Collider>(true)) c.enabled = false;
             EditorUtility.SetDirty(director);
         }
+
+        const string BattleTitleMeshData = "Assets/RoomOrchestra/Art/Battle/BattleTitleMeshes.json";
 
         // A bright arrow that bobs above the ball on the cloud whenever the lesson wants a throw (owner: it wasn't clear
         // the player should throw the ball). Built from rounded bars; waits in the cloud when unused.

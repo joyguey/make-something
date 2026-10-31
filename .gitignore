@@ -41,3 +41,4 @@ Thumbs.db
 # AR Foundation XR Simulation: per-user editor preferences
 Assets/XR/UserSimulationSettings/
 Assets/XR/UserSimulationSettings.meta
+__pycache__/

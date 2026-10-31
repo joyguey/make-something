@@ -5,12 +5,15 @@ A hidden two-player mode in Little Echoes Version 3, for trying a turn-based mix
 ## Unlock
 In free play (after the lesson, or Skip; a device that has done the lesson starts in free play, and the leaf's Lesson button replays it), pick the three friends in order **Flutter, Bop, Boom, Flutter, Bop, Boom** within 6 seconds: tap them on the leaf, or use the controller's next-character button. The **Echo Battle** card appears in a poof, up and a little left, above the leaf. **Leave** puts it away (during a battle, Leave ends the battle first).
 
+## Look (2026-10-31)
+The battle card is styled for teens and adults, separate from the main game's soft look: a street poster pasted on a small brick wall. It has a dark asphalt panel, a hand-sprayed **ECHO//BATTLE** title (回声对决 in Chinese) with short paint drips, tape at the corners, and tilted sticker buttons: **HOST** (pink), **JOIN** (blue), **LEAVE** (orange). The wording is shorter and more direct: "Drop your beat", "Their call. Listen up...", "YOU 4 vs 2 THEM", "Run it back?". Flutter, Bop and Boom are unchanged. The title font, Sedgwick Ave Display (SIL Open Font License), is traced into 3D geometry; the font itself is not shipped (credited in `Fonts/LICENSES.md`). The card is kept small, up and to the left, clear of the furniture tiles you see from the seat (checked by a test).
+
 ## Play
-1. Both headsets on the **same Wi-Fi network**. On one, tap **Host**; on the other, tap **Join**. They find each other automatically (no IP addresses, no accounts, no internet).
+1. Both headsets on the **same Wi-Fi network**. On one, tap **HOST**; on the other, tap **JOIN**. They find each other automatically (no IP addresses, no accounts, no internet).
 2. The host calls first. A count shows on the card (3, 2, 1), then **GO**: play up to 4 notes in one bar, on any furniture (tap tiles, use the controller, or throw a ball).
 3. The other headset hears that phrase on its own furniture, gets its own count, and echoes it in the next bar.
 4. Each echoed note with the same instrument and note scores **2** on the same 16th, **1** if one 16th off. Then the players swap.
-5. Three rounds each; the card shows the round, the score and the winner. **Leave** ends a battle at any time.
+5. Three rounds each; the card shows the round, the score and the winner. **LEAVE** ends a battle at any time.
 
 ## How it works (for evaluating feasibility)
 - **Turn-based on purpose:** each headset judges its own player against its own music clock, so Wi-Fi delay never decides a point. Only the phrase (e.g. `M2@0,M1@4`) and the scores travel.

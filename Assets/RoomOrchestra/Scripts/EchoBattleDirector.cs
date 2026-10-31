@@ -18,7 +18,7 @@ namespace RoomOrchestra
     /// </summary>
     public class EchoBattleDirector : MonoBehaviour
     {
-        public const float ParkedScale = 0.05f, ResultSeconds = 2.5f;
+        public const float ParkedScale = 0.12f, ResultSeconds = 2.5f; // 12%: the street card still fits the cloud, and its thinnest drip stays above 1 mm
 
         public enum Phase { Hidden, Menu, Pairing, CountIn, Recording, WaitingForThem, Listening, Between, Over }
 
@@ -27,6 +27,9 @@ namespace RoomOrchestra
         [SerializeField] Transform park;
         [SerializeField] TMP_Text status, score;
         [SerializeField] EchoConductor conductor;
+        [Tooltip("The street-style title tag, English then Chinese; the one not in use waits behind the card's wall.")]
+        [SerializeField] Transform[] titles;
+        [SerializeField] Vector3 titleShown;
 
         readonly SecretUnlock m_Unlock = new();
         readonly List<PhraseNote> m_Recorded = new();
@@ -61,6 +64,25 @@ namespace RoomOrchestra
             cardScale = card.localScale;
         }
 
+        public void ConfigureTitles(Transform[] titleWords)
+        {
+            titles = titleWords;
+            if (titles.Length > 0) titleShown = titles[0].localPosition;
+            ShowTitle(UiLanguage.English);
+        }
+
+        /// <summary>The title tag in the language in use (the other one sits behind the card's brick wall).</summary>
+        public Transform ShownTitle { get; private set; }
+
+        void ShowTitle(UiLanguage language)
+        {
+            if (titles == null || titles.Length == 0) return;
+            int want = language == UiLanguage.Chinese && titles.Length > 1 ? 1 : 0;
+            for (int i = 0; i < titles.Length; i++)
+                titles[i].localPosition = i == want ? titleShown : titleShown + new Vector3(0f, 0f, 0.12f); // behind the wall
+            ShownTitle = titles[want];
+        }
+
         public void UseTestNetwork(int localPort, int peerPort)
         {
             m_LocalPort = localPort;
@@ -71,6 +93,7 @@ namespace RoomOrchestra
         void OnEnable()
         {
             Instance = this;
+            Localization.Changed += ShowTitle;
             EchoConductor.NoteAdded += OnNoteAdded;
             MusicalHitPipeline.Committed += OnHit;
         }
@@ -78,6 +101,7 @@ namespace RoomOrchestra
         void OnDisable()
         {
             if (Instance == this) Instance = null;
+            Localization.Changed -= ShowTitle;
             EchoConductor.NoteAdded -= OnNoteAdded;
             MusicalHitPipeline.Committed -= OnHit;
             CloseLink();
@@ -124,6 +148,7 @@ namespace RoomOrchestra
 
         public void Show()
         {
+            ShowTitle(Localization.Current);
             State = Phase.Menu;
             if (card != null)
             {

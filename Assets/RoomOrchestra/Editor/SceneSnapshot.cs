@@ -195,7 +195,7 @@ namespace RoomOrchestra.EditorTools
             var so = new SerializedObject(battle);
             battle.Card.localPosition = so.FindProperty("cardHome").vector3Value;
             battle.Card.localScale = so.FindProperty("cardScale").vector3Value;
-            CaptureCloseUp(path, new Vector3(0f, 1.15f, 0f), new Vector3(0f, 1.0f, 1.6f), 80f);
+            CaptureCloseUp(path, new Vector3(0f, 1.15f, 0f), new Vector3(-0.3f, 1.0f, 1.6f), 70f);
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
