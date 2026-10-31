@@ -36,6 +36,10 @@ namespace RoomOrchestra
         [SerializeField] Transform[] countPieces;
         [Tooltip("The virtual starting room: it comes apart when the song is done or skipped.")]
         [SerializeField] VirtualRoom room;
+        [Tooltip("Bobs above the ball on the cloud whenever the lesson wants a throw (the warm-up and the count).")]
+        [SerializeField] Transform arrow;
+        [SerializeField] BallLauncher launcher;
+        const float ArrowLift = 0.16f, ArrowBob = 0.03f, ArrowBobsPerSecond = 1.2f;
         [Tooltip("Where the bubble and glow wait (inside the ball stand's cloud).")]
         [SerializeField] Transform park;
 
@@ -84,6 +88,16 @@ namespace RoomOrchestra
         public const int GoChinese = 4;
 
         public void ConfigureRoom(VirtualRoom startingRoom) => room = startingRoom;
+
+        public void ConfigureArrow(Transform ballArrow, BallLauncher balls)
+        {
+            arrow = ballArrow;
+            launcher = balls;
+        }
+
+        public Transform Arrow => arrow;
+        /// <summary>The arrow is pointing at the ball now.</summary>
+        public bool ArrowOut { get; private set; }
 
         public void ConfigureCountdown(Transform holder, Transform[] pieces)
         {
@@ -166,6 +180,7 @@ namespace RoomOrchestra
             AnimateBubble();
             PlaceGlow();
             ShowCountdown();
+            PlaceArrow();
         }
 
         // A returning player: no lesson. Everything appears in its poof and the virtual room comes apart at once.
@@ -431,6 +446,7 @@ namespace RoomOrchestra
             if (park == null || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
             if (bubble != null && !m_BubbleOut && !Popping && !BubbleParked) ParkBubble();
             if (glow != null && !m_GlowOut && glow.position != park.position) ParkGlow();
+            if (arrow != null && (!Active || !ArrowOut) && (ArrowOut || arrow.position != park.position)) ParkArrow();
             if (countPieces != null && m_ShownBeat < 0)
                 foreach (var piece in countPieces)
                     if (piece != null && piece.position != park.position) ParkPiece(piece);
@@ -458,6 +474,35 @@ namespace RoomOrchestra
             if (glow == null || park == null) return;
             glow.position = park.position;
             glow.localScale = GlowParked;
+        }
+
+        // Above the ready ball, pointing down at it, bobbing gently, while the lesson wants a throw.
+        void PlaceArrow()
+        {
+            if (arrow == null) return;
+            var ball = launcher != null ? launcher.ReadyBall : null;
+            bool wanted = Active && (m_Plan.InWarmup || m_Plan.Current.OnTime) && ball != null;
+            if (!wanted)
+            {
+                if (ArrowOut || (park != null && arrow.position != park.position)) ParkArrow();
+                return;
+            }
+            ArrowOut = true;
+            float bob = ArrowBob * Mathf.Sin(Time.time * ArrowBobsPerSecond * 2f * Mathf.PI);
+            var at = ball.transform.position + Vector3.up * (ArrowLift + bob);
+            var eye = Camera.main != null ? Camera.main.transform.position : new Vector3(0f, 1.15f, 0f); // else the seat
+            var toEye = eye - at;
+            toEye.y = 0f;
+            arrow.SetPositionAndRotation(at, Quaternion.LookRotation(toEye.sqrMagnitude > 1e-6f ? -toEye : Vector3.forward, Vector3.up));
+            arrow.localScale = Vector3.one;
+        }
+
+        void ParkArrow()
+        {
+            ArrowOut = false;
+            if (arrow == null || park == null) return;
+            arrow.position = park.position;
+            arrow.localScale = Vector3.one * ParkedScale;
         }
 
         void ParkCountdown()

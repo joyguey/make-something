@@ -23,7 +23,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from PIL import Image, ImageDraw, ImageFont
 
-PIECES = [("Count3", "3"), ("Count2", "2"), ("Count1", "1"), ("CountGo", "GO!"), ("CountGoZh", "开始！")]
+PIECES = [("Count3", "3"), ("Count2", "2"), ("Count1", "1"), ("CountGo", "GO!"), ("CountGoZh", "开始！"), ("CountThrow", "THROW!"), ("CountThrowZh", "扔！")]
 HEIGHT_M = 0.30        # a digit's height
 DEPTH_M = 0.06         # the coloured solid's depth
 OUTLINE_M = 0.012      # the dark rim around it

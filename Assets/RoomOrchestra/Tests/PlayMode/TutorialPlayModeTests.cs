@@ -83,7 +83,14 @@ namespace RoomOrchestra.Tests
         {
             Assert.AreEqual(UiTerm.TutorialWarmup, m_Tutorial.Line, "first: toss me at the chair (or tap)");
             Assert.AreSame(Tile(InstrumentType.Mbira, 2).transform, m_Tutorial.WantedTile(), "a tile glows as the tap alternative");
+            yield return null;
+            var ball = Object.FindFirstObjectByType<BallLauncher>().ReadyBall;
+            Assert.IsTrue(m_Tutorial.ArrowOut, "an arrow points at the ball to throw");
+            Assert.Less(Vector2.Distance(new Vector2(m_Tutorial.Arrow.position.x, m_Tutorial.Arrow.position.z), new Vector2(ball.transform.position.x, ball.transform.position.z)), 0.01f, "right above it");
+            Assert.That(m_Tutorial.Arrow.position.y - ball.transform.position.y, Is.InRange(0.1f, 0.22f));
             yield return WarmUp();
+            yield return null;
+            Assert.IsFalse(m_Tutorial.ArrowOut, "tile notes don't need the arrow");
             Assert.IsTrue(VirtualRoom.Instance.Standing, "the lesson happens in the virtual room");
             Assert.AreEqual(UiTerm.TutorialHello, m_Tutorial.Line);
             Assert.IsTrue(m_Tutorial.BubbleOut);
@@ -152,6 +159,8 @@ namespace RoomOrchestra.Tests
             foreach (var hit in new[] { 0, 3, 1, 2 }) yield return Play(InstrumentType.Udu, hit); // any udu sound keeps the beat
             Assert.AreEqual(UiTerm.TutorialOnGo, m_Tutorial.Line, "now the last note, in time");
             Assert.IsTrue(TutorialPlan.Song[m_Tutorial.Plan.Index].OnTime);
+            yield return null;
+            Assert.IsTrue(m_Tutorial.ArrowOut, "the count's throw: the arrow is back over the ball");
         }
 
         // Plays the guided steps up to the timed last note (tile taps, snapped into place).
@@ -193,6 +202,7 @@ namespace RoomOrchestra.Tests
                 var face = shown.Find("Solid").GetComponent<MeshRenderer>().sharedMaterials[0];
                 Assert.Less(Vector4.Distance(TutorialDirector.CountColours[beat], face.color), 1e-3f, "its colour");
                 Assert.AreEqual(2, shown.Find("Solid").GetComponent<MeshFilter>().sharedMesh.subMeshCount, "a 3D solid: face and sides");
+                if (beat == 3) Assert.IsNotNull(shown.Find("CountThrow"), "GO! says THROW! under it");
                 foreach (var other in m_Tutorial.CountPieces)
                     if (other != shown) Assert.Less(Vector3.Distance(other.position, park.position), 1e-3f, $"{other.name} waits in the cloud");
             }

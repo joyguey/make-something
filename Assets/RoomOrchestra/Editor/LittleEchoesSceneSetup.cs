@@ -37,7 +37,8 @@ namespace RoomOrchestra.EditorTools
         const float ButtonRowZ = 1.1f, ButtonY = 0.5f, ButtonStep = 0.1f;
         static readonly Vector3 SmallSlab = new Vector3(0.09f, 0.03f, 0.07f);
         static readonly Vector3 SmallCollider = new Vector3(0.095f, 0.08f, 0.08f);
-        static readonly Vector3 SmallLabelOffset = new Vector3(0f, 0.02f, -0.05f);
+        // Low and in front of the slab: the label's dark plate sits below the button's icon, not over it.
+        static readonly Vector3 SmallLabelOffset = new Vector3(0f, 0.004f, -0.075f);
         const float SmallLabelHeight = 0.017f;
 
         // Eight buttons centred on the leaf (Lesson joined the row).
@@ -99,7 +100,7 @@ namespace RoomOrchestra.EditorTools
                 var profile = OrbCatalog.All[i];
                 tokens[i] = CreateToken(profile, tray, new Vector3(-0.17f + 0.17f * i, 0.06f, 0f), // resting on the leaf: hand rays to the udu volume tile pass over them
                     orbMaterials[i], motifMaterial, selected: profile.Type == OrbType.Flutter);
-                var name = Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.17f + 0.17f * i, 0.025f, -0.075f), 0.02f);
+                var name = Label($"Label_{profile.Type}", profile.DisplayName, tray, new Vector3(-0.17f + 0.17f * i, 0.004f, -0.092f), 0.02f); // below the face, in front
                 Localize(name, profile.Type switch { OrbType.Flutter => UiTerm.Flutter, OrbType.Bop => UiTerm.Bop, _ => UiTerm.Boom });
             }
 
@@ -195,6 +196,7 @@ namespace RoomOrchestra.EditorTools
 
             CreateInstrumentPacks(root, targets);
             for (int i = 0; i < standCarried.Length; i++) standCarried[i].position = standHome[i]; // home, to record it
+            BackLabels(pad, lift: true); // while the leaf is still at home (the opening then poses it out of view)
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
             intro.ConfigureStand(standCarried, StandFrontOffset, launcher); // and back in front for the first frame
             leafStalk.Apply(); // its closed hole waits in the cloud, wherever the cloud starts
@@ -205,6 +207,8 @@ namespace RoomOrchestra.EditorTools
             // still at full size (the lesson then tucks the lamp's and table's tiles into the cloud).
             RoundedShapes.RoundBlocks(controls, 0.012f);
             CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
+            BackLabels(pad.Find("TutorialBubble"), lift: false); // the Skip leaf's label (the bubble is built later)
+            RoundedShapes.RoundBlocks(pad, 0.008f); // soft plates too
             CreateViewSettings(root, controls, pad, slabMaterial, motifMaterial);
             EnsureRealWalls();
             RoundedShapes.RoundBlocks(root.transform.Find("TitleCard"), 0.02f); // softened like the controls
@@ -219,6 +223,62 @@ namespace RoomOrchestra.EditorTools
             go.transform.SetParent(null, false);
             go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
             go.transform.localScale = Vector3.one;
+        }
+
+        // Owner (emulator): white words over the light green leaf were hard to read. Every label on the leaf gets a dark
+        // rounded plate behind its words, sized for the longest thing it can say in either language, as a child of the
+        // text so it grows with Large text. Flutter's bubble has its own dark card.
+        static readonly Dictionary<string, string[]> LabelVariants = new()
+        {
+            { "HeightLabel", new[] { HeightButton.TextFor(PlayPosture.Seated, UiLanguage.English), HeightButton.TextFor(PlayPosture.Standing, UiLanguage.English), HeightButton.TextFor(PlayPosture.Seated, UiLanguage.Chinese), HeightButton.TextFor(PlayPosture.Standing, UiLanguage.Chinese) } },
+            { "SoundsLabel", new[] { SoundPackButton.TextFor(UiTerm.PackClassic, UiLanguage.English), SoundPackButton.TextFor(UiTerm.PackEarthy, UiLanguage.English), SoundPackButton.TextFor(UiTerm.PackClassic, UiLanguage.Chinese), SoundPackButton.TextFor(UiTerm.PackEarthy, UiLanguage.Chinese) } },
+            { "ViewLabel", System.Enum.GetValues(typeof(ViewMode)).Cast<ViewMode>().SelectMany(m => new[] { ViewButton.TextFor(m, UiLanguage.English), ViewButton.TextFor(m, UiLanguage.Chinese) }).ToArray() },
+            { "PauseLabel", new[] { UiText.Get(UiTerm.Pause, UiLanguage.English), UiText.Get(UiTerm.Play, UiLanguage.English), UiText.Get(UiTerm.Pause, UiLanguage.Chinese), UiText.Get(UiTerm.Play, UiLanguage.Chinese) } },
+        };
+
+        static void BackLabels(Transform under, bool lift)
+        {
+            if (under == null) return;
+            var bubbleLine = under.Find("BubbleLine") ?? under.Find("TutorialBubble/BubbleLine");
+            var backing = EnsureMaterial("LabelBacking", "Ball", new Color(0.12f, 0.08f, 0.16f));
+            // 2.4 cm deep: plates inside Flutter's bubble shrink with it into the cloud and must stay above 1 mm there.
+            const float padX = 0.012f, padY = 0.006f, depth = 0.024f;
+            // The leaf's top surface (at home, where the setup builds): a plate rests on it, never sinks into it.
+            float leafTop = LeafCenter.y + LeafSize.y / 2f + 0.003f;
+
+            foreach (var text in under.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (bubbleLine != null && text.transform.IsChildOf(bubbleLine)) continue;
+                var holder = text.transform.parent;
+                var texts = new List<string> { text.text };
+                var localized = holder.GetComponent<LocalizedLabel>();
+                if (localized != null) { texts.Add(localized.TextFor(UiLanguage.English)); texts.Add(localized.TextFor(UiLanguage.Chinese)); }
+                if (LabelVariants.TryGetValue(holder.name, out var more)) texts.AddRange(more);
+                string authored = text.text;
+                var size = Vector2.zero;
+                var centre = Vector3.zero;
+                foreach (var t in texts.Where(t => !string.IsNullOrEmpty(t)).Distinct())
+                {
+                    text.text = t;
+                    text.ForceMeshUpdate(true, true);
+                    var b = text.textBounds;
+                    if (b.size.x > size.x) { size.x = b.size.x; centre.x = b.center.x; }
+                    if (b.size.y > size.y) { size.y = b.size.y; centre.y = b.center.y; }
+                }
+                text.text = authored;
+                text.ForceMeshUpdate(true, true);
+                if (size == Vector2.zero) continue;
+                var old = text.transform.Find("LabelBacking");
+                if (old != null) Object.DestroyImmediate(old.gameObject);
+                // Just behind the words (text faces the player along -z): in the text's own space, so it scales with it.
+                var plate = Box("LabelBacking", text.transform, new Vector3(centre.x, centre.y, depth / 2f + 0.002f),
+                    new Vector3(size.x + padX * 2f, size.y + padY * 2f, depth), backing, keepCollider: false);
+                plate.localRotation = Quaternion.identity;
+                if (!lift) continue;
+                // Lift the label until its plate's lowest point clears the leaf (two-line labels need more room).
+                var lowest = plate.TransformPoint(new Vector3(0f, -0.5f, 0f)).y;
+                if (lowest < leafTop) holder.position += Vector3.up * (leafTop - lowest);
+            }
         }
 
         // A11Y-08: what the View setting changes. Large text grows the leaf's labels (the pitch columns' words are
@@ -298,6 +358,24 @@ namespace RoomOrchestra.EditorTools
             return virtualRoom;
         }
 
+        // A bright arrow that bobs above the ball on the cloud whenever the lesson wants a throw (owner: it wasn't clear
+        // the player should throw the ball). Built from rounded bars; waits in the cloud when unused.
+        static Transform CreateBallArrow(Transform root, Transform park)
+        {
+            var arrow = Holder("TutorialArrow", root, Vector3.zero);
+            var yellow = Glow(EnsureMaterial("TutorialArrow", "Ball", new Color(1f, 0.85f, 0.2f)), new Color(1f, 0.85f, 0.2f) * 0.6f);
+            Box("ArrowShaft", arrow, new Vector3(0f, 0.06f, 0f), new Vector3(0.025f, 0.09f, 0.025f), yellow, keepCollider: false);
+            Box("ArrowHeadL", arrow, new Vector3(-0.018f, 0.012f, 0f), new Vector3(0.022f, 0.06f, 0.025f), yellow, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Box("ArrowHeadR", arrow, new Vector3(0.018f, 0.012f, 0f), new Vector3(0.022f, 0.06f, 0.025f), yellow, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, -45f);
+            RoundedShapes.RoundBlocks(arrow, 0.008f);
+            if (park != null)
+            {
+                arrow.position = park.position;
+                arrow.localScale = Vector3.one * TutorialDirector.ParkedScale;
+            }
+            return arrow;
+        }
+
         static readonly Vector3 CountdownAt = new Vector3(0.45f, 1.72f, 2.45f); // between the chair and the lamp, above both
         const string CountdownMeshData = "Assets/RoomOrchestra/Art/Countdown/CountdownMeshes.json";
 
@@ -332,7 +410,20 @@ namespace RoomOrchestra.EditorTools
                 }
                 pieces[i] = word;
             }
-            return (holder, pieces);
+            // THROW! under GO (owner: it wasn't clear the count means "throw now"): a child of the GO word, so it shows
+            // and hides with it.
+            void Under(string go, string throwWord)
+            {
+                var goPiece = pieces.FirstOrDefault(p => p.name == go);
+                var throwPiece = pieces.FirstOrDefault(p => p.name == throwWord);
+                if (goPiece == null || throwPiece == null) return;
+                throwPiece.SetParent(goPiece, false);
+                throwPiece.localPosition = new Vector3(0f, -0.3f, 0f);
+                throwPiece.localScale = Vector3.one * 0.45f;
+            }
+            Under("CountGo", "CountThrow");
+            Under("CountGoZh", "CountThrowZh");
+            return (holder, pieces.Where(p => !p.name.StartsWith("CountThrow")).ToArray());
         }
 
         // A solid from a traced shape: already wound outward (Unity's normals), one sub-mesh per part given.
@@ -400,20 +491,26 @@ namespace RoomOrchestra.EditorTools
                 stations.Add(station);
             }
 
-            // Flutter's speech bubble: a white card with a little tail toward Flutter, plum words that wrap.
+            // Flutter's speech bubble: a deep plum card on a cream border, a little tail toward Flutter, white words that wrap.
+            // Owner (emulator): the words were white on a faint card, hard to read; PICO Spatial appears to draw label text
+            // white whatever its colour, so the card is dark and the words white, which reads in any renderer and any room.
             var bubble = Holder("TutorialBubble", pad, Vector3.zero);
             bubble.position = BubbleAt;
             bubble.rotation = FacePlayer(BubbleAt);
-            var white = EnsureMaterial("SpeechBubble", "Ball", new Color(1f, 0.99f, 0.97f));
-            Box("BubblePanel", bubble, Vector3.zero, BubbleSize, white, keepCollider: false);
-            var tail = Box("BubbleTail", bubble, new Vector3(0.06f, -BubbleSize.y / 2f, 0f), new Vector3(0.05f, 0.05f, BubbleSize.z), white, keepCollider: false);
+            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            Box("BubbleRim", bubble, new Vector3(0f, 0f, 0.006f), BubbleSize + new Vector3(0.024f, 0.024f, 0f), cream, keepCollider: false);
+            Box("BubblePanel", bubble, Vector3.zero, BubbleSize, plum, keepCollider: false);
+            var tailRim = Box("BubbleTailRim", bubble, new Vector3(0.06f, -BubbleSize.y / 2f - 0.004f, 0.006f), new Vector3(0.066f, 0.066f, BubbleSize.z), cream, keepCollider: false);
+            tailRim.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            var tail = Box("BubbleTail", bubble, new Vector3(0.06f, -BubbleSize.y / 2f, 0f), new Vector3(0.05f, 0.05f, BubbleSize.z), plum, keepCollider: false);
             tail.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            // Big, dark plum on white (owner: the text was hard to read): about 3.4 cm letters, never under 2.9 cm.
+            // Big and white on deep plum: about 3.4 cm letters, never under 2.9 cm.
             var words = Label("BubbleLine", "Ag", bubble, new Vector3(0.045f, 0f, -BubbleSize.z / 2f - 0.01f), 0.034f);
             words.localRotation = Quaternion.identity; // flat on the card: turned to face the eye, its left end went behind it
             var tmp = words.GetComponentInChildren<TMP_Text>();
             tmp.text = UiText.Get(UiTerm.TutorialHello, UiLanguage.English);
-            tmp.color = new Color(0.23f, 0.12f, 0.32f);
+            tmp.color = Color.white;
             tmp.textWrappingMode = TextWrappingModes.Normal;
             tmp.rectTransform.sizeDelta = new Vector2(BubbleSize.x - 0.15f, BubbleSize.y - 0.02f);
             tmp.enableAutoSizing = true; // the longest lines shrink a little to fit
@@ -445,6 +542,7 @@ namespace RoomOrchestra.EditorTools
             director.Configure(conductor, stations.ToArray(), columns, bubble, tmp, flutter, glow, park);
             director.ConfigureCountdown(count.holder, count.pieces);
             director.ConfigureRoom(CreateVirtualRoom(root.transform, park));
+            director.ConfigureArrow(CreateBallArrow(root.transform, park), Object.FindFirstObjectByType<BallLauncher>());
             director.ParkForSave();
             intro.ConfigureTutorial(director);
             EditorUtility.SetDirty(director);
@@ -744,7 +842,7 @@ namespace RoomOrchestra.EditorTools
                 barTransforms[i] = bar;
             }
 
-            Localize(Label("TierLabel", "Loudness", go.transform, new Vector3(0f, 0.025f, -0.055f), SmallLabelHeight), UiTerm.Loudness);
+            Localize(Label("TierLabel", "Loudness", go.transform, new Vector3(0f, 0.004f, -0.075f), SmallLabelHeight), UiTerm.Loudness);
             var tier = go.AddComponent<TierButton>();
             var so = new SerializedObject(tier);
             SetArray(so.FindProperty("bars"), barTransforms);
@@ -930,7 +1028,7 @@ namespace RoomOrchestra.EditorTools
             var pupil = Primitive(PrimitiveType.Sphere, "ViewPupil", go.transform, mark, keepCollider: false);
             pupil.localPosition = new Vector3(0f, 0.032f, -0.006f);
             pupil.localScale = new Vector3(0.018f, 0.018f, 0.006f);
-            var label = Label("ViewLabel", ViewButton.TextFor(ViewMode.Standard, UiLanguage.English), go.transform, new Vector3(0f, 0.025f, -0.055f), 0.034f);
+            var label = Label("ViewLabel", ViewButton.TextFor(ViewMode.Standard, UiLanguage.English), go.transform, new Vector3(0f, 0.004f, -0.075f), 0.034f);
             go.AddComponent<ViewButton>().Configure(label.GetComponentInChildren<TMP_Text>());
         }
 
@@ -948,7 +1046,7 @@ namespace RoomOrchestra.EditorTools
             Box("SoundsHorn", go.transform, new Vector3(-0.014f, 0.03f, 0f), new Vector3(0.022f, 0.022f, 0.01f), mark, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, 45f);
             Box("SoundsWave0", go.transform, new Vector3(0.008f, 0.03f, 0f), new Vector3(0.005f, 0.018f, 0.008f), mark, keepCollider: false);
             Box("SoundsWave1", go.transform, new Vector3(0.022f, 0.03f, 0f), new Vector3(0.005f, 0.03f, 0.008f), mark, keepCollider: false);
-            var label = Label("SoundsLabel", SoundPackButton.TextFor(UiTerm.PackClassic, UiLanguage.English), go.transform, new Vector3(0f, 0.025f, -0.055f), 0.034f);
+            var label = Label("SoundsLabel", SoundPackButton.TextFor(UiTerm.PackClassic, UiLanguage.English), go.transform, new Vector3(0f, 0.004f, -0.075f), 0.034f);
             go.AddComponent<SoundPackButton>().Configure(label.GetComponentInChildren<TMP_Text>());
         }
 
