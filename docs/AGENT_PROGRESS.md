@@ -602,6 +602,9 @@ One simulated controller through ControllerButtonInput (stick/A/B/grip/menu) plu
 - Tests: EditMode 212/212, PlayMode 86/86 (new: title follows language; card never blocks the seated view of any pitch tile). The editor render was checked.
 - Emulator: the test build installs and launches with no app errors, but frame rate is 2-4/60 (low CPU frame time, no XR_ERROR_LIMIT). That's an emulator state, not the app; the card couldn't be opened and judged there. Wiping the emulator's data would likely fix it (needs owner approval).
 
+## 2026-10-31 | Build folder clean-up
+- Owner: keep three major APKs. `Builds/` now holds `LittleEchoes-v1-2026-10-23.apk` (V1), `RoomOrchestra-v2.1.apk` (V2, GitHub release `v2.1`) and `RoomOrchestra-v3.3.apk` (V3, GitHub release `v3.3`). 49 test/phase APKs, two stale Burst debug folders, a Blender .blend1 backup and a Python cache were moved to `~/.Trash/LittleEchoes-cleanup-2026-10-31` (3.0 GB, recoverable until the Trash is emptied).
+
 ## Resume here (next session)
 0. **2026-10-31:** Echo Battle restyled in street style (see above), committed locally, not pushed. Emulator slow (2-4 FPS); ask the owner before wiping its data.
 0. **2026-10-30 (end of session):** `v3.3` tagged and pushed (app 0.3.3 / code 7; v3.1 to v3.3 notes in `docs/RELEASE_NOTES_v3.x.md`; no APKs by owner's choice). All Version 1 feedback points addressed except textures (emulator draws base maps flat; ask PICO's developers to check on a headset). Echo Battle easter egg (`docs/ECHO_BATTLE.md`) for PICO's two developers by 2026-11-08, untested on two headsets. Next: owner plays the latest build on the emulator; headset checks (real-wall alignment, seated scale, readability, Echo Battle pairing, textures); PR to `main` when asked. Work with the Unity Editor closed (batch mode). Emulator stuck with XR_ERROR_LIMIT_REACHED: wipe its data (ask first).

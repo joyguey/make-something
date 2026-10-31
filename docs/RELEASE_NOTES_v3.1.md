@@ -3,7 +3,7 @@
 **Adds the guided tutorial and the rest of the Version 1 feedback follow-ups** to Version 3.
 
 **Tag:** `v3.1` (branch `feat/little-echoes-core`), 2026-10-30. Previous: `v3` (RELEASE_NOTES_v3.md).
-**APK:** `Builds/RoomOrchestra-v3.1.apk` in the project folder (not in Git). Installs over Version 3.
+**APK:** none kept (2026-10-31 clean-up kept one APK per major version); install Version 3.3 (`Builds/RoomOrchestra-v3.3.apk`, GitHub release `v3.3`), which includes everything here.
 **App version:** 0.3.1 (Android version code 5), package `com.roomorchestra.app`.
 **Platform:** Unity 6000.3.25f1, PICO Unity SDK in PICO Spatial mode, PICO OS 6 (Project Swan).
 **Tested on:** PICO Emulator 6.1 and automated tests only (EditMode 201, PlayMode 82). **Not yet tested on a headset.**
