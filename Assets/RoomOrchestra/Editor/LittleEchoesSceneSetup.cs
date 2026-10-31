@@ -320,6 +320,10 @@ namespace RoomOrchestra.EditorTools
             var wallB = Tone("RoomWallB", new Color(0.72f, 0.82f, 0.71f));
             var floorA = Tone("RoomFloorA", new Color(0.78f, 0.6f, 0.44f));
             var floorB = Tone("RoomFloorB", new Color(0.71f, 0.54f, 0.39f));
+            // Textures: not used. On the PICO Emulator 6.1 a correctly exported base-colour texture on a mesh with UVs drew
+            // flat (or as stripes for a 3-channel image); docs/AGENT_PROGRESS.md (2026-10-30, textures) has the evidence.
+            foreach (var plank in new[] { floorA, floorB })
+                if (plank.HasProperty("_BaseMap") && plank.GetTexture("_BaseMap") != null) { plank.SetTexture("_BaseMap", null); plank.SetTexture("_MainTex", null); EditorUtility.SetDirty(plank); }
             var ceiling = Glow(Tone("RoomCeiling", new Color(0.98f, 0.95f, 0.9f)), new Color(0.5f, 0.48f, 0.45f)); // lit from below too
             var panels = new List<Transform>();
             var size = RoomMax - RoomMin;
@@ -805,7 +809,8 @@ namespace RoomOrchestra.EditorTools
             var lamp = furniture.Find("Lamp");
             var shade = lamp != null ? lamp.Find("Shade") : null;
             if (shade != null) shade.GetComponent<MeshFilter>().sharedMesh = RoundedShapes.LampShade(); // a shade, not a ball
-            RoundedShapes.RoundBlocks(furniture, 0.02f); // softened edges on the table and chair
+            FurnitureModels.Apply(furniture); // the Blender models (ArtSource/Furniture/build_furniture.py)
+            RoundedShapes.RoundBlocks(furniture, 0.02f); // anything still a plain block gets softened edges
             if (lamp != null)
             {
                 lamp.localPosition = LampAt;
