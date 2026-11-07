@@ -86,6 +86,7 @@ namespace RoomOrchestra
             if (flowers != null)
                 foreach (var f in flowers)
                     if (f != null) f.Unsprout();
+            RealWalls.Instance?.ReleaseFlowerSpots();
             if (toadstools != null)
                 foreach (var t in toadstools)
                     if (t != null) t.Unsprout();
@@ -113,7 +114,21 @@ namespace RoomOrchestra
                     if (toadstools[i] != null) toadstools[i].Sprout();
             if (flowers != null)
                 for (int i = 0; i < m_Growth.FlowersSprouted(flowers.Length); i++)
-                    if (flowers[i] != null) flowers[i].Sprout();
+                    if (flowers[i] != null && !flowers[i].Sprouted)
+                    {
+                        PlaceOnRealSurface(flowers[i]);
+                        flowers[i].Sprout();
+                    }
+        }
+
+        // With a room scan, a flower grows on a flat, clear real surface near its own place (George, 2026-11-03),
+        // moved while it is still an unseen speck; without one it keeps the place it was given.
+        static void PlaceOnRealSurface(FloorFlower flower)
+        {
+            var walls = RealWalls.Instance;
+            if (walls == null || !walls.TryTakeFlowerSpot(flower.transform.position, out var spot)) return;
+            flower.transform.position = spot;
+            Debug.Log($"[RoomOrchestra] Jungle: {flower.name} grows on a real surface at {spot:F2}");
         }
 
         VineGrowth VineFor(InstrumentType instrument) => instrument switch

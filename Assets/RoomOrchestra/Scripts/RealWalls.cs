@@ -25,11 +25,54 @@ namespace RoomOrchestra
         readonly List<MeshInfo> m_Infos = new();
         readonly Dictionary<MeshId, MeshCollider> m_Walls = new();
         readonly HashSet<MeshId> m_Pending = new();
+        // Each scanned piece's triangles in scene space, for finding where flowers may grow (memory only, never saved).
+        readonly Dictionary<MeshId, Vector3[]> m_Pieces = new();
+        readonly FlatSpots m_Spots = new();
+        bool m_SpotsDirty, m_KeepOutSet;
         XRMeshSubsystem m_Meshing;
         float m_NextPoll;
         bool m_Logged;
 
         public int WallCount => m_Walls.Count;
+        public static RealWalls Instance { get; private set; }
+
+        void OnEnable() => Instance = this;
+        void OnDisable() { if (Instance == this) Instance = null; }
+
+        /// <summary>
+        /// A free spot on a flat, clear real surface near <paramref name="near"/> for a flower to grow on (George,
+        /// 2026-11-03), now taken; false with no scan or no room left (the flower keeps its own place).
+        /// </summary>
+        public bool TryTakeFlowerSpot(Vector3 near, out Vector3 spot)
+        {
+            spot = default;
+            if (m_Pieces.Count == 0) return false;
+            if (!m_KeepOutSet)
+            {
+                m_KeepOutSet = true;
+                m_Spots.KeepClearOf(Vector3.zero, 0.7f); // the player's seat (the stage origin)
+                foreach (var target in FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
+                    m_Spots.KeepClearOf(target.transform.position, 0.45f);
+            }
+            if (m_SpotsDirty)
+            {
+                m_SpotsDirty = false;
+                m_Spots.Clear();
+                foreach (var tris in m_Pieces.Values)
+                    for (int i = 0; i + 2 < tris.Length; i += 3) m_Spots.Add(tris[i], tris[i + 1], tris[i + 2]);
+            }
+            return m_Spots.TryTake(near, out spot);
+        }
+
+        /// <summary>The song was cleared: every flower spot is free again.</summary>
+        public void ReleaseFlowerSpots() => m_Spots.ReleaseAll();
+
+        /// <summary>A scanned piece's triangles in scene space (tests feed a pretend room this way).</summary>
+        public void SetPiece(MeshId id, Vector3[] worldTriangles)
+        {
+            m_Pieces[id] = worldTriangles;
+            m_SpotsDirty = true;
+        }
 
         void Start()
         {
@@ -98,6 +141,7 @@ namespace RoomOrchestra
         void Apply(MeshId id, Mesh scanned, Vector3 position, Quaternion rotation, Vector3 scale)
         {
             var walls = SteepOnly(scanned, rotation);
+            SetPiece(id, WorldTriangles(scanned, position, rotation, scale));
             Destroy(scanned);
             if (!m_Walls.TryGetValue(id, out var collider))
             {
@@ -144,8 +188,19 @@ namespace RoomOrchestra
             return result;
         }
 
+        static Vector3[] WorldTriangles(Mesh mesh, Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            var vertices = mesh.vertices;
+            var triangles = mesh.triangles;
+            var world = new Vector3[triangles.Length];
+            for (int i = 0; i < triangles.Length; i++)
+                world[i] = position + rotation * Vector3.Scale(vertices[triangles[i]], scale);
+            return world;
+        }
+
         void Remove(MeshId id)
         {
+            if (m_Pieces.Remove(id)) m_SpotsDirty = true;
             if (!m_Walls.TryGetValue(id, out var collider)) return;
             m_Walls.Remove(id);
             if (collider != null)

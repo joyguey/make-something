@@ -29,3 +29,9 @@ During the lesson the leaf shows only the friends plus Undo, Pause, Recenter, He
 
 ### Open question for you
 - [ ] George asked for a menu you can reach during play. Pause, Lesson and Quit are already on the leaf. Is that enough, or do you want a separate pop-up menu (Resume / Lesson / Quit)?
+
+### Flowers grow on real flat surfaces (done 2026-11-07)
+With the room scan, each flower that sprouts moves (while still an invisible speck) to the nearest free spot on a flat, upward-facing real surface near its own place: the floor, a table top, a seat. A spot needs about 20 x 20 cm of level surface, 35 cm of clear space above it (nothing overhanging: not under a table or shelf, not at the foot of a wall), at least 35 cm from other flowers, 70 cm from your seat and 45 cm from the instruments. Without a scan, flowers keep their usual places. Clear frees the spots. The scan stays in memory only.
+- [ ] Play a song long enough for flowers: do they come up on your real floor and table tops, not floating or sunk?
+- [ ] Any under a table, inside furniture, or against a wall? (Tell me roughly where.)
+- [ ] The scan needs a little time: flowers from the first notes may use their usual places. Is that noticeable?
