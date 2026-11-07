@@ -190,6 +190,8 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(MusicControlButton.DefaultIconParked, triangle.localPosition);
 
             Assert.IsTrue(InstrumentInputRouter.Activate(clearGo), "tap on Clear handled");
+            Assert.AreEqual(2, m_Conductor.Sequencer.Echoes.Count, "the first tap asks \"Sure?\" (George, 2026-11-03)");
+            Assert.IsTrue(InstrumentInputRouter.Activate(clearGo), "the second tap clears");
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count);
             Assert.IsTrue(m_Conductor.Undo());
             Assert.AreEqual(2, m_Conductor.Sequencer.Echoes.Count, "undo brings cleared echoes back");

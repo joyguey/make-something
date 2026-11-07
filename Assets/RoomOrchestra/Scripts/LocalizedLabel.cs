@@ -17,7 +17,21 @@ namespace RoomOrchestra
         [Tooltip("Shown only while the owner plays a melodic instrument (the key, 1=D, means nothing on a drum).")]
         [SerializeField] bool melodicOnly;
 
+        bool m_Asking;
+
         public TMP_Text Text => text;
+
+        /// <summary>While true the label reads "Sure?" (its button waits for a second tap: <see cref="ConfirmGate"/>).</summary>
+        public bool Asking
+        {
+            get => m_Asking;
+            set
+            {
+                if (m_Asking == value) return;
+                m_Asking = value;
+                Apply(Localization.Current);
+            }
+        }
 
         public void Configure(TMP_Text label, UiTerm word)
         {
@@ -52,6 +66,7 @@ namespace RoomOrchestra
 
         public string TextFor(UiLanguage language)
         {
+            if (m_Asking) return UiText.Get(UiTerm.ConfirmAgain, language);
             if (melodicOnly && owner != null && new MusicalNote(owner.Instrument, 0).IsPercussion) return "";
             return isTile ? UiText.Tile(new MusicalNote(Instrument, noteIndex), language) : UiText.Get(term, language);
         }

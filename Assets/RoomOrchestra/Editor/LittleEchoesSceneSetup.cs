@@ -41,8 +41,8 @@ namespace RoomOrchestra.EditorTools
         static readonly Vector3 SmallLabelOffset = new Vector3(0f, 0.004f, -0.075f);
         const float SmallLabelHeight = 0.017f;
 
-        // Eight buttons centred on the leaf (Lesson joined the row).
-        static Vector3 FrontRow(int slot) => new Vector3(LeafCenter.x + ButtonStep * (slot - 3.3f), ButtonY, ButtonRowZ);
+        // Nine buttons centred on the leaf (Lesson, then Quit, joined the row).
+        static Vector3 FrontRow(int slot) => new Vector3(LeafCenter.x + ButtonStep * (slot - 3.8f), ButtonY, ButtonRowZ);
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]
         public static void ApplyAndSave()
@@ -144,6 +144,7 @@ namespace RoomOrchestra.EditorTools
             CreateHeightButton(FrontRow(5), swoop, slabMaterial, motifMaterial);
             CreateLanguageButton(FrontRow(6), swoop, slabMaterial);
             CreateLessonButton(FrontRow(7), swoop, slabMaterial, motifMaterial);
+            CreateQuitButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
@@ -743,6 +744,16 @@ namespace RoomOrchestra.EditorTools
             Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), button, new Vector3(0f, 0f, -0.045f), 0.04f), UiTerm.Start);
             button.gameObject.AddComponent<TitleStartButton>();
 
+            // Quit, bottom left (George, 2026-11-03: "a main menu with the app's name and a Quit button"): smaller and
+            // quieter than Start, mirrored across PICO's window handle. It asks "Sure?" before it closes the app.
+            var quit = Holder("TitleQuitButton", card, new Vector3(-0.3f, -0.19f, -0.02f));
+            var quitLeaf = Primitive(PrimitiveType.Sphere, "TitleQuitLeaf", quit, EnsureMaterial("QuitLeaf", "Ball", new Color(0.42f, 0.33f, 0.5f)), keepCollider: false);
+            quitLeaf.localScale = new Vector3(0.19f, 0.08f, 0.035f);
+            quitLeaf.gameObject.AddComponent<BoxCollider>();
+            Hoverable(quitLeaf.gameObject);
+            Localize(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, -0.045f), 0.034f), UiTerm.Quit);
+            quit.gameObject.AddComponent<QuitButton>();
+
             var title = root.AddComponent<TitleScreen>();
             title.Configure(card, GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint"), intro);
             return title;
@@ -1219,6 +1230,17 @@ namespace RoomOrchestra.EditorTools
             Box("LessonNoteFlag", go.transform, new Vector3(0.012f, 0.058f, 0f), new Vector3(0.016f, 0.006f, 0.008f), mark, keepCollider: false).localRotation = Quaternion.Euler(0f, 0f, -35f);
             Localize(Label("LessonLabel", UiText.Get(UiTerm.Lesson, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Lesson);
             go.AddComponent<TutorialReplayButton>();
+        }
+
+        // Last on the front row: Quit, reachable during play (George, 2026-11-03), marked with an X. Asks "Sure?" first.
+        static void CreateQuitButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("QuitButton", position, root, slab, "QuitSlab");
+            foreach (var angle in new[] { 45f, -45f })
+                Box($"QuitCross{(angle > 0 ? "A" : "B")}", go.transform, new Vector3(0f, 0.03f, 0f), new Vector3(0.036f, 0.007f, 0.008f), mark, keepCollider: false)
+                    .localRotation = Quaternion.Euler(0f, 0f, angle);
+            Localize(Label("QuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Quit);
+            go.AddComponent<QuitButton>();
         }
 
         static void CreateLanguageButton(Vector3 position, Transform root, Material slab)

@@ -321,6 +321,8 @@ namespace RoomOrchestra.Tests
             var lesson = Object.FindFirstObjectByType<TutorialReplayButton>();
             Assert.IsNotNull(lesson, "a Lesson button on the leaf");
             Assert.IsTrue(InstrumentInputRouter.Activate(lesson.GetComponentInChildren<Collider>().gameObject));
+            Assert.AreEqual(1, m_Conductor.Echoes.Count, "the first tap asks \"Sure?\" (George, 2026-11-03)");
+            Assert.IsTrue(InstrumentInputRouter.Activate(lesson.GetComponentInChildren<Collider>().gameObject));
             Assert.AreEqual(0, m_Conductor.Echoes.Count, "a fresh song (Undo brings the old one back)");
             Assert.IsTrue(Station(InstrumentType.Erhu).Hidden, "the lamp waits in the cloud again");
             Assert.IsTrue(Station(InstrumentType.Udu).Hidden);

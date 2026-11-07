@@ -87,6 +87,7 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<LanguageButton>();
             if (owner == null) owner = hit.GetComponentInParent<TrayCallButton>();
             if (owner == null) owner = hit.GetComponentInParent<TitleStartButton>();
+            if (owner == null) owner = hit.GetComponentInParent<QuitButton>();
             if (owner == null) owner = hit.GetComponentInParent<TutorialSkipButton>();
             if (owner == null) owner = hit.GetComponentInParent<TutorialReplayButton>();
             if (owner == null) owner = hit.GetComponentInParent<ChangeInstrumentButton>();
@@ -116,9 +117,69 @@ namespace RoomOrchestra
         /// </summary>
         public static bool Activate(GameObject hit)
         {
+            var owner = PressableOwner(hit);
+            if (NeedsConfirm(owner))
+            {
+                if (!s_Confirm.Request(owner.GetInstanceID()))
+                {
+                    AskOn(owner); // first tap: the label asks "Sure?"; nothing happens yet
+                    Acknowledge(owner);
+                    return true;
+                }
+            }
+            else if (owner != null) s_Confirm.Cancel(); // pressing anything else is a "no"
+            AskOn(null);
             if (!Dispatch(hit)) return false;
-            Acknowledge(PressableOwner(hit));
+            Acknowledge(owner);
             return true;
+        }
+
+        static readonly ConfirmGate s_Confirm = new();
+        static LocalizedLabel s_AskingLabel;
+
+        /// <summary>The button now waiting for its second tap, if any (for tests and the log).</summary>
+        public static int ConfirmAsking => s_Confirm.Asking;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetConfirm()
+        {
+            s_Confirm.Cancel();
+            s_AskingLabel = null;
+        }
+
+        /// <summary>
+        /// Presses that end or wipe something ask first (George, 2026-11-03): Clear with a song to lose, Lesson (starts the
+        /// song over), Quit, and Leave during a battle. Not while the title card is up (there only Start and Quit act).
+        /// </summary>
+        static bool NeedsConfirm(Component owner)
+        {
+            if (owner == null) return false;
+            var title = TitleScreen.Instance;
+            if (title != null && title.Showing && !(owner is QuitButton)) return false;
+            switch (owner)
+            {
+                case MusicControlButton music:
+                    return music.ButtonKind == MusicControlButton.Kind.Clear && EchoConductor.Instance != null && EchoConductor.Instance.Echoes.Count > 0;
+                case TutorialReplayButton _:
+                case QuitButton _:
+                    return true;
+                case EchoBattleButton battle:
+                    var director = EchoBattleDirector.Instance;
+                    return battle.ButtonKind == EchoBattleButton.Kind.Leave && director != null
+                        && director.State != EchoBattleDirector.Phase.Menu && director.State != EchoBattleDirector.Phase.Over
+                        && director.State != EchoBattleDirector.Phase.Hidden;
+                default:
+                    return false;
+            }
+        }
+
+        static void AskOn(Component owner)
+        {
+            var label = owner != null ? owner.GetComponentInChildren<LocalizedLabel>(true) : null;
+            if (s_AskingLabel != null && s_AskingLabel != label) s_AskingLabel.Asking = false;
+            s_AskingLabel = label;
+            if (label != null) label.Asking = true;
+            if (owner != null) Debug.Log($"[RoomOrchestra] {owner.name}: asks to confirm");
         }
 
         /// <summary>
@@ -142,8 +203,21 @@ namespace RoomOrchestra
             if (title != null && title.Showing)
             {
                 var start = hit.GetComponentInParent<TitleStartButton>();
+                var quitFromTitle = hit.GetComponentInParent<QuitButton>();
+                if (quitFromTitle != null)
+                {
+                    quitFromTitle.Press();
+                    return true;
+                }
                 if (start == null) return false;
                 start.Press();
+                return true;
+            }
+
+            var quit = hit.GetComponentInParent<QuitButton>();
+            if (quit != null)
+            {
+                quit.Press();
                 return true;
             }
 

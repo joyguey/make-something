@@ -151,7 +151,10 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual("1|0", got.First(m => m.Type == "SCORE").Payload, "no echo played: no points, and the score is sent");
             Assert.AreEqual(2, battle.Match.Round, "round 2");
 
-            Assert.IsTrue(InstrumentInputRouter.Activate(battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Leave).GetComponentInChildren<Collider>().gameObject));
+            var leave = battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Leave).GetComponentInChildren<Collider>().gameObject;
+            Assert.IsTrue(InstrumentInputRouter.Activate(leave));
+            Assert.IsTrue(EchoConductor.Instance.SongMuted, "mid-battle, Leave asks \"Sure?\" first (George, 2026-11-03)");
+            Assert.IsTrue(InstrumentInputRouter.Activate(leave));
             Assert.IsFalse(EchoConductor.Instance.SongMuted, "leaving the battle: the player's own song plays on");
             Assert.IsTrue(battle.Shown, "leaving a battle goes back to the card's menu");
             Assert.AreSame(ownSong, EchoConductor.Instance.Echoes.Single(), "exactly as it was");

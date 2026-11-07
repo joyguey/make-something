@@ -101,7 +101,9 @@ namespace RoomOrchestra
         BattleLose,
         BattleDraw,
         BattleGone,
-        BattleFinishLesson
+        BattleFinishLesson,
+        ConfirmAgain,
+        Quit
     }
 
     /// <summary>
@@ -189,6 +191,9 @@ namespace RoomOrchestra
             { UiTerm.BattleDraw, ("DRAW. Settle it: HOST or JOIN.", "平局。再决胜负：点\"主持\"或\"加入\"。") },
             { UiTerm.BattleGone, ("Lost the other headset.", "和另一台头显断开了。") },
             { UiTerm.BattleFinishLesson, ("Finish or skip the lesson first, then try again.", "先完成或跳过教学，再试一次。") },
+            // A button that ends or wipes something asks first (George, 2026-11-03): its label reads this until tapped again.
+            { UiTerm.ConfirmAgain, ("Sure?", "确定？") },
+            { UiTerm.Quit, ("Quit", "退出") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>

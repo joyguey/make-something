@@ -160,7 +160,9 @@ namespace RoomOrchestra.Tests
             Assert.IsFalse(m_Conductor.EditMode);
 
             // Clear with the same controller's pointer (trigger tap), then Undo brings the loop back
-            Tap(SeatedHand(hand), Music(MusicControlButton.Kind.Clear));
+            Tap(SeatedHand(hand), Music(MusicControlButton.Kind.Clear)); // asks "Sure?" (George, 2026-11-03)...
+            Assert.AreEqual(4, m_Conductor.Sequencer.Echoes.Count, "the first tap only asks");
+            Tap(SeatedHand(hand), Music(MusicControlButton.Kind.Clear)); // ...the same button again clears
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count, "clear empties every orbit");
             Tap(SeatedHand(hand), Find<UndoButton>());
             Assert.AreEqual(4, m_Conductor.Sequencer.Echoes.Count, "undo after clear restores the loop");
@@ -194,6 +196,7 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(1, Count(InstrumentType.Udu, OrbType.Boom));
             var lamp = m_Conductor.Sequencer.Echoes.Where(e => e.Target == InstrumentType.Erhu).Select(e => e.NoteIndex).OrderBy(n => n);
             CollectionAssert.AreEqual(new[] { 1, 3 }, lamp, "the tapped tile sets the pitch");
+            Tap(origin, Music(MusicControlButton.Kind.Clear)); // asks "Sure?" first (George, 2026-11-03)
             Tap(origin, Music(MusicControlButton.Kind.Clear));
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count);
         }
