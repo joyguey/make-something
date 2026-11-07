@@ -83,6 +83,26 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void FlowersOnlyGrowWhereThePlayerCanSeeThem()
+        {
+            // A sofa back (an upright 1 m wide, 90 cm high) between the seat and the floor beyond it.
+            var room = Room();
+            for (float x = -0.5f; x < 0.5f - 1e-4f; x += 0.1f)
+                for (float y = 0f; y < 0.9f - 1e-4f; y += 0.1f)
+                {
+                    room.Add(new Vector3(x, y, 1.0f), new Vector3(x + 0.1f, y, 1.0f), new Vector3(x + 0.1f, y + 0.1f, 1.0f));
+                    room.Add(new Vector3(x, y, 1.0f), new Vector3(x + 0.1f, y + 0.1f, 1.0f), new Vector3(x, y + 0.1f, 1.0f));
+                }
+            var eye = new Vector3(0f, 1.15f, 0f);
+            var behind = new Vector3(0f, 0f, 1.25f);
+            Assert.IsFalse(room.InView(eye, behind), "the floor just behind the sofa is hidden from the seat");
+            Assert.IsTrue(room.InView(eye, new Vector3(1.0f, 0f, 1.2f)), "open floor to the side is in view");
+            Assert.IsTrue(room.InView(eye, new Vector3(0.9f, 0.72f, 1.5f)), "the table top is in view");
+            for (int i = 0; i < 15 && room.TryTake(behind, out var spot, eye); i++)
+                Assert.IsTrue(room.InView(eye, spot), $"{spot}: every flower is placed where it can be seen");
+        }
+
+        [Test]
         public void NoScanNoSpots()
         {
             var empty = new FlatSpots();

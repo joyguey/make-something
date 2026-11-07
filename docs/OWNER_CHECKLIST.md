@@ -35,3 +35,9 @@ With the room scan, each flower that sprouts moves (while still an invisible spe
 - [ ] Play a song long enough for flowers: do they come up on your real floor and table tops, not floating or sunk?
 - [ ] Any under a table, inside furniture, or against a wall? (Tell me roughly where.)
 - [ ] The scan needs a little time: flowers from the first notes may use their usual places. Is that noticeable?
+
+### Real walls and furniture hiding flowers: what's possible (2026-11-07)
+True occlusion (a real wall or table hiding a virtual flower behind it) is **not available** to this app today. PICO Spatial mode supports only the standard Lit/Unlit shaders, lists "dynamic occlusion" as unsupported, and PICO's environment-depth occlusion shader is for the other mode (PICO XR). PICO's "Occlusion Surface" lives in the separate PICO Spatial Editor toolchain, which isn't installed. Switching modes or adding that toolchain would be a big change; I haven't done either.
+What I did instead: flowers only grow where you can **see** them. Before a flower takes a spot, the line from your eyes to it is checked against the room scan, so none grows behind a real wall, sofa or table edge (where it would wrongly show through).
+- [ ] Do any flowers appear to show *through* a real object? (They shouldn't any more; tell me where if one does.)
+- [ ] Decision for you: is "only where you can see them" enough, or should I look into the PICO Spatial Editor route for real occlusion? (It needs an extra PICO tool and an experimental export path.)

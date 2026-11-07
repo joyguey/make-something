@@ -26,6 +26,14 @@ namespace RoomOrchestra
         public const float LevelTolerance = 0.03f;
         /// <summary>Flowers stand at least this far apart.</summary>
         public const float MinSpacing = 0.35f;
+        /// <summary>
+        /// The height of a grown flower's head: the line from the player's eye to it must be clear of the scan. PICO
+        /// Spatial has no real-world occlusion for this app (no depth-only or occlusion material; "dynamic occlusion"
+        /// unsupported), so a flower behind a real wall or sofa would be drawn in front of it: it never grows there.
+        /// </summary>
+        public const float FlowerHeadHeight = 0.15f;
+        /// <summary>At most this many candidates get the line-of-sight check per flower (a big scan has many triangles).</summary>
+        public const int MaxSightChecks = 20;
 
         struct Square
         {
@@ -101,21 +109,67 @@ namespace RoomOrchestra
             return spots;
         }
 
-        /// <summary>The nearest free spot to <paramref name="near"/>, now taken (others keep their distance); false if none.</summary>
-        public bool TryTake(Vector3 near, out Vector3 spot)
+        /// <summary>
+        /// The nearest free spot to <paramref name="near"/>, now taken (others keep their distance); false if none. With
+        /// an <paramref name="eye"/>, only a spot the player can see: nothing scanned between the eye and the flower.
+        /// </summary>
+        public bool TryTake(Vector3 near, out Vector3 spot, Vector3? eye = null)
         {
+            int sightChecks = 0;
             foreach (var candidate in Spots(near))
             {
                 bool spaced = true;
                 foreach (var taken in m_Taken)
                     if (Flat(candidate - taken).magnitude < MinSpacing) { spaced = false; break; }
                 if (!spaced) continue;
+                if (eye.HasValue)
+                {
+                    if (++sightChecks > MaxSightChecks) break; // the flower keeps its own place this time
+                    if (!InView(eye.Value, candidate)) continue;
+                }
                 m_Taken.Add(candidate);
                 spot = candidate;
                 return true;
             }
             spot = default;
             return false;
+        }
+
+        /// <summary>Can the player at <paramref name="eye"/> see a flower standing at <paramref name="spot"/>?</summary>
+        public bool InView(Vector3 eye, Vector3 spot)
+        {
+            var head = spot + Vector3.up * FlowerHeadHeight;
+            var path = head - eye;
+            float length = path.magnitude;
+            if (length < 1e-4f) return true;
+            var dir = path / length;
+            foreach (var (a, b, c) in m_Triangles)
+            {
+                // The surface the flower stands on, and the scan right around it, never hide it.
+                var centre = (a + b + c) / 3f;
+                if (Flat(centre - spot).magnitude < Cell && Math.Abs(centre.y - spot.y) < LevelTolerance) continue;
+                if (Hits(eye, dir, length - 0.02f, a, b, c)) return false;
+            }
+            return true;
+        }
+
+        // Moller-Trumbore: does the ray from o along d hit triangle abc within distance max?
+        static bool Hits(Vector3 o, Vector3 d, float max, Vector3 a, Vector3 b, Vector3 c)
+        {
+            var e1 = b - a;
+            var e2 = c - a;
+            var p = Vector3.Cross(d, e2);
+            float det = Vector3.Dot(e1, p);
+            if (Math.Abs(det) < 1e-9f) return false;
+            float inv = 1f / det;
+            var t0 = o - a;
+            float u = Vector3.Dot(t0, p) * inv;
+            if (u < 0f || u > 1f) return false;
+            var q = Vector3.Cross(t0, e1);
+            float v = Vector3.Dot(d, q) * inv;
+            if (v < 0f || u + v > 1f) return false;
+            float t = Vector3.Dot(e2, q) * inv;
+            return t > 0f && t < max;
         }
 
         bool Kept(Vector3 p)

@@ -61,7 +61,14 @@ namespace RoomOrchestra
                 foreach (var tris in m_Pieces.Values)
                     for (int i = 0; i + 2 < tris.Length; i += 3) m_Spots.Add(tris[i], tris[i + 1], tris[i + 2]);
             }
-            return m_Spots.TryTake(near, out spot);
+            return m_Spots.TryTake(near, out spot, Eye());
+        }
+
+        // The player's eye now (the headset), or the seated eye at the stage origin.
+        static Vector3 Eye()
+        {
+            if (StageAnchor.Instance != null && StageAnchor.Instance.TryGetHeadPose(out var pose)) return pose.position;
+            return new Vector3(0f, 1.15f, 0f);
         }
 
         /// <summary>The song was cleared: every flower spot is free again.</summary>
