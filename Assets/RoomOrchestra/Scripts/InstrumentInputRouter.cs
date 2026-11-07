@@ -70,10 +70,10 @@ namespace RoomOrchestra
 #endif
         }
 
-        /// <summary>True if this tap repeats a tap on the same object within <see cref="tapDebounce"/>.</summary>
-        bool IsDuplicateTap(GameObject hit)
+        /// <summary>The pressable thing that owns <paramref name="hit"/> (a button, tile, orb, character...), or null.</summary>
+        public static Component PressableOwner(GameObject hit)
         {
-            if (hit == null) return false;
+            if (hit == null) return null;
             Component owner = hit.GetComponentInParent<LoopControlButton>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentButton>();
             if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
@@ -95,6 +95,13 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<EchoBattleButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
+            return owner;
+        }
+
+        /// <summary>True if this tap repeats a tap on the same object within <see cref="tapDebounce"/>.</summary>
+        bool IsDuplicateTap(GameObject hit)
+        {
+            var owner = PressableOwner(hit);
             if (owner == null) return false;
 
             if (MusicalHitPipeline.TryAcceptRepeat($"tap:{owner.GetInstanceID()}", tapDebounce))
@@ -108,6 +115,24 @@ namespace RoomOrchestra
         /// button, or an instrument (placing the selected orb on it).
         /// </summary>
         public static bool Activate(GameObject hit)
+        {
+            if (!Dispatch(hit)) return false;
+            Acknowledge(PressableOwner(hit));
+            return true;
+        }
+
+        /// <summary>
+        /// A press landed: the thing jiggles (headset feedback, George 2026-11-03), so the player knows it registered.
+        /// Furniture and the echo minis don't: furniture answers with its note, and the minis are moved by the music.
+        /// Orbs keep their size (their selection is shown by size), so they wobble without the swell.
+        /// </summary>
+        static void Acknowledge(Component owner)
+        {
+            if (owner == null || owner is InstrumentTarget || owner is EchoMini) return;
+            PressJiggle.Play(owner, swell: !(owner is OrbToken));
+        }
+
+        static bool Dispatch(GameObject hit)
         {
             if (hit == null)
                 return false;
