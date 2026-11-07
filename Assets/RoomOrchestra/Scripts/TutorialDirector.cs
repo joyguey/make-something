@@ -208,6 +208,7 @@ namespace RoomOrchestra
                     PoofCloud.PoofAt(station.PoofCentre, JungleDirector.ClearSmokeSize * 0.5f);
                     station.HideNow();
                 }
+            TuckAway.TuckAll(); // one thing to try again: the leaf's extras wait under it until the song is done
             var chair = TargetFor(TutorialPlan.Song[0].Instrument);
             if (chair != null) OrbSelector.Instance?.Focus(chair);
             m_Plan = new TutorialPlan();
@@ -378,6 +379,7 @@ namespace RoomOrchestra
             if (!m_Plan.Done) m_Plan.Skip();
             foreach (var station in stations)
                 if (station != null) station.ShowNow();
+            TuckAway.ShowAllNow();
             if (room != null) room.HideNow();
             m_BubbleOut = false;
             m_GlowOut = false;
@@ -391,6 +393,7 @@ namespace RoomOrchestra
         {
             foreach (var station in stations)
                 if (station != null) station.Reveal();
+            TuckAway.RevealAll(); // and the leaf's extras the lesson kept tucked away
         }
 
         void Close()

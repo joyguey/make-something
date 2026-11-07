@@ -211,6 +211,7 @@ namespace RoomOrchestra.EditorTools
             // Version 1 feedback ("higher fidelity"): rounded edges on every control and tile, sized while everything is
             // still at full size (the lesson then tucks the lamp's and table's tiles into the cloud).
             RoundedShapes.RoundBlocks(controls, 0.012f);
+            TuckForLesson(swoop); // after rounding: the rounded meshes are sized from the controls at home
             CreateTutorial(root, pad, controls, tokens[(int)OrbType.Flutter].transform, targets, columns, orbits, conductor, intro);
             BackLabels(pad.Find("TutorialBubble"), lift: false); // the Skip leaf's label (the bubble is built later)
             RoundedShapes.RoundBlocks(pad, 0.008f); // soft plates too
@@ -1232,13 +1233,39 @@ namespace RoomOrchestra.EditorTools
             go.AddComponent<TutorialReplayButton>();
         }
 
-        // Last on the front row: Quit, reachable during play (George, 2026-11-03), marked with an X. Asks "Sure?" first.
+        // The extras wait under the leaf during the guided song, so it starts with one thing to try (George,
+        // 2026-11-03); saved tucked, like the stations, so nothing moves at startup when the lesson runs.
+        static readonly string[] LessonTucked = { "CallButton", "ClearButton", "LessonButton", "SoundsButton", "TierButton" };
+
+        static void TuckForLesson(Transform leafRoot)
+        {
+            foreach (var name in LessonTucked)
+            {
+                var control = leafRoot.Find(name);
+                if (control == null) control = leafRoot.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+                if (control == null)
+                {
+                    Debug.LogWarning($"[RoomOrchestra] Nothing named {name} to tuck away during the lesson");
+                    continue;
+                }
+                var tuck = control.gameObject.AddComponent<TuckAway>();
+                tuck.Configure(LeafCenter);
+                tuck.TuckNow();
+                EditorUtility.SetDirty(tuck);
+            }
+        }
+
+        // Last on the front row: Quit, reachable during play (George, 2026-11-03), marked with a door ajar (Clear has
+        // the X). Asks "Sure?" first.
         static void CreateQuitButton(Vector3 position, Transform root, Material slab, Material mark)
         {
             var go = SmallButton("QuitButton", position, root, slab, "QuitSlab");
-            foreach (var angle in new[] { 45f, -45f })
-                Box($"QuitCross{(angle > 0 ? "A" : "B")}", go.transform, new Vector3(0f, 0.03f, 0f), new Vector3(0.036f, 0.007f, 0.008f), mark, keepCollider: false)
-                    .localRotation = Quaternion.Euler(0f, 0f, angle);
+            Box("QuitDoorFrame", go.transform, new Vector3(0f, 0.04f, 0.004f), new Vector3(0.03f, 0.046f, 0.004f), mark, keepCollider: false);
+            var door = Box("QuitDoor", go.transform, new Vector3(-0.004f, 0.04f, -0.004f), new Vector3(0.024f, 0.04f, 0.006f), slab, keepCollider: false);
+            door.localRotation = Quaternion.Euler(0f, 28f, 0f); // swung open toward the player
+            var knob = Primitive(PrimitiveType.Sphere, "QuitDoorKnob", go.transform, mark, keepCollider: false);
+            knob.localPosition = new Vector3(0.003f, 0.04f, -0.012f);
+            knob.localScale = Vector3.one * 0.006f;
             Localize(Label("QuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Quit);
             go.AddComponent<QuitButton>();
         }

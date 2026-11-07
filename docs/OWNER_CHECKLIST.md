@@ -1,0 +1,22 @@
+# Owner checklist: things to try on the headset
+
+A running list of what needs your eyes, ears or hands on a real PICO headset. I add to it as I work; tick items off (or note what you saw) and I'll act on it. Newest build to install: `Builds/RoomOrchestra-test.apk` (`pico-cli app install Builds/RoomOrchestra-test.apk`, or `adb install -r`). It is a throwaway test build; it gets deleted once you've tried it.
+
+## From George's headset feedback (2026-11-03)
+
+### Press feedback and highlights (done 2026-11-06)
+- [ ] Aim at a button, note tile or character: does PICO's cyan highlight show?
+- [ ] Press one: does it give a little wobble and swell? Is it too much, too little, or just right?
+- [ ] Aim at the ball on the cloud: does it highlight? **Can you still pinch and throw it?** (It has a new invisible "trigger" shell for the highlight; I could not test this on the emulator.)
+
+### "Sure?" confirmation and Quit (done 2026-11-06)
+- [ ] With a song playing, tap **Clear** once: the label reads "Sure?" and nothing is cleared. Tap it again: cleared. Tap Clear, then something else: it stops asking.
+- [ ] Same for **Lesson** (restarts the lesson) and **LEAVE** during an Echo Battle.
+- [ ] **Quit** on the title card (bottom left) and at the right end of the leaf: two taps, does the app close cleanly? Does it come back normally when you open it again?
+- [ ] Is "Sure?" readable on the small leaf buttons? In Chinese (确定？) too?
+
+### One thing at a time in the first session (done 2026-11-07)
+During the lesson the leaf shows only the friends plus Undo, Pause, Recenter, Height, 中文, View and Quit. Come here, Clear, Lesson, Sounds and Loudness wait tucked under the leaf and pop up in small poofs when the lesson ends or you tap Skip; Lesson tucks them away again.
+- [ ] First launch (or Lesson): does the leaf feel calmer? Can you see any tucked button peeking out from under the leaf, seated or standing?
+- [ ] Finish or skip the lesson: do the five pop up in poofs and work?
+- [ ] Quit now shows a little open door (Clear keeps the X). Is it clear what it does?

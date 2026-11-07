@@ -390,5 +390,41 @@ namespace RoomOrchestra.Tests
             while (!tutorial.Active) yield return null;
             Assert.AreEqual(0, EchoConductor.Instance.Echoes.Count, "the lesson starts from an empty song");
         }
+
+        // George, 2026-11-03: one thing to try first. The leaf's extras wait tucked under it during the lesson;
+        // Pause, Undo, Recenter, Height, View, language and Quit stay (pause and reset available any time).
+        [UnityTest]
+        public IEnumerator TheLeafsExtrasWaitUnderItDuringTheLessonAndPopUpAfter()
+        {
+            var tucked = Object.FindObjectsByType<TuckAway>(FindObjectsSortMode.None);
+            CollectionAssert.AreEquivalent(new[] { "CallButton", "ClearButton", "LessonButton", "SoundsButton", "TierButton" }, tucked.Select(t => t.name));
+            foreach (var t in tucked)
+            {
+                Assert.IsTrue(t.Tucked, $"{t.name} waits during the lesson");
+                Assert.IsTrue(t.GetComponentsInChildren<Collider>().All(c => !c.enabled), $"{t.name} can't be tapped while tucked");
+            }
+            foreach (var always in new[] { typeof(UndoButton), typeof(RecenterButton), typeof(HeightButton), typeof(ViewButton), typeof(LanguageButton), typeof(QuitButton) })
+            {
+                var c = Object.FindObjectsByType(always, FindObjectsSortMode.None).Cast<Component>()
+                    .First(b => b.name != "TitleQuitButton"); // the title card's Quit is put away with the card
+                Assert.IsNull(c.GetComponentInParent<TuckAway>(), $"{always.Name} is always there");
+                Assert.IsTrue(c.GetComponentsInChildren<Collider>().Any(col => col.enabled), $"{always.Name} can be tapped during the lesson");
+            }
+            var pause = Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None).First(b => b.ButtonKind == MusicControlButton.Kind.Pause);
+            Assert.IsNull(pause.GetComponentInParent<TuckAway>(), "Pause is always there");
+
+            m_Tutorial.Skip();
+            yield return new WaitForSeconds(TuckAway.AppearAfterSeconds + 0.1f);
+            foreach (var t in tucked)
+            {
+                Assert.IsFalse(t.Tucked, $"{t.name} pops up once the lesson is skipped");
+                Assert.IsTrue(t.GetComponentsInChildren<Collider>().Any(c => c.enabled), $"{t.name} can be tapped again");
+            }
+
+            var lesson = tucked.First(t => t.name == "LessonButton").GetComponentInChildren<Collider>().gameObject;
+            Assert.IsTrue(InstrumentInputRouter.Activate(lesson)); // "Sure?"
+            Assert.IsTrue(InstrumentInputRouter.Activate(lesson));
+            Assert.IsTrue(tucked.All(t => t.Tucked), "the lesson again: the extras wait again");
+        }
     }
 }
