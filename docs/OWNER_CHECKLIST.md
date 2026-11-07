@@ -2,6 +2,9 @@
 
 A running list of what needs your eyes, ears or hands on a real PICO headset. I add to it as I work; tick items off (or note what you saw) and I'll act on it. Newest build to install: `Builds/RoomOrchestra-test.apk` (`pico-cli app install Builds/RoomOrchestra-test.apk`, or `adb install -r`). It is a throwaway test build; it gets deleted once you've tried it.
 
+## Before anything else (2026-11-07)
+- [ ] **Emulator check of the latest build:** the last `RoomOrchestra-test.apk` (built 10:00 on 2026-11-07, with all the fixes below) installed and launched with no app errors and opened as the named Stage, but your Mac's screen was locked, so the emulator ran at 3 FPS and its one frame showed only the emulator's own room, not the app. An earlier build with the same launch change drew the title card normally at 60 FPS. With the screen unlocked, open the app on the emulator (keep its window in front) and confirm the title card appears. If it doesn't, tell me first.
+
 ## From George's headset feedback (2026-11-03)
 
 ### Launch straight into the room (done 2026-11-07) — please check first
