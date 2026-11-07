@@ -4,6 +4,12 @@ A running list of what needs your eyes, ears or hands on a real PICO headset. I 
 
 ## From George's headset feedback (2026-11-03)
 
+### Launch straight into the room (done 2026-11-07) — please check first
+George saw a Shared Space window open first and stay visible all through play. The app's manifest declared a volumetric *window* as its startup container (PICO's plugin writes it from the project's default spatial camera setting, which was PICO's stock "Constrained" one). It now declares a full-room *Stage* named `little_echoes_stage`. On the emulator the system now creates just that Stage, but the emulator never showed the stray window even with the old build, so only the headset can confirm.
+- [ ] Open the app from the launcher: does it go straight into the room, with **no** floating window first or left behind during play?
+- [ ] Is the real room visible around everything (passthrough), as before?
+- [ ] Quit and reopen: same?
+
 ### Press feedback and highlights (done 2026-11-06)
 - [ ] Aim at a button, note tile or character: does PICO's cyan highlight show?
 - [ ] Press one: does it give a little wobble and swell? Is it too much, too little, or just right?
@@ -20,3 +26,6 @@ During the lesson the leaf shows only the friends plus Undo, Pause, Recenter, He
 - [ ] First launch (or Lesson): does the leaf feel calmer? Can you see any tucked button peeking out from under the leaf, seated or standing?
 - [ ] Finish or skip the lesson: do the five pop up in poofs and work?
 - [ ] Quit now shows a little open door (Clear keeps the X). Is it clear what it does?
+
+### Open question for you
+- [ ] George asked for a menu you can reach during play. Pause, Lesson and Quit are already on the leaf. Is that enough, or do you want a separate pop-up menu (Resume / Lesson / Quit)?
