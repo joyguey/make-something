@@ -1312,6 +1312,21 @@ namespace RoomOrchestra.EditorTools
             Hoverable(visible.gameObject);
         }
 
+        // The ball's physics collider is on its root, but PICO's hover highlight needs a collider and a mesh on the
+        // same object (George, 2026-11-03: highlight what I can pinch). So the visible body gets a trigger sphere of
+        // its own: it shows the highlight and takes the pinch (the launcher finds the ball from its parents), while
+        // triggers never touch the ball's bounces, mass or landing checks (those raycasts ignore triggers).
+        static void HoverShell(Renderer body)
+        {
+            if (body == null) return;
+            if (!body.TryGetComponent<SphereCollider>(out var shell)) shell = body.gameObject.AddComponent<SphereCollider>();
+            var bounds = body.GetComponent<MeshFilter>().sharedMesh.bounds;
+            shell.center = bounds.center;
+            shell.radius = Mathf.Max(bounds.extents.x, bounds.extents.y, bounds.extents.z);
+            shell.isTrigger = true;
+            Hoverable(body.gameObject);
+        }
+
         // A character's tap sphere on its body mesh (the "Visual" child, at the root's origin and scale).
         static void TapSphere(Transform body, float radius)
         {
@@ -1486,6 +1501,7 @@ namespace RoomOrchestra.EditorTools
                 {
                     var (look, rim, face) = CharacterArt.DressBall(ball.gameObject, OrbType.Flutter);
                     ball.ConfigureCharacter(rim, face, look);
+                    HoverShell(look);
                     EditorUtility.SetDirty(ball);
                 }
                 else if (ball.TryGetComponent<Renderer>(out var renderer))
