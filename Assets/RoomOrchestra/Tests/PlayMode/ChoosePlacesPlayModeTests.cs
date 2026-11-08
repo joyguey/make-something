@@ -92,6 +92,7 @@ namespace RoomOrchestra.Tests
             var walls = RealWalls.Instance;
             Assert.IsNotNull(walls);
             walls.SetSurface("desk", Square(), DeskTop, Quaternion.identity, Vector3.one);
+            walls.SetSurface("near", Square(), new Vector3(0f, 0.75f, 0.8f), Quaternion.identity, Vector3.one); // the player's own desk
             var placer = RealFurniture.Instance;
             RealFurniture.Enabled = true;
             var room = VirtualRoom.Instance;
@@ -99,6 +100,13 @@ namespace RoomOrchestra.Tests
             float until = Time.time + room.TearDownSeconds + 3f;
             while (!placer.Choosing && Time.time < until) yield return null;
             Assert.IsTrue(placer.Choosing, "after the lesson, the player chooses");
+            yield return null;
+            Assert.IsFalse(RealWalls.Occlude, "while the room glows the shield is off (it hid the glow)");
+            var shield = walls.transform.Find("RoomSurface_desk/RoomOccluder_desk");
+            Assert.IsNotNull(shield);
+            Assert.AreEqual(2, shield.GetComponent<MeshFilter>().sharedMesh.triangles.Length / 3, "the far desk hides what is behind it");
+            var nearShield = walls.transform.Find("RoomSurface_near/RoomOccluder_near").GetComponent<MeshFilter>().sharedMesh;
+            Assert.AreEqual(0, nearShield.triangles.Length, "the player's own desk never hides the leaf in front of them");
             Assert.IsTrue(RealWalls.ShowScan, "the scanned room is shown");
             var surface = walls.transform.Find("RoomSurface_desk");
             Assert.IsTrue(surface.GetComponent<MeshRenderer>().enabled, "and glows");
@@ -143,6 +151,9 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(RealFurniture.Phase.Placed, placer.State, "all three chosen");
             Assert.AreEqual(1, placer.MatchedCount, "one on the desk, two kept virtual");
             Assert.IsFalse(RealWalls.ShowScan, "the room stops glowing");
+            yield return null;
+            Assert.IsTrue(RealWalls.Occlude, "and now real walls and furniture hide what is behind them");
+            Assert.IsTrue(shield.GetComponent<MeshRenderer>().enabled);
             Assert.IsFalse(cursor.Shown);
         }
     }

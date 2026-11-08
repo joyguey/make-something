@@ -234,12 +234,29 @@ namespace RoomOrchestra.EditorTools
             if (!go.TryGetComponent<RoomScan>(out _)) go.AddComponent<RoomScan>(); // the labelled scan (furniture), same space
             if (!go.TryGetComponent<RealFurniture>(out _)) go.AddComponent<RealFurniture>(); // after the lesson, instruments onto it
             var walls = go.GetComponent<RealWalls>();
-            walls.ConfigureScanLook(ScanLook());
+            walls.ConfigureScanLook(ScanLook(), Occluder());
             EditorUtility.SetDirty(walls);
         }
 
         // The scanned room while the player chooses places (owner, headset 2026-11-08: show me the room being mapped): a
         // see-through sky-blue glow over every real surface, unlit so it reads the same in any room light.
+        // The scanned room in depth only (Shaders/RoomOccluder): real walls and furniture hide what is behind them.
+        static Material Occluder()
+        {
+            string path = $"{MaterialDir}/RoomOccluder.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            var shader = Shader.Find("RoomOrchestra/RoomOccluder");
+            if (m == null)
+            {
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            else if (m.shader != shader) m.shader = shader;
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry - 10;
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
         static Material ScanLook()
         {
             string path = $"{MaterialDir}/RoomScan.mat";

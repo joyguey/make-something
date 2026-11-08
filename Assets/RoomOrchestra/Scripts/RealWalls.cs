@@ -27,12 +27,102 @@ namespace RoomOrchestra
         /// </summary>
         public const int SurfaceLayer = 30;
 
+        /// <summary>The room hides nothing this close to the player's seat (m, across the floor): their own desk must never
+        /// hide the leaf and controls in front of them.</summary>
+        public const float NearClear = 1.5f;
+
         [Tooltip("How the scanned room looks while it is shown (see-through).")]
         [SerializeField] Material scanLook;
+        [Tooltip("The scanned room drawn into depth only, so real walls and furniture hide what is behind them.")]
+        [SerializeField] Material occluderLook;
         readonly Dictionary<string, MeshCollider> m_Surfaces = new();
-        static bool s_ShowScan;
+        readonly Dictionary<string, MeshFilter> m_Occluders = new();
+        static bool s_ShowScan, s_Occlude;
 
-        public void ConfigureScanLook(Material look) => scanLook = look;
+        public void ConfigureScanLook(Material look, Material occluder = null)
+        {
+            scanLook = look;
+            occluderLook = occluder;
+        }
+
+        /// <summary>
+        /// Real walls and furniture hide the virtual things behind them (owner, 2026-11-07: "occlusion needs to be much
+        /// better"). On once the virtual room has come down (it would otherwise cut the lesson's room apart).
+        /// </summary>
+        public static bool Occlude
+        {
+            get => s_Occlude;
+            set
+            {
+                if (s_Occlude == value) return;
+                s_Occlude = value;
+                if (Instance != null)
+                    foreach (var o in Instance.m_Occluders.Values)
+                        if (o != null && o.TryGetComponent<MeshRenderer>(out var r)) r.enabled = value;
+                Debug.Log($"[RoomOrchestra] Real room hides what is behind it: {value}");
+            }
+        }
+
+        public int OccluderCount => m_Occluders.Count;
+
+        // The pieces of the room's surface farther than NearClear from the seat (scene space, across the floor).
+        public static Mesh FarOnly(Mesh mesh, Transform at, Vector3 seat)
+        {
+            var verts = mesh.vertices;
+            var tris = mesh.triangles;
+            var kept = new List<int>(tris.Length);
+            for (int i = 0; i + 2 < tris.Length; i += 3)
+            {
+                var c = at.TransformPoint((verts[tris[i]] + verts[tris[i + 1]] + verts[tris[i + 2]]) / 3f) - seat;
+                c.y = 0f;
+                if (c.sqrMagnitude >= NearClear * NearClear)
+                {
+                    kept.Add(tris[i]);
+                    kept.Add(tris[i + 1]);
+                    kept.Add(tris[i + 2]);
+                }
+            }
+            var far = new Mesh { name = "RoomOccluder", indexFormat = mesh.indexFormat };
+            far.vertices = verts;
+            far.SetTriangles(kept, 0);
+            far.RecalculateBounds();
+            return far;
+        }
+
+        static Vector3 Seat() => StageAnchor.Instance != null ? StageAnchor.Instance.transform.position : Vector3.zero;
+
+        void Shield(string key, MeshCollider surface)
+        {
+            if (occluderLook == null || surface == null || surface.sharedMesh == null) return;
+            if (!m_Occluders.TryGetValue(key, out var filter) || filter == null)
+            {
+                var go = new GameObject($"RoomOccluder_{key}") { layer = SurfaceLayer };
+                go.transform.SetParent(surface.transform, false);
+                filter = go.AddComponent<MeshFilter>();
+                var r = go.AddComponent<MeshRenderer>();
+                r.sharedMaterial = occluderLook;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+                m_Occluders[key] = filter;
+            }
+            var old = filter.sharedMesh;
+            filter.sharedMesh = FarOnly(surface.sharedMesh, surface.transform, Seat());
+            if (old != null) Destroy(old);
+            filter.GetComponent<MeshRenderer>().enabled = s_Occlude;
+        }
+
+        // The seat moved (Recenter): what counts as near the player changed.
+        void Reshield()
+        {
+            foreach (var pair in m_Surfaces) Shield(pair.Key, pair.Value);
+        }
+
+        void UpdateOcclusion()
+        {
+            // off while the room glows for choosing places: the shield at the glow's own depth hid the glow (emulator, 2026-11-08)
+            var room = VirtualRoom.Instance;
+            Occlude = (room == null || room.Gone) && !s_ShowScan;
+        }
 
         /// <summary>Show the scanned room (while choosing places), or hide it.</summary>
         public static bool ShowScan
@@ -74,6 +164,7 @@ namespace RoomOrchestra
             var renderer = surface.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = scanLook;
             renderer.enabled = s_ShowScan && scanLook != null;
+            Shield(key, surface);
         }
 
         void Awake()
@@ -100,8 +191,14 @@ namespace RoomOrchestra
         {
             Instance = this;
             s_ShowScan = false;
+            s_Occlude = false;
+            StageAnchor.Recentered += Reshield;
         }
-        void OnDisable() { if (Instance == this) Instance = null; }
+        void OnDisable()
+        {
+            StageAnchor.Recentered -= Reshield;
+            if (Instance == this) Instance = null;
+        }
 
         /// <summary>
         /// A free spot on a flat, clear real surface near <paramref name="near"/> for a flower to grow on (George,
@@ -155,6 +252,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            UpdateOcclusion();
             if (Time.time < m_NextPoll) return;
             m_NextPoll = Time.time + PollSeconds;
             if (m_Meshing == null && !FindMeshing()) return;

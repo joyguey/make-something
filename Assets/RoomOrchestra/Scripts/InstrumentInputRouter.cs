@@ -148,9 +148,12 @@ namespace RoomOrchestra
             var owner = ui ? PressableOwner(near.collider.gameObject) : null;
             if (owner is RealSpot) owner = null; // the preview spot itself
             bool keep = owner is InstrumentTarget t && t == placer.ChoosingTarget;
-            bool roomFirst = Physics.Raycast(ray, out var room, RayReach, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore)
-                             && (owner == null || room.distance < near.distance);
-            if (keep && !roomFirst)
+            // Something tappable along the ray wins over the room's surface: nearby things are never hidden by the room
+            // (RealWalls.NearClear), so what the player sees under the ray is what they press.
+            RaycastHit room = default;
+            bool roomFirst = owner == null
+                             && Physics.Raycast(ray, out room, RayReach, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore);
+            if (keep)
             {
                 if (m_PreviewHand == hand) placer.HidePreview();
                 ShowRay(hand, true, origin, near.point, true, true);
