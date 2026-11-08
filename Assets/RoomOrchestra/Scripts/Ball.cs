@@ -30,6 +30,10 @@ namespace RoomOrchestra
         [Tooltip("Character rim and face parts, recoloured for whichever orb this ball is.")]
         [SerializeField] Renderer rim;
         [SerializeField] Renderer[] faceParts;
+        [Tooltip("Ready-made body, rim and face materials per character, in OrbType order (Flutter, Bop, Boom). " +
+                 "PICO Spatial draws a material made at runtime white (headset 2026-11-08: Boom on the cloud), " +
+                 "so the ball swaps to the project's own materials; recolouring is only the fallback.")]
+        [SerializeField] Material[] bodySkins, rimSkins, faceSkins;
         [Tooltip("Plays this character's bounce when it bounces off a wall (BounceSurface).")]
         [SerializeField] AudioSource bounceVoice;
         [Tooltip("Each character's bounce, in OrbType order: Flutter, Bop, Boom.")]
@@ -96,6 +100,16 @@ namespace RoomOrchestra
             if (physics != null && !Mathf.Approximately(physics.bounciness, profile.Bounciness))
                 GetComponent<Collider>().material.bounciness = profile.Bounciness; // per-ball instance
 
+            if (Skin(bodySkins, type, out var bodySkin))
+            {
+                if (m_Renderer != null && m_Renderer.sharedMaterial != bodySkin) m_Renderer.sharedMaterial = bodySkin;
+                if (rim != null && Skin(rimSkins, type, out var rimSkin) && rim.sharedMaterial != rimSkin) rim.sharedMaterial = rimSkin;
+                if (faceParts != null && Skin(faceSkins, type, out var faceSkin))
+                    foreach (var part in faceParts)
+                        if (part != null && part.sharedMaterial != faceSkin) part.sharedMaterial = faceSkin;
+                return;
+            }
+
             var color = new Color(profile.R, profile.G, profile.B);
             var current = m_Material != null ? m_Material : m_Renderer != null ? m_Renderer.sharedMaterial : null;
             if (current != null && current.HasProperty(BaseColorId) && current.GetColor(BaseColorId) != color)
@@ -107,6 +121,22 @@ namespace RoomOrchestra
             if (rim != null) Recolor(new[] { rim }, ref m_RimMaterial, profile.Rim);
             if (faceParts != null && faceParts.Length > 0) Recolor(faceParts, ref m_FaceMaterial, profile.Face);
         }
+
+        static bool Skin(Material[] skins, OrbType type, out Material skin)
+        {
+            skin = skins != null && (int)type < skins.Length ? skins[(int)type] : null;
+            return skin != null;
+        }
+
+        /// <summary>The project materials each character wears (scene setup), in OrbType order.</summary>
+        public void ConfigureSkins(Material[] bodies, Material[] rims, Material[] faces)
+        {
+            bodySkins = bodies;
+            rimSkins = rims;
+            faceSkins = faces;
+        }
+
+        public Material BodyMaterial => m_Renderer != null ? m_Renderer.sharedMaterial : null;
 
         /// <summary>Wires the character parts (scene setup tool and tests).</summary>
         public void ConfigureCharacter(Renderer rimRenderer, Renderer[] face, Renderer bodyRenderer = null)

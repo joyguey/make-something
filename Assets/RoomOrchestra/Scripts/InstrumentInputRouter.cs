@@ -75,6 +75,7 @@ namespace RoomOrchestra
         {
             if (hit == null) return null;
             Component owner = hit.GetComponentInParent<ConfirmChoice>();
+            if (owner == null) owner = hit.GetComponentInParent<RealSpot>();
             if (owner == null) owner = hit.GetComponentInParent<LoopControlButton>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentButton>();
             if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
@@ -242,6 +243,13 @@ namespace RoomOrchestra
             if (quit != null)
             {
                 quit.Press();
+                return true;
+            }
+
+            var spot = hit.GetComponentInParent<RealSpot>();
+            if (spot != null)
+            {
+                RealFurniture.Instance?.Tap(spot); // the next instrument lives on this real piece
                 return true;
             }
 

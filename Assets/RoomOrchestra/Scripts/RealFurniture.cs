@@ -12,6 +12,9 @@ namespace RoomOrchestra
     /// one (so the player can see which instrument lives where), and an invisible box the size of the real piece takes
     /// the hits, so a ball that hits the real furniture plays it (higher up, higher note) and its echo orbit floats
     /// above it. A piece with no real match stays where it was. Lesson (replay) puts everything back.
+    /// Every real piece it found gets a glowing <see cref="RealSpot"/> (owner, headset 2026-11-08: there was no
+    /// indication), spots appear while the scan looks, and tapping a spot moves the next instrument there (or sends the
+    /// one there home), so the player decides; the automatic match is only the first suggestion.
     /// PICO Spatial: the hit box is a collider with no renderer; everything visible already exists and is only moved.
     /// Memory only: nothing about the room is saved or sent.
     /// </summary>
@@ -60,11 +63,17 @@ namespace RoomOrchestra
             public float BaseOffset; // from the root's pivot down to its feet, at marker size
             public Transform Aim;
             public Vector3 AimHome;
+            public Vector3 FromScale;
+            public float MoveStart = -1f;
+            public bool GoingHome;
         }
 
         readonly List<Station> m_Stations = new();
+        readonly List<RealSpot> m_Spots = new();
+        readonly List<FurniturePiece> m_Candidates = new();
+        readonly List<int> m_Occupant = new(); // per candidate: the station living there, or -1
         Phase m_Phase = Phase.Waiting;
-        float m_ScanStart, m_MoveStart = -1f, m_NextTry;
+        float m_ScanStart, m_NextTry;
 
         public static RealFurniture Instance { get; private set; }
         /// <summary>How long Flutter's "look around" shows before a full match is used (tests shorten it).</summary>
@@ -75,7 +84,20 @@ namespace RoomOrchestra
         void OnEnable() => Instance = this;
         void OnDisable() { if (Instance == this) Instance = null; }
 
-        void Start() => FindStations();
+        void Start()
+        {
+            FindStations();
+            m_Spots.Clear();
+            m_Spots.AddRange(FindObjectsByType<RealSpot>(FindObjectsInactive.Include, FindObjectsSortMode.None));
+            m_Spots.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+            for (int i = 0; i < m_Spots.Count; i++) m_Spots[i].Index = i;
+        }
+
+        /// <summary>Real pieces with a spot, in spot order.</summary>
+        public int SpotCount => m_Candidates.Count;
+        public RealSpot SpotAt(int i) => i >= 0 && i < m_Spots.Count ? m_Spots[i] : null;
+        /// <summary>The instrument living on spot <paramref name="i"/>, or null.</summary>
+        public InstrumentTarget OccupantAt(int i) => i >= 0 && i < m_Occupant.Count && m_Occupant[i] >= 0 ? m_Stations[m_Occupant[i]].Target : null;
 
         void FindStations()
         {
@@ -108,6 +130,19 @@ namespace RoomOrchestra
             }
         }
 
+        // Where each piece lives in free play, at its own size (taken when the scan starts).
+        void RememberHomes()
+        {
+            foreach (var s in m_Stations)
+            {
+                s.HomeLocalPosition = s.Root.localPosition;
+                s.HomeLocalRotation = s.Root.localRotation;
+                s.HomeLocalScale = s.Root.localScale;
+                if (s.Aim != null) s.AimHome = s.Aim.localPosition;
+                if (s.Orbit != null) s.OrbitOffset = s.Orbit.position - s.Target.AimPosition;
+            }
+        }
+
         void Update()
         {
             var tutorial = TutorialDirector.Instance;
@@ -126,31 +161,161 @@ namespace RoomOrchestra
                     if (tutorial != null && tutorial.BubbleOut) return; // let Flutter finish the lesson's last line first
                     m_Phase = Phase.Scanning;
                     m_ScanStart = Time.time;
+                    RememberHomes(); // now, not at startup: the opening still has the lamp and table tucked in the cloud
                     Debug.Log("[RoomOrchestra] Real furniture: the lesson is over; looking for the real table, chair and lamp");
                     if (!Application.isEditor) tutorial?.Announce(UiTerm.ScanLook, SayLookSeconds);
                     break;
                 case Phase.Scanning:
                     if (Time.time < m_NextTry) return;
                     m_NextTry = Time.time + 1f;
+                    ShowFound(); // what the scan has found so far, as it finds it
                     TryPlace(Time.time - m_ScanStart);
                     break;
+                case Phase.Placed:
+                    if (Time.time < m_NextTry) return;
+                    m_NextTry = Time.time + 0.5f;
+                    WriteSpots(); // language or instrument changes
+                    break;
             }
+        }
+
+        /// <summary>Every real piece an instrument could live on, biggest first (the scan's order).</summary>
+        static List<FurniturePiece> Eligible(IReadOnlyList<FurniturePiece> pieces, Vector3 seatFloor)
+        {
+            var list = new List<FurniturePiece>();
+            if (pieces == null) return list;
+            foreach (var piece in pieces)
+                if (piece.Kind != FurnitureKind.None && Fits(piece, seatFloor)) list.Add(piece);
+            return list;
+        }
+
+        static bool Fits(FurniturePiece piece, Vector3 seatFloor)
+        {
+            var flat = piece.Top - seatFloor;
+            float height = flat.y;
+            flat.y = 0f;
+            float reach = flat.magnitude;
+            if (reach < MinReach || reach > MaxReach || height < MinTop || height > MaxTop) return false;
+            return piece.Kind == FurnitureKind.Lamp || piece.Kind == FurnitureKind.Other
+                   || (piece.Box.size.x >= MinTopSide && piece.Box.size.z >= MinTopSide); // a speck is not a table
+        }
+
+        void ShowFound()
+        {
+            var scan = RoomScan.Instance;
+            m_Candidates.Clear();
+            m_Occupant.Clear();
+            foreach (var piece in Eligible(scan != null ? scan.Furniture : null, SeatFloor()))
+            {
+                if (m_Candidates.Count >= m_Spots.Count) break;
+                m_Candidates.Add(piece);
+                m_Occupant.Add(-1);
+            }
+            WriteSpots(reposition: true);
+        }
+
+        void WriteSpots(bool reposition = false)
+        {
+            for (int i = 0; i < m_Spots.Count; i++)
+            {
+                var spot = m_Spots[i];
+                if (i >= m_Candidates.Count)
+                {
+                    spot.Hide();
+                    continue;
+                }
+                var text = m_Occupant[i] >= 0 ? UiText.Get(TermFor(m_Stations[m_Occupant[i]].Target.Instrument), Localization.Current) : "+";
+                if (reposition || !spot.Shown)
+                {
+                    var box = m_Candidates[i].Box;
+                    spot.Show(m_Candidates[i].Top, new Vector2(box.size.x, box.size.z), text);
+                }
+                else spot.SetText(text);
+            }
+        }
+
+        static UiTerm TermFor(InstrumentType instrument) => instrument switch
+        {
+            InstrumentType.Udu => UiTerm.Udu,
+            InstrumentType.Mbira => UiTerm.Mbira,
+            _ => UiTerm.Erhu
+        };
+
+        /// <summary>
+        /// A tap on a spot: the next instrument lives there (udu, mbira, erhu, then none). If it lived on another spot,
+        /// the one that was here swaps over to that spot; otherwise the one that was here goes home to its virtual piece.
+        /// </summary>
+        public void Tap(RealSpot spot)
+        {
+            if (m_Phase != Phase.Placed || spot == null) return;
+            int i = spot.Index;
+            if (i < 0 || i >= m_Candidates.Count) return;
+            int current = m_Occupant[i];
+            int next = current + 1 >= m_Stations.Count ? -1 : current + 1;
+            int was = next >= 0 ? m_Occupant.IndexOf(next) : -1;
+            if (current >= 0)
+            {
+                // swap: the one here goes where the newcomer came from (or home), so other spots keep an instrument
+                if (was >= 0)
+                {
+                    m_Occupant[was] = current;
+                    MoveOnto(m_Stations[current], m_Candidates[was]);
+                }
+                else SendHome(current);
+            }
+            else if (was >= 0) m_Occupant[was] = -1;
+            if (next >= 0)
+            {
+                m_Occupant[i] = next;
+                MoveOnto(m_Stations[next], m_Candidates[i]);
+            }
+            else m_Occupant[i] = -1;
+            MatchedCount = 0;
+            foreach (var s in m_Stations) if (s.Matched) MatchedCount++;
+            WriteSpots();
+            Physics.SyncTransforms();
+            var name = next >= 0 ? m_Stations[next].Target.Instrument.ToString() : "nothing";
+            Debug.Log($"[RoomOrchestra] Real furniture: spot {i} ({m_Candidates[i].Kind}) now has {name}");
+        }
+
+        void SendHome(int station)
+        {
+            var s = m_Stations[station];
+            if (!s.Matched) return;
+            s.Matched = false;
+            s.GoingHome = true;
+            if (s.HitBox != null) s.HitBox.enabled = false;
+            if (s.Aim != null) s.Aim.localPosition = s.AimHome;
+            s.From = s.Root.position;
+            s.FromScale = s.Root.localScale;
+            s.To = s.Root.parent != null ? s.Root.parent.TransformPoint(s.HomeLocalPosition) : s.HomeLocalPosition;
+            s.ToScale = s.HomeLocalScale;
+            s.MoveStart = Time.time;
+            PoofCloud.PoofAt(s.From, 0.4f);
         }
 
         void LateUpdate()
         {
             if (m_Phase != Phase.Placed) return;
-            float u = m_MoveStart < 0f ? 1f : Mathf.Clamp01((Time.time - m_MoveStart) / MoveSeconds);
-            if (u >= 1f) m_MoveStart = -1f;
-            float e = u * u * (3f - 2f * u);
             foreach (var s in m_Stations)
             {
-                if (!s.Matched) continue;
+                if (!s.Matched && !s.GoingHome) continue;
+                float u = s.MoveStart < 0f ? 1f : Mathf.Clamp01((Time.time - s.MoveStart) / MoveSeconds);
+                float e = u * u * (3f - 2f * u);
                 var p = Vector3.Lerp(s.From, s.To, e) + Vector3.up * (HopHeight * 4f * u * (1f - u));
+                var scale = Vector3.Lerp(s.FromScale, s.ToScale, e);
+                if (u >= 1f) s.MoveStart = -1f;
+                if (s.GoingHome && u >= 1f)
+                {
+                    s.GoingHome = false; // home: back in the stage's own space (it follows recentring again)
+                    s.Root.localPosition = s.HomeLocalPosition;
+                    s.Root.localScale = s.HomeLocalScale;
+                    if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
+                    continue;
+                }
                 if ((s.Root.position - p).sqrMagnitude > 1e-8f) s.Root.position = p; // also holds it there if the stage is recentred
-                var scale = Vector3.Lerp(s.HomeLocalScale, s.ToScale, e);
                 if (s.Root.localScale != scale) s.Root.localScale = scale;
-                if (s.HitBox != null) FitHitBox(s);
+                if (s.Matched && s.HitBox != null) FitHitBox(s);
                 if (s.Orbit != null)
                 {
                     var o = s.Target.AimPosition + s.OrbitOffset;
@@ -201,13 +366,9 @@ namespace RoomOrchestra
                     var piece = pieces[pi];
                     int rank = System.Array.IndexOf(prefs, piece.Kind);
                     if (rank < 0) continue;
+                    if (!Fits(piece, seatFloor)) continue;
                     var flat = piece.Top - seatFloor;
-                    float height = flat.y;
                     flat.y = 0f;
-                    float reach = flat.magnitude;
-                    if (reach < MinReach || reach > MaxReach || height < MinTop || height > MaxTop) continue;
-                    if (piece.Kind != FurnitureKind.Lamp && piece.Kind != FurnitureKind.Other
-                        && (piece.Box.size.x < MinTopSide || piece.Box.size.z < MinTopSide)) continue; // a speck, not a table
                     float behind = Vector3.Dot(flat.normalized, forward) < -0.2f ? 3f : 0f; // a throw behind you is hard
                     var fromHome = piece.Top - stations[si].at;
                     fromHome.y = 0f;
@@ -227,33 +388,56 @@ namespace RoomOrchestra
 
         void Place(FurniturePiece?[] picks)
         {
+            // the spots: every suggested piece, then the other pieces found, biggest first, as many as there are spots
+            var scan = RoomScan.Instance;
+            m_Candidates.Clear();
+            m_Occupant.Clear();
+            for (int i = 0; i < picks.Length; i++)
+                if (picks[i].HasValue && m_Candidates.Count < Mathf.Max(m_Spots.Count, picks.Length))
+                {
+                    m_Candidates.Add(picks[i].Value);
+                    m_Occupant.Add(i);
+                }
+            foreach (var piece in Eligible(scan != null ? scan.Furniture : null, SeatFloor()))
+            {
+                if (m_Candidates.Count >= m_Spots.Count) break;
+                if (!m_Candidates.Exists(c => c.Box.center == piece.Box.center)) { m_Candidates.Add(piece); m_Occupant.Add(-1); }
+            }
             MatchedCount = 0;
             for (int i = 0; i < m_Stations.Count; i++)
             {
-                var s = m_Stations[i];
                 if (!picks[i].HasValue) continue;
-                s.Matched = true;
-                s.Piece = picks[i].Value;
+                MoveOnto(m_Stations[i], picks[i].Value);
                 MatchedCount++;
-                s.From = s.Root.position;
-                s.ToScale = s.HomeLocalScale * MarkerScale;
-                // its feet on the real top: how far its pivot sits above its lowest point, at marker size
-                s.BaseOffset = (s.Root.position.y - Lowest(s.Root)) * MarkerScale; // measured at its own size
-                s.To = s.Piece.Top + Vector3.up * s.BaseOffset;
-                if (s.HitBox == null)
-                {
-                    var go = new GameObject($"RealHitBox_{s.Name}");
-                    go.transform.SetParent(s.Root, false);
-                    s.HitBox = go.AddComponent<BoxCollider>();
-                }
-                s.HitBox.enabled = true;
-                PoofCloud.PoofAt(s.From, 0.4f);
-                PoofCloud.PoofAt(s.Piece.Top, 0.5f);
-                Debug.Log($"[RoomOrchestra] Real furniture: {s.Name} ({s.Target.Instrument}) moves onto the real {s.Piece}");
             }
             m_Phase = Phase.Placed;
-            m_MoveStart = Time.time;
+            WriteSpots(reposition: true);
             Physics.SyncTransforms();
+        }
+
+        void MoveOnto(Station s, FurniturePiece piece)
+        {
+            bool fromHome = !s.Matched && !s.GoingHome;
+            s.Matched = true;
+            s.GoingHome = false;
+            s.Piece = piece;
+            s.From = s.Root.position;
+            s.FromScale = s.Root.localScale;
+            s.ToScale = s.HomeLocalScale * MarkerScale;
+            // its feet on the real top: how far its pivot sits above its lowest point, at marker size
+            if (fromHome) s.BaseOffset = (s.Root.position.y - Lowest(s.Root)) * MarkerScale; // measured at its own size
+            s.To = piece.Top + Vector3.up * s.BaseOffset;
+            s.MoveStart = Time.time;
+            if (s.HitBox == null)
+            {
+                var go = new GameObject($"RealHitBox_{s.Name}");
+                go.transform.SetParent(s.Root, false);
+                s.HitBox = go.AddComponent<BoxCollider>();
+            }
+            s.HitBox.enabled = true;
+            PoofCloud.PoofAt(s.From, 0.4f);
+            PoofCloud.PoofAt(piece.Top, 0.5f);
+            Debug.Log($"[RoomOrchestra] Real furniture: {s.Name} ({s.Target.Instrument}) moves onto the real {piece}");
         }
 
         // Sizes the invisible hit box to the real piece (the root is scaled uniformly, so divide it out).
@@ -290,8 +474,10 @@ namespace RoomOrchestra
         {
             foreach (var s in m_Stations)
             {
-                if (!s.Matched) continue;
+                if (!s.Matched && !s.GoingHome) continue;
                 s.Matched = false;
+                s.GoingHome = false;
+                s.MoveStart = -1f;
                 s.Root.localPosition = s.HomeLocalPosition;
                 s.Root.localRotation = s.HomeLocalRotation;
                 s.Root.localScale = s.HomeLocalScale;
@@ -300,6 +486,9 @@ namespace RoomOrchestra
                 if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
             }
             MatchedCount = 0;
+            m_Candidates.Clear();
+            m_Occupant.Clear();
+            foreach (var spot in m_Spots) spot.Hide();
             m_Phase = Phase.Waiting;
             Debug.Log("[RoomOrchestra] Real furniture: back in the virtual room for the lesson");
         }

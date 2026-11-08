@@ -80,6 +80,7 @@ namespace RoomOrchestra.Tests
             float until = Time.time + room.TearDownSeconds + 3f;
             while (!room.Gone && Time.time < until) yield return null;
             Assert.IsTrue(room.Gone);
+            var homeTable = GameObject.Find("RoomOrchestra").transform.Find("Furniture/Table").localScale;
 
             until = Time.time + RealFurniture.LookSeconds + 4f;
             while (RealFurniture.Instance.State != RealFurniture.Phase.Placed && Time.time < until) yield return null;
@@ -91,7 +92,7 @@ namespace RoomOrchestra.Tests
             var top = new Vector3((RealTableMin.x + RealTableMax.x) / 2f, RealTableMax.y, (RealTableMin.z + RealTableMax.z) / 2f);
             Assert.Less(Vector3.Distance(table.AimPosition, top + Vector3.up * 0.06f), 0.15f, "the udu aims at the real table top");
             var root = table.transform.root.Find("Furniture/Table");
-            Assert.Less(root.localScale.x, 6f * 0.5f, "the virtual table is a small marker now");
+            Assert.AreEqual(homeTable.x * RealFurniture.MarkerScale, root.localScale.x, 0.01f, "the virtual table is a marker at a share of its own size");
 
             // a ball dropped onto the real table (not the marker) plays the udu
             MusicalHitEvent played = null;
@@ -110,6 +111,91 @@ namespace RoomOrchestra.Tests
             yield return null;
             Assert.AreEqual(RealFurniture.Phase.Waiting, RealFurniture.Instance.State);
             Assert.AreEqual(0, RealFurniture.Instance.MatchedCount);
+        }
+
+        // Owner, headset 2026-11-08: "show me visually where I can assign the furniture to the actual furniture".
+        [UnityTest]
+        public IEnumerator EveryFoundPieceGetsASpotAndTappingOneChoosesItsInstrument()
+        {
+            Scan(FurnitureKind.Table, RealTableMin, RealTableMax);
+            Scan(FurnitureKind.Chair, new Vector3(0.3f, 0f, 2.6f), new Vector3(0.8f, 0.9f, 3.1f));
+            Scan(FurnitureKind.Lamp, new Vector3(1.4f, 0f, 1.8f), new Vector3(1.7f, 1.5f, 2.1f));
+            Scan(FurnitureKind.Cabinet, new Vector3(-2.2f, 0f, 0.4f), new Vector3(-1.6f, 0.8f, 0.9f));
+            var real = RealFurniture.Instance;
+            var furniture = GameObject.Find("RoomOrchestra").transform.Find("Furniture");
+            var homeScale = new Dictionary<Transform, Vector3>();
+            foreach (Transform piece in furniture) homeScale[piece] = piece.localScale;
+            var room = VirtualRoom.Instance;
+            room.TearDown();
+            float until = Time.time + room.TearDownSeconds + 3f;
+            while (!room.Gone && Time.time < until) yield return null;
+
+            // spots show up while it is still looking
+            until = Time.time + 3f;
+            while (real.State == RealFurniture.Phase.Scanning && real.SpotCount == 0 && Time.time < until) yield return null;
+            Assert.AreEqual(4, real.SpotCount, "a spot on each piece found, before anything moves");
+            Assert.IsTrue(real.SpotAt(0).Shown);
+
+            until = Time.time + RealFurniture.LookSeconds + 4f;
+            while (real.State != RealFurniture.Phase.Placed && Time.time < until) yield return null;
+            Assert.AreEqual(RealFurniture.Phase.Placed, real.State);
+            yield return new WaitForSeconds(RealFurniture.MoveSeconds + 0.2f);
+
+            int free = -1;
+            for (int i = 0; i < real.SpotCount; i++)
+            {
+                Assert.IsTrue(real.SpotAt(i).Shown);
+                if (real.OccupantAt(i) == null) free = i;
+                else Assert.AreEqual(real.OccupantAt(i).Instrument.ToString().ToLowerInvariant(), real.SpotAt(i).Text.ToLowerInvariant(), "the spot names its instrument");
+            }
+            Assert.GreaterOrEqual(free, 0, "the cabinet is free");
+            Assert.AreEqual("+", real.SpotAt(free).Text);
+
+            // a tap (as the controller does) brings the first instrument over; its old spot is free now
+            var first = real.SpotAt(free);
+            Assert.IsTrue(InstrumentInputRouter.Activate(first.GetComponentInChildren<Collider>().gameObject));
+            var moved = real.OccupantAt(free);
+            Assert.IsNotNull(moved);
+            int left = -1;
+            for (int i = 0; i < real.SpotCount; i++) if (i != free && real.SpotAt(i).Text == "+") left = i;
+            Assert.GreaterOrEqual(left, 0, "where it came from is free");
+            Assert.AreEqual(3, real.MatchedCount);
+
+            // tapping round to "+" sends whoever is there home, at its own size
+            InstrumentTarget wentHome = null;
+            for (int t = 0; t < 4 && real.OccupantAt(free) != null; t++)
+            {
+                yield return new WaitForSeconds(0.3f); // past the double-tap guard
+                wentHome = real.OccupantAt(free);
+                InstrumentInputRouter.Activate(first.GetComponentInChildren<Collider>().gameObject);
+            }
+            Assert.IsNull(real.OccupantAt(free));
+            Assert.AreEqual(2, real.MatchedCount, "swaps keep the other spots filled; only the last one goes home");
+            yield return new WaitForSeconds(RealFurniture.MoveSeconds + 0.2f);
+            foreach (Transform piece in furniture)
+                if (piece.GetComponentInChildren<InstrumentTarget>() == wentHome)
+                    Assert.AreEqual(homeScale[piece], piece.localScale, "home at its own size again");
+
+            TutorialDirector.Instance.Replay();
+            yield return null;
+            Assert.IsFalse(real.SpotAt(0).Shown, "Lesson tucks the spots away");
+        }
+
+        // Headset 2026-11-08: Boom on the cloud was white (a runtime-made material); the ball must wear the same
+        // project material as the character on the leaf.
+        [UnityTest]
+        public IEnumerator TheBallOnTheCloudWearsTheCharactersOwnMaterial(
+            [Values(OrbType.Flutter, OrbType.Bop, OrbType.Boom)] OrbType orb)
+        {
+            var launcher = Object.FindFirstObjectByType<BallLauncher>();
+            launcher.SetOrb(orb);
+            yield return null;
+            var body = launcher.ReadyBall.BodyMaterial;
+            Assert.IsNotNull(body);
+            Assert.AreEqual($"Orb_{orb}", body.name, "the project's own material, not a runtime copy");
+#if UNITY_EDITOR
+            Assert.IsTrue(UnityEditor.AssetDatabase.Contains(body), "an asset the build exports");
+#endif
         }
 
         [UnityTest]

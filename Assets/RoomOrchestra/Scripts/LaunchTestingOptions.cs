@@ -6,7 +6,7 @@ namespace RoomOrchestra
     /// <summary>
     /// Headset and emulator testing without anyone wearing the headset: launched by adb with
     /// <c>--ez le_freeplay true</c>, the app presses Start on the title card and skips the lesson once the opening is
-    /// done, as a player would. Without the extra it does nothing.
+    /// done, as a player would, without remembering the lesson as done. Without the extra it does nothing.
     /// </summary>
     public static class LaunchTestingOptions
     {
@@ -42,7 +42,11 @@ namespace RoomOrchestra
                 var tutorial = TutorialDirector.Instance;
                 while (tutorial != null && !tutorial.Active && !tutorial.Plan.Done) yield return null;
                 tutorial?.Skip();
-                Debug.Log("[RoomOrchestra] Testing: lesson skipped");
+                // A test run must not mark the lesson done for the player (headset 2026-11-08: the owner's next
+                // launch went straight to free play because of it).
+                PlayerPrefs.DeleteKey(TutorialDirector.DonePrefKey);
+                PlayerPrefs.Save();
+                Debug.Log("[RoomOrchestra] Testing: lesson skipped (not remembered: the next normal launch has the lesson)");
             }
         }
     }

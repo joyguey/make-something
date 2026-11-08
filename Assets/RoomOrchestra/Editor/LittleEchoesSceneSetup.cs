@@ -218,6 +218,7 @@ namespace RoomOrchestra.EditorTools
             CreateViewSettings(root, controls, pad, slabMaterial, motifMaterial);
             CreateConfirmCard(root.transform);
             EnsureRealWalls();
+            CreateRealSpots(); // beside the real walls, after them
             RoundedShapes.RoundBlocks(root.transform.Find("TitleCard"), 0.02f); // softened like the controls
         }
 
@@ -1304,6 +1305,41 @@ namespace RoomOrchestra.EditorTools
             EditorUtility.SetDirty(confirm);
         }
 
+        // Glowing spots for the real furniture the scan finds (owner, headset 2026-11-08: "show me visually where I can
+        // assign the furniture to the actual furniture"). In the headset's own space beside the real walls (recentring
+        // must not move them off the furniture); each waits shrunk in the ball stand's cloud until RealFurniture uses it.
+        public const int RealSpotCount = 6;
+
+        static void CreateRealSpots()
+        {
+            var walls = Object.FindFirstObjectByType<RealWalls>();
+            var park = GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint");
+            if (walls == null || park == null) return;
+            for (int i = walls.transform.childCount - 1; i >= 0; i--)
+                if (walls.transform.GetChild(i).name.StartsWith("RealSpot")) Object.DestroyImmediate(walls.transform.GetChild(i).gameObject);
+            var glow = Glow(EnsureMaterial("RealSpotPad", "Ball", new Color(1f, 0.86f, 0.35f)), new Color(1f, 0.86f, 0.35f) * 1.4f);
+            var backing = EnsureMaterial("LabelBacking", "Ball", new Color(0.12f, 0.08f, 0.16f));
+            for (int i = 0; i < RealSpotCount; i++)
+            {
+                var spot = new GameObject($"RealSpot{i}").transform;
+                spot.SetParent(walls.transform, false);
+                var pad = Primitive(PrimitiveType.Cylinder, "SpotPad", spot, glow, keepCollider: false);
+                pad.localScale = new Vector3(0.4f, RealSpot.PadThickness, 0.4f);
+                var tap = pad.gameObject.AddComponent<BoxCollider>();
+                tap.size = new Vector3(1f, 6f, 1f); // about 7 cm deep: easy to point at, flat on the furniture
+                tap.isTrigger = true; // takes taps and the hover highlight; balls go through to the real piece's hit box
+                Hoverable(pad.gameObject);
+                // read from across the room: 8 cm letters (measured on "Ag", like the other labels) on a big dark plate
+                var label = Label("SpotLabel", "Ag", spot, Vector3.up * RealSpot.LabelHeight, 0.08f);
+                label.localRotation = Quaternion.identity;
+                label.GetComponentInChildren<TMP_Text>().text = "+";
+                Box("SpotLabelBacking", label, new Vector3(0f, 0f, 0.008f), new Vector3(0.36f, 0.13f, 0.012f), backing, keepCollider: false);
+                var view = spot.gameObject.AddComponent<RealSpot>();
+                view.Configure(pad, label, label.GetComponentInChildren<TMP_Text>(), park, tap);
+                EditorUtility.SetDirty(view);
+            }
+        }
+
         // Last on the front row: Quit, reachable during play (George, 2026-11-03), marked with a door ajar (Clear has
         // the X). Asks "Sure?" first.
         static void CreateQuitButton(Vector3 position, Transform root, Material slab, Material mark)
@@ -1585,6 +1621,10 @@ namespace RoomOrchestra.EditorTools
             return holder;
         }
 
+        // The character materials the leaf's trio already wears (CharacterArt), in OrbType order.
+        static Material[] Skins(string prefix) => System.Enum.GetValues(typeof(OrbType)).Cast<OrbType>()
+            .Select(t => AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/{prefix}_{t}.mat")).ToArray();
+
         static void PreSkinBalls(Material flutter)
         {
             var profile = OrbCatalog.Get(OrbType.Flutter);
@@ -1599,6 +1639,7 @@ namespace RoomOrchestra.EditorTools
                 {
                     var (look, rim, face) = CharacterArt.DressBall(ball.gameObject, OrbType.Flutter);
                     ball.ConfigureCharacter(rim, face, look);
+                    ball.ConfigureSkins(Skins("Orb"), Skins("Rim"), Skins("Face"));
                     HoverShell(look);
                     EditorUtility.SetDirty(ball);
                 }
