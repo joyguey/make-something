@@ -119,6 +119,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            FaceThePlayer();
             if (arc == null || m_Ready == null || m_ArcHeld) return;
 
             if (m_GrabId >= 0)
@@ -129,6 +130,23 @@ namespace RoomOrchestra
                 if (Flat(dir).sqrMagnitude > 1e-4f) m_AimDirection = Flat(dir).normalized;
             }
             Preview(m_Ready.transform.position, m_AimDirection);
+        }
+
+        // Owner, headset 2026-11-08: "The floating ball on cloud is ... not facing towards the player". The ready ball
+        // turns (about the vertical only) so its face looks at the player's head, wherever the stand has gone.
+        void FaceThePlayer()
+        {
+            if (m_Ready == null || m_GrabId >= 0 || StageAnchor.Instance == null || !StageAnchor.Instance.TryGetHeadPose(out var head)) return;
+            if (!m_Ready.TryGetComponent<CharacterFace>(out var face)) return;
+            var toHead = head.position - m_Ready.transform.position;
+            toHead.y = 0f;
+            if (toHead.sqrMagnitude < 1e-4f) return;
+            var facing = face.FacingIn(m_Ready.transform);
+            var want = Quaternion.LookRotation(toHead.normalized) * Quaternion.Inverse(Quaternion.LookRotation(facing));
+            var now = m_Ready.transform.rotation;
+            var turned = Quaternion.RotateTowards(now, want, 240f * Time.deltaTime);
+            if (Quaternion.Angle(now, turned) < 0.05f) return;
+            Teleport(m_Ready, m_Ready.transform.position, turned);
         }
 
         /// <summary>True while the arc still shows the last throw (until the next aim or until that ball is gone).</summary>

@@ -27,7 +27,7 @@ namespace RoomOrchestra.Tests
         {
             var intro = Object.FindFirstObjectByType<IntroSequence>();
             var tucked = Object.FindObjectsByType<TuckAway>(FindObjectsSortMode.None);
-            Assert.GreaterOrEqual(tucked.Length, 5);
+            Assert.GreaterOrEqual(tucked.Length, 1); // Clear (the other extras wait on the menu since 2026-11-08)
             var leaf = intro.Leaf.Find("Leaf").GetComponent<Renderer>().bounds;
             foreach (var t in tucked)
             {

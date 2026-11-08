@@ -42,6 +42,9 @@ namespace RoomOrchestra.EditorTools
 
         // Nine buttons centred on the leaf (Lesson, then Quit, joined the row).
         static Vector3 FrontRow(int slot) => new Vector3(LeafCenter.x + ButtonStep * (slot - 3.8f), ButtonY, ButtonRowZ);
+        // The leaf's own row now (owner, 2026-11-08: too many buttons on the leaf): Menu, Undo, Pause, Clear, spread out.
+        const float LeafRowStep = 0.17f;
+        static Vector3 LeafRow(int slot) => new Vector3(LeafCenter.x + LeafRowStep * (slot - 1.5f), ButtonY, ButtonRowZ);
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]
         public static void ApplyAndSave()
@@ -106,7 +109,7 @@ namespace RoomOrchestra.EditorTools
             var tierButton = CreateTierButton(swoop, slabMaterial, motifMaterial);
             CreateSoundsButton(swoop, slabMaterial, motifMaterial);
             CreateViewButton(swoop, slabMaterial, motifMaterial);
-            CreateCallButton(FrontRow(0), swoop, slabMaterial, veinMaterial);
+            CreateCallButton(FrontRow(0), swoop, slabMaterial, veinMaterial); // moved onto the menu tray below
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -136,14 +139,19 @@ namespace RoomOrchestra.EditorTools
             director.Configure(conductor, tokens);
             EditorUtility.SetDirty(director);
             // The front row of the leaf, left to right after Come here.
-            CreateUndoButton(FrontRow(1), swoop, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Pause, FrontRow(2), swoop, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Clear, FrontRow(3), swoop, slabMaterial, motifMaterial);
+            CreateMenuButton(LeafRow(0), swoop, slabMaterial, motifMaterial);
+            CreateUndoButton(LeafRow(1), swoop, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Pause, LeafRow(2), swoop, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Clear, LeafRow(3), swoop, slabMaterial, motifMaterial);
+            // the rest go onto the menu tray (CreateMenuTray)
             CreateRecenterButton(FrontRow(4), swoop, slabMaterial, motifMaterial);
             CreateHeightButton(FrontRow(5), swoop, slabMaterial, motifMaterial);
             CreateLanguageButton(FrontRow(6), swoop, slabMaterial);
             CreateLessonButton(FrontRow(7), swoop, slabMaterial, motifMaterial);
             CreateQuitButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
+            CreatePlacesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
+            CreateRealHidesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
+            var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
@@ -220,6 +228,9 @@ namespace RoomOrchestra.EditorTools
             CreateRealSpots(); // beside the real walls, after them
             CreateXrRig();
             RoundedShapes.RoundBlocks(root.transform.Find("TitleCard"), 0.02f); // softened like the controls
+            PicoXrMode.RoomFeatures(); // PICO's settings for the room features this scene uses (depth sensing too)
+            menuTray.Configure(Vector3.one); // saved folded away, last: every label and rounded edge was sized open
+            EditorUtility.SetDirty(menuTray);
         }
 
         // The real room's walls for the balls (RealWalls): at the scene's top level, in the headset's own space, so
@@ -257,6 +268,23 @@ namespace RoomOrchestra.EditorTools
             return m;
         }
 
+        // PICO's environment depth written into the depth buffer (Shaders/EnvironmentDepthOccluder).
+        static Material DepthOccluder()
+        {
+            string path = $"{MaterialDir}/EnvironmentDepthOccluder.mat";
+            var shader = Shader.Find("RoomOrchestra/EnvironmentDepthOccluder");
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(shader);
+                AssetDatabase.CreateAsset(m, path);
+            }
+            else if (m.shader != shader) m.shader = shader;
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry - 20;
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
         static Material ScanLook()
         {
             string path = $"{MaterialDir}/RoomScan.mat";
@@ -288,6 +316,8 @@ namespace RoomOrchestra.EditorTools
             { "HeightLabel", new[] { HeightButton.TextFor(PlayPosture.Seated, UiLanguage.English), HeightButton.TextFor(PlayPosture.Standing, UiLanguage.English), HeightButton.TextFor(PlayPosture.Seated, UiLanguage.Chinese), HeightButton.TextFor(PlayPosture.Standing, UiLanguage.Chinese) } },
             { "SoundsLabel", new[] { SoundPackButton.TextFor(UiTerm.PackClassic, UiLanguage.English), SoundPackButton.TextFor(UiTerm.PackEarthy, UiLanguage.English), SoundPackButton.TextFor(UiTerm.PackClassic, UiLanguage.Chinese), SoundPackButton.TextFor(UiTerm.PackEarthy, UiLanguage.Chinese) } },
             { "ViewLabel", System.Enum.GetValues(typeof(ViewMode)).Cast<ViewMode>().SelectMany(m => new[] { ViewButton.TextFor(m, UiLanguage.English), ViewButton.TextFor(m, UiLanguage.Chinese) }).ToArray() },
+            { "MenuLabel", new[] { UiText.Get(UiTerm.Menu, UiLanguage.English), UiText.Get(UiTerm.MenuClose, UiLanguage.English), UiText.Get(UiTerm.Menu, UiLanguage.Chinese), UiText.Get(UiTerm.MenuClose, UiLanguage.Chinese) } },
+            { "RealHidesLabel", new[] { UiText.Get(UiTerm.RealHidesOn, UiLanguage.English), UiText.Get(UiTerm.RealHidesOff, UiLanguage.English), UiText.Get(UiTerm.RealHidesOn, UiLanguage.Chinese), UiText.Get(UiTerm.RealHidesOff, UiLanguage.Chinese) } },
             { "PauseLabel", new[] { UiText.Get(UiTerm.Pause, UiLanguage.English), UiText.Get(UiTerm.Play, UiLanguage.English), UiText.Get(UiTerm.Pause, UiLanguage.Chinese), UiText.Get(UiTerm.Play, UiLanguage.Chinese) } },
         };
 
@@ -1289,7 +1319,8 @@ namespace RoomOrchestra.EditorTools
 
         // The extras wait under the leaf during the guided song, so it starts with one thing to try (George,
         // 2026-11-03); saved tucked, like the stations, so nothing moves at startup when the lesson runs.
-        static readonly string[] LessonTucked = { "CallButton", "ClearButton", "LessonButton", "SoundsButton", "TierButton" };
+        // Since the menu (2026-11-08) the extras wait folded on its tray; Clear still waits under the leaf.
+        static readonly string[] LessonTucked = { "ClearButton" };
 
         static void TuckForLesson(Transform leafRoot)
         {
@@ -1396,6 +1427,7 @@ namespace RoomOrchestra.EditorTools
             ears.enabled = false;
             var xr = rig.AddComponent<XrRig>();
             xr.Configure(cam);
+            rig.AddComponent<EnvironmentOcclusion>().Configure(DepthOccluder()); // PICO's depth hides what is behind real things
 
             var idle = Glow(EnsureMaterial("PointerRay", "Ball", new Color(0.85f, 0.92f, 1f)), new Color(0.85f, 0.92f, 1f));
             var hot = Glow(EnsureMaterial("PointerRayHot", "Ball", new Color(1f, 0.8f, 0.25f)), new Color(1f, 0.8f, 0.25f) * 1.4f);
@@ -1466,6 +1498,75 @@ namespace RoomOrchestra.EditorTools
 
         // Last on the front row: Quit, reachable during play (George, 2026-11-03), marked with a door ajar (Clear has
         // the X). Asks "Sure?" first.
+        // ---- The menu (owner, 2026-11-08: "I think there might be too many buttons on the leaf") ----
+        // The leaf keeps the characters, Menu, Undo, Pause and Clear; the rest wait on a tray Menu opens just above the
+        // leaf, tilted toward the player, far row then near row.
+        static readonly string[][] MenuRows =
+        {
+            new[] { "TierButton", "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton" },
+            new[] { "CallButton", "RecenterButton", "PlacesButton", "LessonButton", "QuitButton" },
+        };
+        public const float MenuStep = 0.125f, MenuRowGap = 0.19f, MenuLift = 0.2f, MenuTilt = 30f;
+        static readonly Vector3 MenuPlate = new(0.8f, 0.02f, 0.44f);
+
+        static MenuTray CreateMenuTray(Transform leafRoot, Material mark)
+        {
+            var tray = Holder("MenuTray", leafRoot, Vector3.zero);
+            tray.position = new Vector3(LeafCenter.x, ButtonY + MenuLift, LeafCenter.z + 0.04f);
+            tray.localRotation = Quaternion.Euler(-MenuTilt, 0f, 0f); // far edge up: it faces the seated player
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            Box("MenuPlate", tray, new Vector3(0f, -0.016f, -0.02f), MenuPlate, plum, keepCollider: false);
+            for (int row = 0; row < MenuRows.Length; row++)
+            {
+                var names = MenuRows[row];
+                for (int i = 0; i < names.Length; i++)
+                {
+                    var button = leafRoot.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == names[i] && t.parent != tray);
+                    if (button == null)
+                    {
+                        Debug.LogWarning($"[RoomOrchestra] Menu: no {names[i]} to put on the tray");
+                        continue;
+                    }
+                    button.SetParent(tray, false);
+                    button.localPosition = new Vector3(MenuStep * (i - (names.Length - 1) / 2f), 0f, row == 0 ? MenuRowGap / 2f : -MenuRowGap / 2f);
+                    button.localRotation = Quaternion.identity;
+                }
+            }
+            return tray.gameObject.AddComponent<MenuTray>();
+        }
+
+        static void CreateMenuButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("MenuButton", position, root, slab, "MenuSlab");
+            for (int i = 0; i < 3; i++) // three bars
+                Box($"MenuBar{i}", go.transform, new Vector3(0f, 0.02f + 0.014f * i, 0f), new Vector3(0.04f, 0.007f, 0.01f), mark, keepCollider: false);
+            Localize(Label("MenuLabel", UiText.Get(UiTerm.Menu, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 1.25f), UiTerm.Menu); // "Menu" has no tall letters: a little bigger to read
+            go.AddComponent<MenuButton>();
+        }
+
+        static void CreatePlacesButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("PlacesButton", position, root, slab, "PlacesSlab");
+            var head = Primitive(PrimitiveType.Sphere, "PlacesPinHead", go.transform, mark, keepCollider: false); // a map pin
+            head.localPosition = new Vector3(0f, 0.05f, 0f);
+            head.localScale = Vector3.one * 0.022f;
+            Box("PlacesPinStem", go.transform, new Vector3(0f, 0.03f, 0f), new Vector3(0.006f, 0.03f, 0.006f), mark, keepCollider: false);
+            Localize(Label("PlacesLabel", UiText.Get(UiTerm.Places, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Places);
+            go.AddComponent<PlacesButton>();
+        }
+
+        static void CreateRealHidesButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("RealHidesButton", position, root, slab, "RealHidesSlab");
+            var ball = Primitive(PrimitiveType.Sphere, "RealHidesBall", go.transform, mark, keepCollider: false); // a ball half behind a wall
+            ball.localPosition = new Vector3(0.008f, 0.04f, 0.01f);
+            ball.localScale = Vector3.one * 0.026f;
+            Box("RealHidesWall", go.transform, new Vector3(-0.006f, 0.035f, -0.004f), new Vector3(0.026f, 0.04f, 0.006f), slab, keepCollider: false);
+            var label = Label("RealHidesLabel", UiText.Get(UiTerm.RealHidesOn, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 2f);
+            Localize(label, UiTerm.RealHidesOn);
+            go.AddComponent<RealHidesButton>();
+        }
+
         static void CreateQuitButton(Vector3 position, Transform root, Material slab, Material mark)
         {
             var go = SmallButton("QuitButton", position, root, slab, "QuitSlab");

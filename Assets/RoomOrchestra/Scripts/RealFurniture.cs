@@ -35,7 +35,7 @@ namespace RoomOrchestra
         public const float HitMargin = 0.04f;
         const float SayLookSeconds = 7f, SayResultSeconds = 6f;
 
-        public enum Phase { Waiting, Scanning, Choosing, Placed }
+        public enum Phase { Waiting, Scanning, Choosing, Placed, Restoring }
 
         /// <summary>Which real furniture each virtual piece prefers, best first.</summary>
         public static FurnitureKind[] Preferences(string virtualPiece) => virtualPiece switch
@@ -66,6 +66,12 @@ namespace RoomOrchestra
             public Vector3 FromScale;
             public float MoveStart = -1f;
             public bool GoingHome;
+            /// <summary>The real object it lives on (or the box around its own furniture, kept), after choosing.</summary>
+            public RealHome Home;
+            /// <summary>Its virtual furniture is gone (it lives on a real object now).</summary>
+            public bool Removed;
+            public Renderer[] Looks;
+            public Collider[] Solid;
         }
 
         readonly List<Station> m_Stations = new();
@@ -87,10 +93,28 @@ namespace RoomOrchestra
         public static bool AutoPlace { get; set; }
 
         int m_Choosing;
+        // The order Flutter asks in: the lesson's (owner, headset 2026-11-08: "double-check that it's the right one
+        // according to the tutorial"): the chair's mbira, the lamp's erhu, then the table's udu.
+        readonly List<int> m_Order = new();
         /// <summary>Choosing where the instruments live (the pointer places them).</summary>
         public bool Choosing => m_Phase == Phase.Choosing;
+        Station ChoosingStation => Choosing && m_Choosing < m_Order.Count ? m_Stations[m_Order[m_Choosing]] : null;
         /// <summary>The instrument being placed now, or null.</summary>
-        public InstrumentTarget ChoosingTarget => Choosing && m_Choosing < m_Stations.Count ? m_Stations[m_Choosing].Target : null;
+        public InstrumentTarget ChoosingTarget => ChoosingStation?.Target;
+        /// <summary>The order instruments are placed in: the lesson's.</summary>
+        public static readonly InstrumentType[] LessonOrder = { InstrumentType.Mbira, InstrumentType.Erhu, InstrumentType.Udu };
+        /// <summary>The real home of an instrument, or null.</summary>
+        public RealHome HomeOf(InstrumentTarget target)
+        {
+            foreach (var s in m_Stations) if (s.Target == target) return s.Home;
+            return null;
+        }
+        /// <summary>Is this instrument's virtual furniture gone (it lives on a real object)?</summary>
+        public bool IsRemoved(InstrumentTarget target)
+        {
+            foreach (var s in m_Stations) if (s.Target == target) return s.Removed;
+            return false;
+        }
         /// <summary>The size of the spot that previews where the instrument will go (m).</summary>
         public const float CursorSide = 0.25f;
         const float SayPlaceSeconds = 30f;
@@ -140,6 +164,8 @@ namespace RoomOrchestra
                     Aim = target.transform.Find("AimPoint") ?? root.Find("AimPoint"),
                 };
                 if (s.Aim != null) s.AimHome = s.Aim.localPosition;
+                s.Looks = root.GetComponentsInChildren<Renderer>(true);
+                s.Solid = root.GetComponentsInChildren<Collider>(true);
                 foreach (var o in orbits)
                     if (o.Target == target)
                     {
@@ -183,19 +209,19 @@ namespace RoomOrchestra
                     RememberHomes(); // now, not at startup: the opening still has the lamp and table tucked in the cloud
                     if (!AutoPlace)
                     {
-                        // owner, headset 2026-11-08: show me the mapped room and let me choose, instead of guessing
-                        m_Phase = Phase.Choosing;
-                        m_Choosing = 0;
-                        MatchedCount = 0;
-                        RealWalls.ShowScan = true;
-                        Debug.Log("[RoomOrchestra] Real furniture: the lesson is over; the player chooses where each instrument lives");
-                        AskWhere();
+                        // nothing to choose from (or to find the saved objects' shapes in) until the room scan is in
+                        if (RealWalls.Instance == null || RealWalls.Instance.SurfaceCount == 0) return;
+                        if (TryRestore()) break; // the places chosen last time, found again from their saved anchors
+                        StartChoosing();
                         break;
                     }
                     m_Phase = Phase.Scanning;
                     m_ScanStart = Time.time;
                     Debug.Log("[RoomOrchestra] Real furniture: the lesson is over; looking for the real table, chair and lamp");
                     if (!Application.isEditor) tutorial?.Announce(UiTerm.ScanLook, SayLookSeconds);
+                    break;
+                case Phase.Restoring:
+                    if (m_RestoreDone) FinishRestore();
                     break;
                 case Phase.Scanning:
                     if (Time.time < m_NextTry) return;
@@ -207,8 +233,116 @@ namespace RoomOrchestra
                     if (Time.time < m_NextTry) return;
                     m_NextTry = Time.time + 0.5f;
                     WriteSpots(); // language or instrument changes
+                    RefineShapes();
                     break;
             }
+        }
+
+        bool m_RestoreDone;
+        Dictionary<string, (Pose pose, Vector3 size)> m_Restored;
+
+        // The places chosen last time: their anchors are looked up (a few seconds at most), then each instrument goes
+        // back onto its object. False when nothing was saved.
+        bool TryRestore()
+        {
+            if (!RealHomeStore.HasAnchors()) return false;
+            m_Phase = Phase.Restoring;
+            m_RestoreDone = false;
+            Debug.Log("[RoomOrchestra] Real furniture: looking for the places chosen last time");
+            _ = Restore();
+            return true;
+        }
+
+        async System.Threading.Tasks.Task Restore()
+        {
+            var found = await RealHomeStore.FindAll();
+            m_Restored = found;
+            m_RestoreDone = true;
+        }
+
+        void FinishRestore()
+        {
+            var found = m_Restored ?? new Dictionary<string, (Pose pose, Vector3 size)>();
+            m_Restored = null;
+            var saved = RealHomeStore.Load();
+            if (found.Count == 0 || found.Count < saved.Count)
+            {
+                Debug.Log($"[RoomOrchestra] Real furniture: {found.Count} of {saved.Count} saved places found; choosing again");
+                RealHomeStore.Clear();
+                StartChoosing();
+                return;
+            }
+            InstrumentPacks.Instance?.ResetPlaces();
+            ShowPitchColumns(false);
+            MatchedCount = 0;
+            foreach (var s in m_Stations)
+            {
+                if (found.TryGetValue(s.Name, out var place))
+                {
+                    LiveOn(s, place.pose, place.size, withShape: true);
+                    MatchedCount++;
+                }
+                else KeepHome(s);
+            }
+            m_Phase = Phase.Placed;
+            Physics.SyncTransforms();
+            Debug.Log($"[RoomOrchestra] Real furniture: {MatchedCount} instruments back on the real objects chosen last time");
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.PlaceWelcomeBack, SayResultSeconds);
+        }
+
+        // The scan keeps arriving: an object placed before its triangles were in (or found again from an anchor) takes
+        // its scanned shape once there is one.
+        void RefineShapes()
+        {
+            var walls = RealWalls.Instance;
+            if (walls == null) return;
+            foreach (var s in m_Stations)
+            {
+                if (s.Home == null || !s.Removed || s.Home.HasShape) continue;
+                var tris = RoomObjects.ShapeIn(s.Home.WorldBounds, walls.PieceTriangles, SeatFloor().y);
+                if (tris.Count >= 9) s.Home.SetShape(tris);
+            }
+        }
+
+        /// <summary>Choose places again (Menu): the saved places are forgotten and Flutter asks again.</summary>
+        public void ChooseAgain()
+        {
+            var tutorial = TutorialDirector.Instance;
+            if (tutorial != null && tutorial.Active) return; // after the lesson
+            RealHomeStore.Clear();
+            PutBack();
+            RememberHomes();
+            StartChoosing();
+        }
+
+        /// <summary>
+        /// Flutter asks where each instrument should live, in the lesson's order (owner, headset 2026-11-08: show me the
+        /// mapped room and let me choose, instead of guessing). The instruments go back to the furniture the lesson
+        /// gave them first (a swap from an earlier session had the table holding the erhu).
+        /// </summary>
+        public void StartChoosing()
+        {
+            InstrumentPacks.Instance?.ResetPlaces();
+            m_Order.Clear();
+            foreach (var type in LessonOrder)
+                for (int i = 0; i < m_Stations.Count; i++)
+                    if (m_Stations[i].Target.Instrument == type && !m_Order.Contains(i)) m_Order.Add(i);
+            for (int i = 0; i < m_Stations.Count; i++) if (!m_Order.Contains(i)) m_Order.Add(i);
+            m_Phase = Phase.Choosing;
+            m_Choosing = 0;
+            MatchedCount = 0;
+            RealWalls.ShowScan = true;
+            ShowPitchColumns(false);
+            Debug.Log("[RoomOrchestra] Real furniture: the lesson is over; the player chooses where each instrument lives");
+            AskWhere();
+        }
+
+        // The lesson's five-note columns stand beside the virtual furniture; once instruments live on real objects the
+        // notes run along those objects instead (owner, 2026-11-08: the notes were out of reach).
+        static void ShowPitchColumns(bool on)
+        {
+            foreach (var column in FindObjectsByType<PitchColumn>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if (column.gameObject.activeSelf != on) column.gameObject.SetActive(on);
         }
 
         static UiTerm PlaceLine(InstrumentType instrument) => instrument switch
@@ -226,47 +360,206 @@ namespace RoomOrchestra
             if (!Application.isEditor) TutorialDirector.Instance?.Announce(PlaceLine(target.Instrument), SayPlaceSeconds);
         }
 
-        /// <summary>Where the pointer touches the room now: a glowing spot shows where the instrument would go.</summary>
+        // The object under the pointer while choosing: found once per spot (the scan can be large).
+        Bounds m_PreviewBox;
+        Vector3 m_PreviewPoint = Vector3.positiveInfinity;
+        bool m_HasPreview;
+        GameObject m_PreviewShape;
+        Material m_PreviewLook;
+
+        /// <summary>Where the pointer touches the room now: the real object there glows, with the instrument's name.</summary>
         public void Preview(Vector3 point)
         {
             var target = ChoosingTarget;
             var cursor = SpotAt(0);
-            if (target == null || cursor == null) return;
-            cursor.Show(point, new Vector2(CursorSide, CursorSide), UiText.Get(TermFor(target.Instrument), Localization.Current), tappable: false);
+            if (target == null) return;
+            if (!m_HasPreview || (point - m_PreviewPoint).sqrMagnitude > 0.04f * 0.04f && !m_PreviewBox.Contains(point))
+            {
+                m_PreviewPoint = point;
+                m_PreviewBox = ObjectAt(point);
+                m_HasPreview = true;
+                ShowPreviewShape(m_PreviewBox, target.Instrument);
+            }
+            var top = new Vector3(m_PreviewBox.center.x, m_PreviewBox.max.y, m_PreviewBox.center.z);
+            if (cursor != null)
+                cursor.Show(top, new Vector2(Mathf.Min(m_PreviewBox.size.x, CursorSide * 2f), Mathf.Min(m_PreviewBox.size.z, CursorSide * 2f)),
+                    UiText.Get(TermFor(target.Instrument), Localization.Current), tappable: false);
+        }
+
+        /// <summary>The real object at a point on the room's surface, as a box in scene space.</summary>
+        public static Bounds ObjectAt(Vector3 point)
+        {
+            var walls = RealWalls.Instance;
+            var scan = RoomScan.Instance;
+            return RoomObjects.Find(point, walls != null ? walls.PieceTriangles : null, scan != null ? scan.Furniture : null, SeatFloor().y);
+        }
+
+        void ShowPreviewShape(Bounds box, InstrumentType instrument)
+        {
+            var walls = RealWalls.Instance;
+            var tris = RoomObjects.ShapeIn(box, walls != null ? walls.PieceTriangles : null, SeatFloor().y);
+            if (m_PreviewShape == null)
+            {
+                m_PreviewShape = new GameObject("ChoosingPreview");
+                m_PreviewShape.AddComponent<MeshFilter>();
+                var r = m_PreviewShape.AddComponent<MeshRenderer>();
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+                var look = walls != null ? walls.ScanLook : null;
+                if (look != null) r.sharedMaterial = m_PreviewLook = new Material(look) { name = "ChoosingPreview" };
+            }
+            if (m_PreviewLook != null)
+            {
+                var tint = RealHome.TintFor(instrument);
+                m_PreviewLook.SetColor("_BaseColor", new Color(tint.r, tint.g, tint.b, 0.55f));
+            }
+            var filter = m_PreviewShape.GetComponent<MeshFilter>();
+            if (filter.sharedMesh == null) filter.sharedMesh = new Mesh { name = "ChoosingPreview", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+            var mesh = filter.sharedMesh;
+            mesh.Clear();
+            var idx = new int[tris.Count];
+            for (int i = 0; i < idx.Length; i++) idx[i] = i;
+            mesh.SetVertices(tris);
+            mesh.SetTriangles(idx, 0);
+            mesh.RecalculateBounds();
+            m_PreviewShape.SetActive(tris.Count > 0);
         }
 
         /// <summary>The pointer left the room's surface.</summary>
-        public void HidePreview() => SpotAt(0)?.Hide();
+        public void HidePreview()
+        {
+            SpotAt(0)?.Hide();
+            m_HasPreview = false;
+            if (m_PreviewShape != null) m_PreviewShape.SetActive(false);
+        }
 
-        /// <summary>The player pressed on the room's surface: the instrument being placed lives there now.</summary>
+        /// <summary>The player pressed on the room's surface: the instrument being placed lives on that real object now.</summary>
         public void PlaceAt(Vector3 point)
         {
-            if (!Choosing) return;
-            var s = m_Stations[m_Choosing];
-            var box = new Bounds(point - Vector3.up * 0.15f, new Vector3(0.45f, 0.3f, 0.45f));
-            MoveOnto(s, new FurniturePiece(FurnitureKind.Other, box, point.y, 1));
+            var s = ChoosingStation;
+            if (s == null) return;
+            var box = m_HasPreview && (m_PreviewBox.Contains(point) || (point - m_PreviewPoint).sqrMagnitude < 0.04f * 0.04f) ? m_PreviewBox : ObjectAt(point);
+            LiveOn(s, new Pose(box.center, Quaternion.identity), box.size, withShape: true);
             MatchedCount++;
+            RealHomeStore.Remember(s.Name, s.Home);
             Physics.SyncTransforms();
             NextChoice();
         }
 
-        /// <summary>The player pressed the instrument itself: it stays on its virtual furniture.</summary>
+        /// <summary>The player pressed the instrument itself: it stays on its virtual furniture (its notes along it too).</summary>
         public void KeepVirtual()
         {
-            if (!Choosing) return;
-            Debug.Log($"[RoomOrchestra] Real furniture: the {m_Stations[m_Choosing].Target.Instrument} stays on its virtual furniture");
+            var s = ChoosingStation;
+            if (s == null) return;
+            Debug.Log($"[RoomOrchestra] Real furniture: the {s.Target.Instrument} stays on its virtual furniture");
+            KeepHome(s);
+            RealHomeStore.Forget(s.Name);
             NextChoice();
+        }
+
+        // A box around its own furniture, so its notes run along it like a real object's.
+        void KeepHome(Station s)
+        {
+            DropHome(s);
+            var box = VisibleBox(s.Root);
+            s.Home = RealHome.Create(s.Name, s.Target, new Pose(box.center, Quaternion.identity), box.size, null, LabelStyle());
+            s.Home.transform.SetParent(s.Root, true); // it moves with its furniture (recentring)
+            s.Target.Home = s.Home;
+        }
+
+        /// <summary>
+        /// The instrument lives on a real object: the virtual furniture goes in a poof, the object's own shape takes the
+        /// ball's hits, the ball aims at its top, its echo orbit floats above it and its vines grow around it.
+        /// </summary>
+        void LiveOn(Station s, Pose pose, Vector3 size, bool withShape)
+        {
+            DropHome(s);
+            var virtualBox = VisibleBox(s.Root);
+            var walls = RealWalls.Instance;
+            s.Home = RealHome.Create(s.Name, s.Target, pose, size, walls != null ? walls.ScanLook : null, LabelStyle());
+            if (withShape) s.Home.SetShape(RoomObjects.ShapeIn(s.Home.WorldBounds, walls != null ? walls.PieceTriangles : null, SeatFloor().y));
+            s.Target.Home = s.Home;
+            if (!s.Removed) PoofCloud.PoofAt(virtualBox.center, 0.6f);
+            PoofCloud.PoofAt(s.Home.Top, 0.5f);
+            SetVirtualShown(s, false);
+            s.Matched = true;
+            s.Piece = new FurniturePiece(FurnitureKind.Other, s.Home.WorldBounds, s.Home.Top.y, 1);
+            HoldOnHome(s);
+            var jungle = JungleDirector.Instance;
+            if (jungle != null)
+                jungle.GrowAround(s.Name, new Vector3(virtualBox.center.x, virtualBox.min.y, virtualBox.center.z), virtualBox.size, s.Home.Floor, s.Home.WorldBounds.size);
+            Debug.Log($"[RoomOrchestra] Real furniture: the {s.Target.Instrument} lives on the real object at {pose.position:F2} size {size:F2} ({(s.Home.HasShape ? "its scanned shape" : "a box")}); the virtual {s.Name} is gone");
+        }
+
+        // The station's own furniture (hidden and still once it lives on a real object), its aim and its orbit, held on
+        // the real object every frame: recentring moves the stage, not the room.
+        void HoldOnHome(Station s)
+        {
+            if (s.Home == null || !s.Removed) return;
+            var floor = s.Home.Floor;
+            if ((s.Root.position - floor).sqrMagnitude > 1e-8f) s.Root.position = floor; // its sound comes from there
+            if (s.Aim != null)
+            {
+                var a = s.Home.Top + Vector3.up * 0.06f;
+                if ((s.Aim.position - a).sqrMagnitude > 1e-8f) s.Aim.position = a;
+            }
+            if (s.Orbit != null)
+            {
+                var o = s.Target.AimPosition + s.OrbitOffset;
+                if ((s.Orbit.position - o).sqrMagnitude > 1e-8f) s.Orbit.position = o;
+            }
+        }
+
+        static void SetVirtualShown(Station s, bool on)
+        {
+            s.Removed = !on;
+            if (s.Looks != null) foreach (var r in s.Looks) if (r != null) r.enabled = on;
+            if (s.Solid != null) foreach (var c in s.Solid) if (c != null) c.enabled = on;
+        }
+
+        void DropHome(Station s)
+        {
+            if (s.Home != null) Destroy(s.Home.gameObject);
+            s.Home = null;
+            if (s.Target != null) s.Target.Home = null;
+        }
+
+        static Bounds VisibleBox(Transform root)
+        {
+            Bounds box = new Bounds(root.position, Vector3.one * 0.3f);
+            bool any = false;
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer) continue;
+                if (!any) { box = r.bounds; any = true; }
+                else box.Encapsulate(r.bounds);
+            }
+            return box;
+        }
+
+        static TMPro.TMP_Text s_LabelStyle;
+        static TMPro.TMP_Text LabelStyle()
+        {
+            if (s_LabelStyle != null) return s_LabelStyle;
+            var spot = FindFirstObjectByType<RealSpot>(FindObjectsInactive.Include);
+            s_LabelStyle = spot != null ? spot.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
+            return s_LabelStyle;
         }
 
         void NextChoice()
         {
             HidePreview();
             m_Choosing++;
-            if (m_Choosing < m_Stations.Count)
+            if (m_Choosing < m_Order.Count)
             {
                 AskWhere();
                 return;
             }
+            FinishChoosing();
+        }
+
+        void FinishChoosing()
+        {
             m_Phase = Phase.Placed;
             RealWalls.ShowScan = false;
             Debug.Log($"[RoomOrchestra] Real furniture: {MatchedCount} of {m_Stations.Count} instruments on real places the player chose");
@@ -390,9 +683,14 @@ namespace RoomOrchestra
 
         void LateUpdate()
         {
-            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return;
+            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing && m_Phase != Phase.Restoring) return;
             foreach (var s in m_Stations)
             {
+                if (s.Removed)
+                {
+                    HoldOnHome(s);
+                    continue;
+                }
                 if (!s.Matched && !s.GoingHome) continue;
                 float u = s.MoveStart < 0f ? 1f : Mathf.Clamp01((Time.time - s.MoveStart) / MoveSeconds);
                 float e = u * u * (3f - 2f * u);
@@ -566,8 +864,16 @@ namespace RoomOrchestra
         /// <summary>Back in the virtual room (Lesson): every piece home at its own size, the hit boxes off.</summary>
         public void PutBack()
         {
+            HidePreview();
             foreach (var s in m_Stations)
             {
+                DropHome(s);
+                if (s.Removed)
+                {
+                    SetVirtualShown(s, true);
+                    s.Root.localPosition = s.HomeLocalPosition;
+                    JungleDirector.Instance?.GrowAtHome(s.Name);
+                }
                 if (!s.Matched && !s.GoingHome) continue;
                 s.Matched = false;
                 s.GoingHome = false;
@@ -584,6 +890,7 @@ namespace RoomOrchestra
             m_Occupant.Clear();
             foreach (var spot in m_Spots) spot.Hide();
             RealWalls.ShowScan = false;
+            ShowPitchColumns(true);
             m_Phase = Phase.Waiting;
             Debug.Log("[RoomOrchestra] Real furniture: back in the virtual room for the lesson");
         }

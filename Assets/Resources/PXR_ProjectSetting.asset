@@ -43,7 +43,7 @@ MonoBehaviour:
   fixedFoveatedSharpening: 0
   selfAdaptiveSharpening: 0
   handTrackingSupportType: 0
-  environmentDepth: 0
+  environmentDepth: 1
   lightEstimation: 0
   lightEstimationTextureResolution: 0
   objectTracking: 0

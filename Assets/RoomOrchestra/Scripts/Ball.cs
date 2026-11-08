@@ -216,6 +216,7 @@ namespace RoomOrchestra
             m_Body.angularVelocity = Vector3.zero;
             InFlight = true;
             Hits = 0;
+            BouncesThisThrow = 0;
             m_ActionId = MusicalHitPipeline.BeginAction();
             m_LaunchTime = Time.time;
         }
@@ -276,7 +277,7 @@ namespace RoomOrchestra
             if (!IsGround(collision.collider)) m_LastSurfaceContact = Time.time;
             if (m_TapTarget != null)
             {
-                var hitTarget = collision.collider.GetComponentInParent<InstrumentTarget>();
+                var hitTarget = InstrumentTarget.Of(collision.collider);
                 if (hitTarget == m_TapTarget) DeliverTapNote(hitTarget);
             }
             if (InFlight && IsGround(collision.collider))
@@ -298,15 +299,15 @@ namespace RoomOrchestra
             }
             if (m_TapTarget != null) return; // carrying a tapped note for its own instrument
             if (!InFlight || MusicalHitPipeline.HasFired(m_ActionId)) return;
-            var target = collision.collider.GetComponentInParent<InstrumentTarget>();
+            var target = InstrumentTarget.Of(collision.collider);
             if (target == null) return;
 
             float speed = collision.relativeVelocity.magnitude;
             if (speed < minHitSpeed) return;
 
-            float contactY = collision.contactCount > 0 ? collision.GetContact(0).point.y : transform.position.y;
+            var contact = collision.contactCount > 0 ? collision.GetContact(0).point : transform.position;
             var tier = MusicalHitPipeline.Intensity.FromImpactSpeed(speed);
-            if (MusicalHitPipeline.Submit(m_ActionId, target, orb, tier, target.PitchAtHeight(contactY), InputPath.Toss) != null)
+            if (MusicalHitPipeline.Submit(m_ActionId, target, orb, tier, target.PitchAt(contact), InputPath.Toss) != null)
                 Hits++;
         }
 
@@ -320,7 +321,43 @@ namespace RoomOrchestra
             LastBounce = bounceClips[(int)orb];
             bounceVoice.pitch = BounceSound.Pitch(speed);
             bounceVoice.PlayOneShot(LastBounce, volume);
-            Debug.Log($"[RoomOrchestra] {orb} bounces off a wall ({speed:0.0} m/s, volume {volume:0.00})");
+            int step = BouncesThisThrow++;
+            Chime(step, volume);
+            Debug.Log($"[RoomOrchestra] {orb} bounces off a wall ({speed:0.0} m/s, volume {volume:0.00}, chime {step % BounceSound.ChimeSemitones.Length})");
+        }
+
+        /// <summary>Wall bounces since this ball was thrown (its chimes climb the chord).</summary>
+        public int BouncesThisThrow { get; private set; }
+        /// <summary>The chime last played, or null.</summary>
+        public AudioClip LastChime { get; private set; }
+        AudioSource m_ChimeVoice;
+        static readonly System.Collections.Generic.Dictionary<(OrbType, int), AudioClip> s_Chimes = new();
+
+        // A bell note from the song's chord on top of the bounce, on its own voice so the bounce's brightness never
+        // detunes it.
+        void Chime(int bounce, float volume)
+        {
+            if (m_ChimeVoice == null)
+            {
+                m_ChimeVoice = gameObject.AddComponent<AudioSource>();
+                m_ChimeVoice.playOnAwake = false;
+                m_ChimeVoice.spatialBlend = bounceVoice.spatialBlend;
+                m_ChimeVoice.outputAudioMixerGroup = bounceVoice.outputAudioMixerGroup;
+                m_ChimeVoice.rolloffMode = bounceVoice.rolloffMode;
+                m_ChimeVoice.minDistance = bounceVoice.minDistance;
+                m_ChimeVoice.maxDistance = bounceVoice.maxDistance;
+            }
+            int step = bounce % BounceSound.ChimeSemitones.Length;
+            if (!s_Chimes.TryGetValue((orb, step), out var clip) || clip == null)
+            {
+                int rate = AudioSettings.outputSampleRate > 0 ? AudioSettings.outputSampleRate : 48000;
+                var data = BounceSound.RenderChime(BounceSound.ChimeHz(orb, step), rate);
+                clip = AudioClip.Create($"Chime_{orb}_{step}", data.Length, 1, rate, false);
+                clip.SetData(data, 0);
+                s_Chimes[(orb, step)] = clip;
+            }
+            LastChime = clip;
+            m_ChimeVoice.PlayOneShot(clip, volume * BounceSound.ChimeLevel);
         }
 
         /// <summary>

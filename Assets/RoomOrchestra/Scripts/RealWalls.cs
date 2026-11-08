@@ -39,6 +39,9 @@ namespace RoomOrchestra
         readonly Dictionary<string, MeshFilter> m_Occluders = new();
         static bool s_ShowScan, s_Occlude;
 
+        /// <summary>The see-through look of the scanned room (real objects' glows start from it).</summary>
+        public Material ScanLook => scanLook;
+
         public void ConfigureScanLook(Material look, Material occluder = null)
         {
             scanLook = look;
@@ -117,11 +120,19 @@ namespace RoomOrchestra
             foreach (var pair in m_Surfaces) Shield(pair.Key, pair.Value);
         }
 
+        /// <summary>
+        /// Should real things hide virtual ones now: after the lesson's virtual room is down (it would otherwise be cut
+        /// apart), not while the scanned room glows for choosing places (the shield at the glow's own depth hid the glow,
+        /// emulator 2026-11-08), and while the player wants it (Menu).
+        /// </summary>
+        public static bool OcclusionWanted { get; private set; }
+
         void UpdateOcclusion()
         {
-            // off while the room glows for choosing places: the shield at the glow's own depth hid the glow (emulator, 2026-11-08)
             var room = VirtualRoom.Instance;
-            Occlude = (room == null || room.Gone) && !s_ShowScan;
+            OcclusionWanted = (room == null || room.Gone) && !s_ShowScan && EnvironmentOcclusion.Wanted;
+            // PICO's own depth does the hiding when the headset delivers it; the scanned room's shield is the fallback
+            Occlude = OcclusionWanted && !EnvironmentOcclusion.Active;
         }
 
         /// <summary>Show the scanned room (while choosing places), or hide it.</summary>
@@ -234,6 +245,9 @@ namespace RoomOrchestra
 
         /// <summary>The song was cleared: every flower spot is free again.</summary>
         public void ReleaseFlowerSpots() => m_Spots.ReleaseAll();
+
+        /// <summary>Every scanned piece's triangles in scene space (three corners each), for finding a real object's shape.</summary>
+        public IEnumerable<Vector3[]> PieceTriangles => m_Pieces.Values;
 
         /// <summary>A scanned piece's triangles in scene space (tests feed a pretend room this way).</summary>
         public void SetPiece(MeshId id, Vector3[] worldTriangles)

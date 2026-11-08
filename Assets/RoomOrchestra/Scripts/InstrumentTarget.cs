@@ -274,6 +274,25 @@ namespace RoomOrchestra
             m_PendingFlashes.Clear();
         }
 
+        /// <summary>
+        /// The real object this instrument lives on after the lesson (or a box around its own furniture when the player
+        /// kept it there), or null: then the note comes from the height on its furniture, as in the lesson.
+        /// </summary>
+        public RealHome Home { get; set; }
+
+        /// <summary>The instrument a collider belongs to: its furniture, or the real object it lives on.</summary>
+        public static InstrumentTarget Of(Component c)
+        {
+            if (c == null) return null;
+            var own = c.GetComponentInParent<InstrumentTarget>();
+            if (own != null) return own;
+            var home = RealHome.Of(c);
+            return home != null ? home.Target : null;
+        }
+
+        /// <summary>The note at a point on it: along the real object's longest side, else the height on its furniture.</summary>
+        public PitchInput PitchAt(Vector3 worldPoint) => Home != null ? Home.PitchAt(worldPoint) : PitchAtHeight(worldPoint.y);
+
         /// <summary>Normalized height (0 = bottom, 1 = top) of a world-space Y within this object's colliders.</summary>
         public PitchInput PitchAtHeight(float worldY)
         {
@@ -328,6 +347,7 @@ namespace RoomOrchestra
             {
                 voice.Play();
                 if (flash) m_Flash.Flash();
+                if (flash && Home != null) Home.Pulse();
             }
             else
             {

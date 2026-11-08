@@ -40,6 +40,15 @@ namespace RoomOrchestra
             isTile = false;
         }
 
+        /// <summary>Shows another term from now on (a button whose name changes, such as Menu / Close).</summary>
+        public void SetTerm(UiTerm word)
+        {
+            if (term == word && !isTile) return;
+            term = word;
+            isTile = false;
+            Apply(Localization.Current);
+        }
+
         public void ConfigureTile(TMP_Text label, InstrumentType tileInstrument, int index)
         {
             text = label;

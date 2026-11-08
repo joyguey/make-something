@@ -174,7 +174,15 @@ namespace RoomOrchestra.Tests
         {
             const int hand = 1;
             var origin = posture == PlayPosture.Seated ? SeatedHand(hand) : StandingHand(hand);
-            if (posture == PlayPosture.Standing) Tap(SeatedHand(hand), Find<HeightButton>()); // reached while still seated
+            if (posture == PlayPosture.Standing)
+            {
+                // Height waits on the leaf's menu (owner, 2026-11-08): open it, press Height, close it
+                Tap(SeatedHand(hand), Find<MenuButton>());
+                yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
+                Tap(SeatedHand(hand), Find<HeightButton>()); // reached while still seated
+                Tap(SeatedHand(hand), Find<MenuButton>());
+                yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
+            }
             Assert.AreEqual(posture, ComfortSettings.Posture);
 
             PitchTile Tile(InstrumentType type, int petal) => Find<PitchTile>(t => t.Target.Instrument == type && t.Petal == petal);

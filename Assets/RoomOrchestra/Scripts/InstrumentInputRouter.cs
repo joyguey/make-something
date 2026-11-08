@@ -117,9 +117,13 @@ namespace RoomOrchestra
             bool touching = Aim(ray, out var hit);
             var target = touching ? hit.collider.gameObject : null;
             bool ball = launcher != null && launcher.IsReadyBall(target);
-            bool tappable = ball || (target != null && PressableOwner(target) != null);
+            var owner = target != null ? PressableOwner(target) : null;
+            bool tappable = ball || owner != null;
             ShowRay(hand, true, origin, touching ? hit.point : origin + dir * RayIdleLength, touching, tappable);
+            // on an instrument's real object: its five note bands show, the one under the pointer lit (owner, 2026-11-08)
+            if (owner is InstrumentTarget instrument && instrument.Home != null) instrument.Home.Point(hit.point);
             if (!pressed || target == null) return;
+            PressPoint = hit.point;
             if (ball)
             {
                 m_Grabbing[hand] = true;
@@ -231,7 +235,8 @@ namespace RoomOrchestra
             if (owner == null) owner = hit.GetComponentInParent<ViewButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoBattleButton>();
             if (owner == null) owner = hit.GetComponentInParent<EchoMini>();
-            if (owner == null) owner = hit.GetComponentInParent<InstrumentTarget>();
+            if (owner == null) owner = hit.GetComponentInParent<IPressable>() as Component; // Menu and its newer buttons
+            if (owner == null) owner = InstrumentTarget.Of(hit.transform); // its furniture, or the real object it lives on
             return owner;
         }
 
@@ -380,6 +385,13 @@ namespace RoomOrchestra
                 return true;
             }
 
+            var pressable = hit.GetComponentInParent<IPressable>();
+            if (pressable != null)
+            {
+                pressable.Press();
+                return true;
+            }
+
             var spot = hit.GetComponentInParent<RealSpot>();
             if (spot != null)
             {
@@ -517,15 +529,22 @@ namespace RoomOrchestra
                 return true;
             }
 
-            var target = hit.GetComponentInParent<InstrumentTarget>();
+            var target = InstrumentTarget.Of(hit.transform);
             if (target != null)
             {
-                if (selector != null) selector.PlaceOn(target);
+                // on a real object, the band pressed is the note (owner, 2026-11-08: "make it easy to tap as well so it
+                // can automatically produce the note if the player doesn't want to throw it")
+                if (selector != null && target.Home != null && PressPoint.HasValue) selector.PlaceOn(target, target.Home.PitchAt(PressPoint.Value));
+                else if (selector != null) selector.PlaceOn(target);
                 else target.PlayInstrument();
+                PressPoint = null;
                 return true;
             }
             return false;
         }
+
+        /// <summary>Where the pointer touched what is being pressed (scene space), for notes along a real object.</summary>
+        public static Vector3? PressPoint { get; set; }
 
         static void PlaceOn(InstrumentType instrument)
         {
@@ -579,7 +598,8 @@ namespace RoomOrchestra
             if (mouse == null || cam == null || !mouse.leftButton.wasPressedThisFrame)
                 return;
             var ray = cam.ScreenPointToRay(mouse.position.ReadValue());
-            if (Physics.Raycast(ray, out var hit, 20f) && Activate(hit.collider.gameObject))
+            if (Physics.Raycast(ray, out var hit, 20f)) PressPoint = hit.point;
+            if (Physics.Raycast(ray, out hit, 20f) && Activate(hit.collider.gameObject))
                 return;
             if (launcher != null)
                 launcher.ThrowAssisted(ray.origin + ray.direction * 0.3f, ray.direction, ray.direction * editorThrowSpeed + Vector3.up);

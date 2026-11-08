@@ -117,6 +117,16 @@ namespace RoomOrchestra
             return c - Vector3.Scale(grow, c);
         }
 
+        /// <summary>Which way the face looks, flat, in <paramref name="root"/>'s own space (from the eyes' middle).</summary>
+        public Vector3 FacingIn(Transform root)
+        {
+            if (eyeL == null || eyeR == null || root == null) return Vector3.back;
+            var eyes = (eyeL.TransformPoint(MeshCentre(eyeL)) + eyeR.TransformPoint(MeshCentre(eyeR))) / 2f;
+            var local = root.InverseTransformPoint(eyes);
+            local.y = 0f;
+            return local.sqrMagnitude > 1e-8f ? local.normalized : Vector3.back;
+        }
+
         static Vector3 MeshCentre(Transform part) =>
             part.TryGetComponent<MeshFilter>(out var filter) && filter.sharedMesh != null ? filter.sharedMesh.bounds.center : Vector3.zero;
 

@@ -391,24 +391,35 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(0, EchoConductor.Instance.Echoes.Count, "the lesson starts from an empty song");
         }
 
-        // George, 2026-11-03: one thing to try first. The leaf's extras wait tucked under it during the lesson;
-        // Pause, Undo, Recenter, Height, View, language and Quit stay (pause and reset available any time).
+        // George, 2026-11-03: one thing to try first. Clear waits tucked under the leaf during the lesson; the rest of the
+        // extras wait on the closed menu (owner, 2026-11-08). Pause, Undo and Menu stay on the leaf, and Menu opens
+        // Recenter, Height, View, language and Quit at any time (pause and reset available any time).
         [UnityTest]
         public IEnumerator TheLeafsExtrasWaitUnderItDuringTheLessonAndPopUpAfter()
         {
             var tucked = Object.FindObjectsByType<TuckAway>(FindObjectsSortMode.None);
-            CollectionAssert.AreEquivalent(new[] { "CallButton", "ClearButton", "LessonButton", "SoundsButton", "TierButton" }, tucked.Select(t => t.name));
+            CollectionAssert.AreEquivalent(new[] { "ClearButton" }, tucked.Select(t => t.name));
             foreach (var t in tucked)
             {
                 Assert.IsTrue(t.Tucked, $"{t.name} waits during the lesson");
                 Assert.IsTrue(t.GetComponentsInChildren<Collider>().All(c => !c.enabled), $"{t.name} can't be tapped while tucked");
             }
-            foreach (var always in new[] { typeof(UndoButton), typeof(RecenterButton), typeof(HeightButton), typeof(ViewButton), typeof(LanguageButton), typeof(QuitButton) })
+            foreach (var always in new[] { typeof(UndoButton), typeof(MenuButton) })
             {
-                var c = Object.FindObjectsByType(always, FindObjectsSortMode.None).Cast<Component>()
-                    .First(b => b.name != "TitleQuitButton"); // the title card's Quit is put away with the card
+                var c = (Component)Object.FindFirstObjectByType(always);
                 Assert.IsNull(c.GetComponentInParent<TuckAway>(), $"{always.Name} is always there");
                 Assert.IsTrue(c.GetComponentsInChildren<Collider>().Any(col => col.enabled), $"{always.Name} can be tapped during the lesson");
+            }
+            // the menu opens during the lesson too, with every comfort setting and Quit on it
+            Assert.IsTrue(InstrumentInputRouter.Activate(Object.FindFirstObjectByType<MenuButton>().GetComponentInChildren<Collider>().gameObject));
+            yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
+            foreach (var onMenu in new[] { typeof(RecenterButton), typeof(HeightButton), typeof(ViewButton), typeof(LanguageButton), typeof(QuitButton) })
+            {
+                var c = Object.FindObjectsByType(onMenu, FindObjectsSortMode.None).Cast<Component>()
+                    .First(b => b.name != "TitleQuitButton"); // the title card's Quit is put away with the card
+                Assert.IsNull(c.GetComponentInParent<TuckAway>(), $"{onMenu.Name} is always there");
+                Assert.IsNotNull(c.GetComponentInParent<MenuTray>(), $"{onMenu.Name} is on the menu");
+                Assert.IsTrue(c.GetComponentsInChildren<Collider>().Any(col => col.enabled), $"{onMenu.Name} can be tapped during the lesson");
             }
             var pause = Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None).First(b => b.ButtonKind == MusicControlButton.Kind.Pause);
             Assert.IsNull(pause.GetComponentInParent<TuckAway>(), "Pause is always there");
@@ -421,7 +432,7 @@ namespace RoomOrchestra.Tests
                 Assert.IsTrue(t.GetComponentsInChildren<Collider>().Any(c => c.enabled), $"{t.name} can be tapped again");
             }
 
-            var lesson = tucked.First(t => t.name == "LessonButton").GetComponentInChildren<Collider>().gameObject;
+            var lesson = Object.FindFirstObjectByType<TutorialReplayButton>().GetComponentInChildren<Collider>().gameObject;
             Assert.IsTrue(InstrumentInputRouter.Activate(lesson)); // "Sure?"
             Assert.IsTrue(InstrumentInputRouter.Activate(lesson));
             Assert.IsTrue(tucked.All(t => t.Tucked), "the lesson again: the extras wait again");

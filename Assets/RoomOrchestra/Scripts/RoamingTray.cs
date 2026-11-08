@@ -65,6 +65,99 @@ namespace RoomOrchestra
             if (TryGetHead(out var head) && m_Follow.Update(head.X, head.Z, head.YawDegrees, Time.deltaTime))
                 Log();
             Glide(Time.deltaTime);
+            UpdateDesk(Time.deltaTime);
+        }
+
+        // ---- Above the player's desk ----
+        // Owner, headset 2026-11-08: "Because usually people have a desk in front of them, I also can not access the
+        // leaf with the buttons. The floating ball on cloud is also further away from me." The leaf was built 49 cm
+        // above the floor, under a desk. Once the room scan shows a table-top in front of the seat, the leaf, the ball
+        // stand and what travels with them rise to sit just above it and come in toward the player, onto the desk's
+        // front. Never during the opening (it poses the stand itself). Only rises (a scan that briefly misses the desk
+        // never drops the leaf back under it).
+
+        /// <summary>Where the leaf looks for a desk (pad frame, m): across, and how far out.</summary>
+        public const float DeskMinX = -0.75f, DeskMaxX = 0.9f, DeskNearZ = 0.3f, DeskFarZ = 1.45f, DeskStep = 0.1f;
+        /// <summary>A desk-top is this high above the floor (m), and covers at least this share of the samples.</summary>
+        public const float DeskLow = 0.3f, DeskHigh = 1.2f, DeskCover = 0.2f;
+        /// <summary>The leaf's underside at home (m above the floor), and how far above a desk it then floats.</summary>
+        public const float LeafUnderside = 0.475f, AboveDesk = 0.05f;
+        /// <summary>The leaf's middle comes no closer than this (m), and this far in from the desk's front edge.</summary>
+        public const float NearestLeaf = 0.68f, OnDeskFront = 0.25f, LeafHomeZ = 1.17f;
+
+        Vector3 m_Desk, m_DeskTarget, m_DeskVelocity; // (0, lift, pull) in the pad's frame
+        float m_NextDeskLook;
+
+        /// <summary>How far the leaf has risen (m) and come toward the player (m) to clear a desk.</summary>
+        public Vector2 DeskOffset => new(m_Desk.y, m_Desk.z);
+        public Vector2 DeskTarget => new(m_DeskTarget.y, m_DeskTarget.z);
+
+        void UpdateDesk(float deltaSeconds)
+        {
+            var intro = IntroSequence.Instance;
+            if (intro != null && !intro.Done) return;
+            if (Time.time >= m_NextDeskLook)
+            {
+                m_NextDeskLook = Time.time + 1f;
+                if (TryFindDesk(out float top, out float frontZ))
+                {
+                    float lift = Mathf.Max(0f, top + AboveDesk - LeafUnderside);
+                    float leafZ = Mathf.Max(NearestLeaf, frontZ + OnDeskFront);
+                    float pull = Mathf.Max(0f, LeafHomeZ - leafZ);
+                    var target = new Vector3(0f, Mathf.Max(lift, m_DeskTarget.y), lift > 0f ? pull : m_DeskTarget.z);
+                    if ((target - m_DeskTarget).sqrMagnitude > 0.03f * 0.03f)
+                    {
+                        m_DeskTarget = target;
+                        Debug.Log($"[RoomOrchestra] Leaf pad: a desk {top:F2} m high in front (front edge {frontZ:F2} m out): the leaf rises {target.y:F2} m and comes {target.z:F2} m closer");
+                    }
+                }
+            }
+            if ((m_Desk - m_DeskTarget).sqrMagnitude < 1e-6f) return;
+            m_Desk = Vector3.SmoothDamp(m_Desk, m_DeskTarget, ref m_DeskVelocity, 0.4f, 1.5f, deltaSeconds);
+            if ((m_Desk - m_DeskTarget).sqrMagnitude < 1e-6f)
+            {
+                m_Desk = m_DeskTarget;
+                m_DeskVelocity = Vector3.zero;
+            }
+            Apply();
+        }
+
+        /// <summary>Test hook: as if the scan had found a desk this high with its front edge this far out.</summary>
+        public void SetDeskForTest(float top, float frontZ)
+        {
+            float lift = Mathf.Max(0f, top + AboveDesk - LeafUnderside);
+            float leafZ = Mathf.Max(NearestLeaf, frontZ + OnDeskFront);
+            m_DeskTarget = m_Desk = new Vector3(0f, lift, Mathf.Max(0f, LeafHomeZ - leafZ));
+            Apply();
+        }
+
+        // Looks straight down onto the scanned room over the leaf's area in front of the seat.
+        bool TryFindDesk(out float top, out float frontZ)
+        {
+            top = 0f;
+            frontZ = 0f;
+            if (frame == null || RealWalls.Instance == null || RealWalls.Instance.SurfaceCount == 0) return false;
+            var turn = Quaternion.Euler(0f, m_Yaw, 0f);
+            var heights = new System.Collections.Generic.List<(float y, float z)>();
+            int samples = 0;
+            float floor = frame.position.y;
+            for (float x = DeskMinX; x <= DeskMaxX + 1e-4f; x += DeskStep)
+            for (float z = DeskNearZ; z <= DeskFarZ + 1e-4f; z += DeskStep)
+            {
+                samples++;
+                var local = turn * new Vector3(x, 0f, z) + m_Position;
+                var from = frame.TransformPoint(new Vector3(local.x, DeskHigh + 0.3f, local.z));
+                if (!Physics.Raycast(from, Vector3.down, out var hit, DeskHigh + 0.3f, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore)) continue;
+                float y = hit.point.y - floor;
+                if (y < DeskLow || y > DeskHigh || Mathf.Abs(hit.normal.y) < 0.7f) continue;
+                heights.Add((y, z));
+            }
+            if (samples == 0 || heights.Count < samples * DeskCover) return false;
+            heights.Sort((a, b) => a.y.CompareTo(b.y));
+            top = heights[Mathf.Clamp(Mathf.FloorToInt(heights.Count * 0.8f), 0, heights.Count - 1)].y;
+            frontZ = float.MaxValue;
+            foreach (var (y, z) in heights) if (Mathf.Abs(y - top) < 0.08f) frontZ = Mathf.Min(frontZ, z);
+            return frontZ < float.MaxValue;
         }
 
         /// <summary>Option C: come to the player now (or home, if they are at the seat).</summary>
@@ -133,8 +226,9 @@ namespace RoomOrchestra
         void Apply()
         {
             var turn = Quaternion.Euler(0f, m_Yaw, 0f);
+            var desk = new Vector3(0f, m_Desk.y, -m_Desk.z); // up off the desk and in toward the seat, in the pad's frame
             // The pad sits in the Controls holder, which only lifts it (Height); x/z/yaw are ours.
-            transform.localPosition = new Vector3(m_Position.x, 0f, m_Position.z);
+            transform.localPosition = new Vector3(m_Position.x, 0f, m_Position.z) + turn * desk;
             transform.localRotation = turn;
 
             Pose still = keepStill != null ? new Pose(keepStill.position, keepStill.rotation) : default;
@@ -143,7 +237,7 @@ namespace RoomOrchestra
                 {
                     if (carried[i] == null) continue;
                     carried[i].SetPositionAndRotation(
-                        frame.TransformPoint(turn * carriedHomePositions[i] + m_Position),
+                        frame.TransformPoint(turn * (carriedHomePositions[i] + desk) + m_Position),
                         frame.rotation * turn * carriedHomeRotations[i]);
                 }
             if (keepStill != null) keepStill.SetPositionAndRotation(still.position, still.rotation);

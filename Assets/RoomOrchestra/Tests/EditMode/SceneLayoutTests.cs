@@ -20,6 +20,52 @@ namespace RoomOrchestra.Tests
             EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             // The scene is saved in the opening's first frame; layout checks are about the finished layout.
             UnityEngine.Object.FindFirstObjectByType<IntroSequence>()?.Finish();
+            FoldMenu(true); // as in play: the menu opens only when asked (TheOpenMenu... checks it open)
+        }
+
+        [SetUp]
+        public void FoldMenuForEachTest() =>
+            FoldMenu(TestContext.CurrentContext.Test.Name != nameof(NothingAuthoredAtNearZeroScale)); // that one checks sizes as saved
+
+        // The leaf's menu tray (owner, 2026-11-08), folded away as it is in play, or open.
+        static void FoldMenu(bool folded)
+        {
+            var tray = UnityEngine.Object.FindFirstObjectByType<MenuTray>();
+            if (tray == null) return;
+            tray.transform.localScale = Vector3.one * (folded ? MenuTray.ClosedScale : 1f);
+            foreach (var c in tray.GetComponentsInChildren<Collider>(true)) c.enabled = !folded;
+            Physics.SyncTransforms();
+        }
+
+        // Open, every button on the menu is the first thing a pointer ray from either seated hand meets.
+        [Test]
+        public void TheOpenMenusButtonsAreTheFirstThingAPointerRayHits()
+        {
+            FoldMenu(false);
+            try
+            {
+                var tray = Object.FindFirstObjectByType<MenuTray>();
+                Assert.IsNotNull(tray, "the leaf has a menu");
+                var onTray = tray.GetComponentsInChildren<Collider>().Where(c => InstrumentInputRouter.PressableOwner(c.gameObject) != null).ToArray();
+                Assert.GreaterOrEqual(onTray.Select(c => InstrumentInputRouter.PressableOwner(c.gameObject)).Distinct().Count(), 11, "every extra is on it");
+                var failures = new System.Collections.Generic.List<string>();
+                foreach (var c in onTray)
+                {
+                    var owner = InstrumentInputRouter.PressableOwner(c.gameObject);
+                    foreach (var (name, origin) in PointerOrigins.Where(o => o.name.StartsWith("seated")))
+                    {
+                        var to = c.bounds.center - origin;
+                        var hits = Physics.RaycastAll(origin, to.normalized, to.magnitude + 0.1f).OrderBy(h => h.distance).ToArray();
+                        if (hits.Length == 0 || InstrumentInputRouter.PressableOwner(hits[0].collider.gameObject) != owner)
+                            failures.Add($"{owner.name} from {name}: hits {(hits.Length > 0 ? hits[0].collider.name : "nothing")} first");
+                    }
+                }
+                Assert.IsEmpty(failures, string.Join("\n", failures));
+            }
+            finally
+            {
+                FoldMenu(true);
+            }
         }
 
         static void AssertSeated(string label, Vector3 p)

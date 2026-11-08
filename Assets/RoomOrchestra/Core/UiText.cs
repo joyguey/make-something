@@ -65,6 +65,7 @@ namespace RoomOrchestra
         PlaceMbira,
         PlaceErhu,
         PlaceDone,
+        PlaceWelcomeBack,
         ConfirmQuit,
         ConfirmClear,
         ConfirmLesson,
@@ -81,6 +82,14 @@ namespace RoomOrchestra
         Skip,
         /// <summary>The leaf button that plays the guided song again.</summary>
         Lesson,
+        /// <summary>The leaf's Menu button (owner, 2026-11-08: fewer buttons on the leaf), and the tray it opens.</summary>
+        Menu,
+        MenuClose,
+        /// <summary>Menu: choose again where the instruments live.</summary>
+        Places,
+        /// <summary>Menu: real things hide the game's things (PICO's depth), on or off.</summary>
+        RealHidesOn,
+        RealHidesOff,
         /// <summary>Under an instrument's name: give this furniture the next instrument.</summary>
         ChangeInstrument,
         /// <summary>The leaf's instrument pack button, and the packs.</summary>
@@ -170,10 +179,11 @@ namespace RoomOrchestra
             { UiTerm.ScanLook, ("Look slowly around your room. Furniture I find gets a glowing spot!", "慢慢看看你的房间。我找到的家具上会出现发光的圆点！") },
             { UiTerm.ScanFound, ("Tap a glowing spot to choose which instrument lives there. Then throw us at it!", "点一下发光的圆点，选一个乐器放在那里。然后把我们扔过去！") },
             { UiTerm.ScanNone, ("I couldn't find your furniture, so the instruments stay right here.", "没找到你的家具，乐器就留在这里。") },
-            { UiTerm.PlaceUdu, ("The glow is your room. Point at a real table or shelf and press to put the udu there. Or press the udu to keep it here.", "发光的就是你的房间。指向一张真的桌子或架子，按一下把乌杜鼓放在那里。或者按乌杜鼓，让它留在这里。") },
-            { UiTerm.PlaceMbira, ("Now the mbira: point at a real chair or sofa and press. Or press the mbira to keep it here.", "现在是拇指琴：指向一把真的椅子或沙发，按一下。或者按拇指琴，让它留在这里。") },
-            { UiTerm.PlaceErhu, ("Last, the erhu: point at a real lamp or shelf and press. Or press the erhu to keep it here.", "最后是二胡：指向一盏真的台灯或架子，按一下。或者按二胡，让它留在这里。") },
-            { UiTerm.PlaceDone, ("All set! Now throw us at your furniture.", "好啦！现在把我们扔向你的家具吧！") },
+            { UiTerm.PlaceUdu, ("Last, the udu drum: point at a real table and press. Or press the table to keep it here.", "最后是乌杜鼓：指向一张真的桌子，按一下。或者按桌子，让它留在这里。") },
+            { UiTerm.PlaceMbira, ("The glow is your room. Where should the mbira live? Point at a real chair, table or shelf and press. Or press the chair to keep it here.", "发光的就是你的房间。拇指琴要住在哪里？指向一把真的椅子、桌子或架子，按一下。或者按椅子，让它留在这里。") },
+            { UiTerm.PlaceErhu, ("Now the erhu: point at a real lamp, shelf or table and press. Or press the lamp to keep it here.", "现在是二胡：指向一盏真的台灯、架子或桌子，按一下。或者按台灯，让它留在这里。") },
+            { UiTerm.PlaceDone, ("All set! Point at your furniture to see its five notes, then press to play, or throw us at it!", "好啦！指向你的家具，看看它的五个音，然后按一下来弹，或者把我们扔过去！") },
+            { UiTerm.PlaceWelcomeBack, ("Welcome back! Your instruments are where you left them.", "欢迎回来！乐器都还在你上次放的地方。") },
             { UiTerm.ConfirmQuit, ("Quit Little Echoes?", "退出游戏吗？") },
             { UiTerm.ConfirmClear, ("Clear your whole song?", "清除整首歌吗？") },
             { UiTerm.ConfirmLesson, ("Start the lesson again? Your song will be cleared.", "重新开始教学吗？你的歌会被清除。") },
@@ -187,6 +197,11 @@ namespace RoomOrchestra
             { UiTerm.Go, ("Go!", "开始！") },
             { UiTerm.Skip, ("Skip", "跳过") },
             { UiTerm.Lesson, ("Lesson", "教学") },
+            { UiTerm.Menu, ("Menu", "菜单") },
+            { UiTerm.MenuClose, ("Close", "关闭") },
+            { UiTerm.Places, ("Places", "摆放") },
+            { UiTerm.RealHidesOn, ("Hiding\nOn", "遮挡\n开") },
+            { UiTerm.RealHidesOff, ("Hiding\nOff", "遮挡\n关") },
             { UiTerm.ChangeInstrument, ("Change", "换乐器") },
             { UiTerm.Sounds, ("Sounds", "音色") },
             { UiTerm.PackClassic, ("Classic", "经典") },

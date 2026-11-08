@@ -65,6 +65,21 @@ namespace RoomOrchestra.EditorTools
             return removed;
         }
 
+        /// <summary>PICO's settings for the mixed-reality features the game uses (also kept on by the scene setup).</summary>
+        public static void RoomFeatures()
+        {
+            var config = PXR_ProjectSetting.GetProjectConfig();
+            config.videoSeeThrough = true;  // the real room behind the game
+            config.spatialMesh = true;      // real walls for the balls, the scan glow, real objects' shapes
+            config.sceneCapture = true;     // PICO's Room Capture: walls, tables, chairs, sofas
+            config.spatialAnchor = true;    // the places the player picks, remembered between sessions
+            config.environmentDepth = true; // PICO's depth sensing: real things hide what is behind them
+            config.handTracking = true;     // point and pinch with the hands when the controllers are down
+            config.handTrackingSupportType = HandTrackingSupport.ControllersAndHands;
+            EditorUtility.SetDirty(config);
+            PXR_ProjectSetting.SaveAssets();
+        }
+
         static void Settings()
         {
             var settings = PXR_Settings.GetSettings();
@@ -76,15 +91,8 @@ namespace RoomOrchestra.EditorTools
             settings.appMode = PXR_Settings.AppMode.XR;
             EditorUtility.SetDirty(settings);
 
-            var config = PXR_ProjectSetting.GetProjectConfig();
-            config.isSpatialAdapter = false;
-            config.videoSeeThrough = true; // the real room behind the game
-            config.spatialMesh = true;     // real walls for the balls, and the scan grid
-            config.sceneCapture = true;    // PICO's Room Capture: walls, tables, chairs, sofas
-            config.spatialAnchor = true;   // instruments pinned to places the player picks
-            config.handTracking = true;    // point and pinch with the hands when the controllers are down
-            config.handTrackingSupportType = HandTrackingSupport.ControllersAndHands;
-            PXR_ProjectSetting.SaveAssets();
+            PXR_ProjectSetting.GetProjectConfig().isSpatialAdapter = false;
+            RoomFeatures();
 
             foreach (var path in SpatialManifests) AssetDatabase.DeleteAsset(path); // PICO Spatial's launcher manifests
 
