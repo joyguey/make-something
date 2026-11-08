@@ -74,7 +74,8 @@ namespace RoomOrchestra
         public static Component PressableOwner(GameObject hit)
         {
             if (hit == null) return null;
-            Component owner = hit.GetComponentInParent<LoopControlButton>();
+            Component owner = hit.GetComponentInParent<ConfirmChoice>();
+            if (owner == null) owner = hit.GetComponentInParent<LoopControlButton>();
             if (owner == null) owner = hit.GetComponentInParent<InstrumentButton>();
             if (owner == null) owner = hit.GetComponentInParent<OrbToken>();
             if (owner == null) owner = hit.GetComponentInParent<TierButton>();
@@ -118,11 +119,28 @@ namespace RoomOrchestra
         public static bool Activate(GameObject hit)
         {
             var owner = PressableOwner(hit);
+            if (owner is ConfirmChoice choice)
+            {
+                // the confirm card's answer: do the press it asked about, or let it go
+                var card = ConfirmCard.Instance;
+                var pending = card != null ? card.Pending : null;
+                Acknowledge(choice);
+                s_Confirm.Cancel();
+                AskOn(null);
+                if (choice.Yes && pending != null)
+                {
+                    Debug.Log($"[RoomOrchestra] Confirm card: yes, {pending.name}");
+                    Dispatch(pending.gameObject);
+                    Acknowledge(pending);
+                }
+                else Debug.Log("[RoomOrchestra] Confirm card: cancelled");
+                return true;
+            }
             if (NeedsConfirm(owner))
             {
                 if (!s_Confirm.Request(owner.GetInstanceID()))
                 {
-                    AskOn(owner); // first tap: the label asks "Sure?"; nothing happens yet
+                    AskOn(owner); // first tap: the card asks what will happen (and the label says "Sure?"); nothing happens yet
                     Acknowledge(owner);
                     return true;
                 }
@@ -179,6 +197,12 @@ namespace RoomOrchestra
             if (s_AskingLabel != null && s_AskingLabel != label) s_AskingLabel.Asking = false;
             s_AskingLabel = label;
             if (label != null) label.Asking = true;
+            var card = ConfirmCard.Instance;
+            if (card != null)
+            {
+                if (owner != null) card.Show(owner);
+                else card.Hide();
+            }
             if (owner != null) Debug.Log($"[RoomOrchestra] {owner.name}: asks to confirm");
         }
 

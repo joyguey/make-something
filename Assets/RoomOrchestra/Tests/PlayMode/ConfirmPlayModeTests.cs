@@ -111,5 +111,33 @@ namespace RoomOrchestra.Tests
             }
             yield return null;
         }
+
+        [UnityTest]
+        public IEnumerator TheCardSaysWhatWillHappenAndItsButtonsAnswer()
+        {
+            // Owner, headset 2026-11-07: the double tap on Quit wasn't self-explanatory, so the first tap shows a card.
+            var card = ConfirmCard.Instance;
+            Assert.IsNotNull(card, "the scene has the confirm card");
+            Assert.IsFalse(card.Showing);
+            var quit = Tap<QuitButton>(q => q.transform.parent == null || q.name != "TitleQuitButton");
+            Assert.IsTrue(InstrumentInputRouter.Activate(quit));
+            Assert.IsTrue(card.Showing, "the first tap shows the card");
+            Assert.AreEqual("Quit Little Echoes?", card.QuestionText);
+            Assert.Less(Vector3.Distance(card.transform.position, quit.transform.position), 0.5f, "next to the button pressed");
+            var no = Tap<ConfirmChoice>(c => !c.Yes);
+            var yes = Tap<ConfirmChoice>(c => c.Yes);
+            Assert.IsTrue(no.GetComponent<Collider>().enabled, "its buttons take taps while it shows");
+
+            Assert.IsTrue(InstrumentInputRouter.Activate(no));
+            Assert.IsFalse(card.Showing, "Cancel puts it away");
+            Assert.AreEqual(0, QuitButton.QuitRequests, "and nothing quits");
+            Assert.IsFalse(no.GetComponent<Collider>().enabled, "a parked card takes no taps");
+
+            Assert.IsTrue(InstrumentInputRouter.Activate(quit));
+            yield return null;
+            Assert.IsTrue(InstrumentInputRouter.Activate(yes));
+            Assert.AreEqual(1, QuitButton.QuitRequests, "its Quit button quits");
+            Assert.IsFalse(card.Showing);
+        }
     }
 }

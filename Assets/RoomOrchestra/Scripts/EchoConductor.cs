@@ -58,12 +58,30 @@ namespace RoomOrchestra
             if (Instance == this) Instance = null;
         }
 
-        // PICO can send the app to the background (system menu, another app) and Unity freezes there, so
-        // pause the music on the way out. It stays paused on return (the button shows Play): nothing
-        // restarts by surprise.
-        void OnApplicationPause(bool pausing)
+        // PICO can send the app to the background (system menu, another app, the headset taken off) and Unity
+        // freezes there, so the music pauses on the way out. Headset, 2026-11-07: the app was launched while the
+        // headset sat on a desk, so it started paused and the whole lesson ran with the music stopped (every note
+        // on the same step, no loop ever played). So a pause the system caused ends when the app comes back; a pause
+        // the player chose (the Pause button) stays until they press Play.
+        bool m_SystemPaused;
+
+        /// <summary>The music is paused because the app went to the background, not because the player chose it.</summary>
+        public bool SystemPaused => m_SystemPaused;
+
+        void OnApplicationPause(bool pausing) => SystemPause(pausing);
+
+        /// <summary>The app going to the background (true) and coming back (false).</summary>
+        public void SystemPause(bool pausing)
         {
-            if (pausing && !IsPaused) TogglePause();
+            if (pausing)
+            {
+                if (IsPaused) return;
+                TogglePause();
+                m_SystemPaused = true;
+                return;
+            }
+            if (m_SystemPaused && IsPaused) TogglePause();
+            m_SystemPaused = false;
         }
 
         void OnEnable() => MusicalHitPipeline.Committed += OnHit;
@@ -274,6 +292,7 @@ namespace RoomOrchestra
 
         public void TogglePause()
         {
+            m_SystemPaused = false;
             double now = AudioSettings.dspTime;
             if (m_Clock.IsPaused)
             {

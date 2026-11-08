@@ -216,6 +216,7 @@ namespace RoomOrchestra.EditorTools
             BackLabels(pad.Find("TutorialBubble"), lift: false); // the Skip leaf's label (the bubble is built later)
             RoundedShapes.RoundBlocks(pad, 0.008f); // soft plates too
             CreateViewSettings(root, controls, pad, slabMaterial, motifMaterial);
+            CreateConfirmCard(root.transform);
             EnsureRealWalls();
             RoundedShapes.RoundBlocks(root.transform.Find("TitleCard"), 0.02f); // softened like the controls
         }
@@ -1255,6 +1256,52 @@ namespace RoomOrchestra.EditorTools
                 tuck.TuckNow();
                 EditorUtility.SetDirty(tuck);
             }
+        }
+
+        // The confirm card (owner, headset 2026-11-07: "the double quit from the leaf is not self-explanatory"): a dark
+        // card that pops up in front of a button that ends or wipes something, saying what will happen, with a big
+        // coral "do it" button and a green Cancel. It waits shrunk in the ball stand's cloud (ConfirmCard moves it).
+        static readonly Vector3 ConfirmSize = new(0.4f, 0.2f, 0.012f);
+
+        static void CreateConfirmCard(Transform root)
+        {
+            var park = GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint");
+            var card = Holder("ConfirmCard", root, Vector3.zero);
+            card.position = new Vector3(0f, 1.0f, 0.6f);
+            card.rotation = Quaternion.identity; // faces +z, away from the seat; ConfirmCard turns it to the player
+            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            Box("ConfirmRim", card, new Vector3(0f, 0f, 0.006f), ConfirmSize + new Vector3(0.02f, 0.02f, 0f), cream, keepCollider: false);
+            Box("ConfirmPanel", card, Vector3.zero, ConfirmSize, plum, keepCollider: false);
+            var words = Label("ConfirmQuestion", "Ag", card, new Vector3(0f, 0.045f, -ConfirmSize.z / 2f - 0.006f), 0.028f);
+            words.localRotation = Quaternion.identity;
+            var question = words.GetComponentInChildren<TMP_Text>();
+            question.text = UiText.Get(UiTerm.ConfirmLesson, UiLanguage.English); // the longest; sized for it
+            question.textWrappingMode = TextWrappingModes.Normal;
+            question.rectTransform.sizeDelta = new Vector2(ConfirmSize.x - 0.04f, 0.09f);
+            question.enableAutoSizing = true;
+            question.fontSizeMax = question.fontSize;
+            question.fontSizeMin = question.fontSize * 0.7f;
+            question.ForceMeshUpdate(true, true);
+
+            var taps = new List<Collider>();
+            TMP_Text Choice(string name, bool yes, float x, Color colour, UiTerm sample)
+            {
+                var button = Holder(name, card, new Vector3(x, -0.05f, -ConfirmSize.z / 2f - 0.01f));
+                var slab = Box($"{name}Slab", button, Vector3.zero, new Vector3(0.16f, 0.07f, 0.02f), EnsureMaterial(name, "Ball", colour), keepCollider: false);
+                TapBox(slab, Vector3.zero, new Vector3(0.17f, 0.08f, 0.04f));
+                taps.Add(slab.GetComponent<Collider>());
+                var label = Label($"{name}Label", UiText.Get(sample, UiLanguage.English), button, new Vector3(0f, 0f, -0.016f), 0.026f);
+                label.localRotation = Quaternion.identity;
+                button.gameObject.AddComponent<ConfirmChoice>().Configure(yes);
+                return label.GetComponentInChildren<TMP_Text>();
+            }
+            var yesText = Choice("ConfirmYes", true, -0.09f, new Color(0.93f, 0.42f, 0.32f), UiTerm.ConfirmRestart);
+            var noText = Choice("ConfirmNo", false, 0.09f, new Color(0.36f, 0.72f, 0.38f), UiTerm.ConfirmCancel);
+            RoundedShapes.RoundBlocks(card, 0.015f);
+            var confirm = card.gameObject.AddComponent<ConfirmCard>();
+            confirm.Configure(question, yesText, noText, park, taps.ToArray());
+            EditorUtility.SetDirty(confirm);
         }
 
         // Last on the front row: Quit, reachable during play (George, 2026-11-03), marked with a door ajar (Clear has
