@@ -252,6 +252,44 @@ namespace RoomOrchestra
             }
         }
 
+        /// <summary>
+        /// A tapped note (a pitch tile, the controller's Place, a tap on an instrument): the ready ball is thrown at
+        /// <paramref name="target"/> and plays that note when it lands. False when no ball is ready (being held, or the
+        /// tap came in a quick run): the caller plays the note directly so a tap is never lost.
+        /// </summary>
+        public bool TryThrowAt(InstrumentTarget target, OrbType orb, PitchInput pitch, IntensityTier tier)
+        {
+            if (m_Ready == null || m_GrabId >= 0 || target == null || spawnPoint == null) return false;
+            if (m_Orb != orb) SetOrb(orb);
+            var from = m_Ready.transform.position;
+            var delta = target.AimPosition - from;
+            float max = OrbCatalog.Get(orb).MaxLaunchSpeed;
+            Vector3 velocity = Vector3.zero;
+            float duration = 0f;
+            for (duration = TapFlightSeconds(Flat(delta).magnitude); duration <= maxFlightTime + 1e-3f; duration += 0.1f)
+            {
+                velocity = delta / duration - 0.5f * duration * Physics.gravity;
+                if (velocity.magnitude <= max) break;
+            }
+            if (velocity.magnitude > max) return false;
+            double tapDsp = AudioSettings.dspTime;
+            AimedTarget = target;
+            if (arc != null)
+            {
+                arc.Show(from, velocity, duration, true);
+                m_ArcHeld = true;
+            }
+            var ball = Throw(velocity);
+            if (ball == null) return false;
+            m_ArcBall = ball;
+            ball.CarryTapNote(target, pitch, tier, tapDsp, duration);
+            Debug.Log($"[RoomOrchestra] Tap: {orb} flies to the {target.Instrument} carrying its note ({duration:F2} s)");
+            return true;
+        }
+
+        /// <summary>A tap's throw is quick (the note follows the tap closely) but never a straight line.</summary>
+        public static float TapFlightSeconds(float distance) => Mathf.Clamp(distance / 6f, 0.3f, 0.6f);
+
         Ball Throw(Vector3 velocity)
         {
             var ball = m_Ready;

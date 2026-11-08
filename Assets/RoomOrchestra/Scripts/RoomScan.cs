@@ -32,7 +32,7 @@ namespace RoomOrchestra
         List<FurniturePiece> m_Furniture = new();
         bool m_Dirty;
         float m_NextSummary;
-        int m_Updates;
+        int m_Updates, m_LoggedPieces = -1, m_LoggedFurniture = -1;
 
         public static RoomScan Instance { get; private set; }
         /// <summary>Scanned pieces of mesh so far.</summary>
@@ -178,6 +178,9 @@ namespace RoomOrchestra
 
         void Summarize()
         {
+            if (m_Pieces.Count == m_LoggedPieces && m_Furniture.Count == m_LoggedFurniture) return;
+            m_LoggedPieces = m_Pieces.Count;
+            m_LoggedFurniture = m_Furniture.Count;
             var labels = new System.Text.StringBuilder();
             for (int i = 0; i < m_LabelTotals.Length; i++)
                 if (m_LabelTotals[i] > 0) labels.Append($" {i}:{m_LabelTotals[i]}");

@@ -134,9 +134,45 @@ namespace RoomOrchestra
         }
 
         /// <summary>Holds the ball still (in the dispenser or while being dragged).</summary>
+        // A throw made by tapping a note (owner, 2026-11-07: tapping a note shouldn't skip the throw): the ball
+        // carries that note to its instrument and plays it there; if anything stops it on the way, the note still
+        // plays when it should have landed (one action, one musical event).
+        InstrumentTarget m_TapTarget;
+        PitchInput m_TapPitch;
+        IntensityTier m_TapTier;
+        double m_TapDsp;
+        float m_TapDeadline = -1f;
+
+        /// <summary>A tapped note this ball is carrying, if any.</summary>
+        public InstrumentTarget CarryingTo => m_TapTarget;
+
+        public void CarryTapNote(InstrumentTarget target, PitchInput pitch, IntensityTier tier, double tapDsp, float flightSeconds)
+        {
+            m_TapTarget = target;
+            m_TapPitch = pitch;
+            m_TapTier = tier;
+            m_TapDsp = tapDsp;
+            m_TapDeadline = Time.time + flightSeconds + TapGraceSeconds;
+        }
+
+        /// <summary>A carried note plays this long after the planned landing at the latest.</summary>
+        public const float TapGraceSeconds = 0.25f;
+
+        bool DeliverTapNote(InstrumentTarget target)
+        {
+            if (m_TapTarget == null) return false;
+            var to = target != null ? target : m_TapTarget;
+            m_TapTarget = null;
+            m_TapDeadline = -1f;
+            if (MusicalHitPipeline.HasFired(m_ActionId)) return true;
+            if (MusicalHitPipeline.Submit(m_ActionId, to, orb, m_TapTier, m_TapPitch, InputPath.Place, m_TapDsp) != null) Hits++;
+            return true;
+        }
+
         public void Hold()
         {
             if (m_Body == null) m_Body = GetComponent<Rigidbody>();
+            if (m_TapTarget != null) DeliverTapNote(null); // recycled or parked before it landed: its note still plays
             InFlight = false;
             m_PoofAt = -1f;
             m_Body.isKinematic = true;
@@ -208,6 +244,11 @@ namespace RoomOrchestra
         {
             if (TryGetComponent<JellyBody>(out var jelly)) jelly.Kick(collision.relativeVelocity.magnitude / 5f); // splat
             if (!IsGround(collision.collider)) m_LastSurfaceContact = Time.time;
+            if (m_TapTarget != null)
+            {
+                var hitTarget = collision.collider.GetComponentInParent<InstrumentTarget>();
+                if (hitTarget == m_TapTarget) DeliverTapNote(hitTarget);
+            }
             if (InFlight && IsGround(collision.collider))
             {
                 // Down on the floor: a squashed, startled moment where it landed, then a poof and it is
@@ -225,6 +266,7 @@ namespace RoomOrchestra
                 Bounce(collision.relativeVelocity.magnitude);
                 return;
             }
+            if (m_TapTarget != null) return; // carrying a tapped note for its own instrument
             if (!InFlight || MusicalHitPipeline.HasFired(m_ActionId)) return;
             var target = collision.collider.GetComponentInParent<InstrumentTarget>();
             if (target == null) return;
@@ -267,6 +309,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            if (m_TapTarget != null && Time.time >= m_TapDeadline) DeliverTapNote(null);
             if (m_PoofAt > 0f && Time.time >= m_PoofAt)
             {
                 m_PoofAt = -1f;

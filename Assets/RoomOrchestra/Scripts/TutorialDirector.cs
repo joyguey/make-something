@@ -63,7 +63,7 @@ namespace RoomOrchestra
             PlayerPrefs.Save();
         }
         int m_Misses, m_ShownBeat = -1;
-        bool m_Started, m_Closed, m_BubbleOut, m_GlowOut;
+        bool m_Started, m_Closed, m_BubbleOut, m_GlowOut, m_Announcing;
         float m_PopStart = -10f, m_TryAgainUntil = -1f, m_CloseAt = -1f;
         UiTerm m_Line;
 
@@ -152,6 +152,19 @@ namespace RoomOrchestra
         void Update()
         {
             KeepParkedInTheCloud();
+            if (m_Announcing)
+            {
+                // a line after the lesson (Announce): out, held, back into Flutter, parked; nothing else runs
+                if (m_CloseAt >= 0f && Time.time >= m_CloseAt) Close();
+                AnimateBubble();
+                if (!m_BubbleOut && !Popping)
+                {
+                    ParkBubble();
+                    m_Closed = true;
+                    m_Announcing = false;
+                }
+                return;
+            }
             if (m_Closed) return;
             if (!m_Started)
             {
@@ -201,6 +214,8 @@ namespace RoomOrchestra
         {
             if (Active) return;
             Debug.Log("[RoomOrchestra] Tutorial: replaying the lesson");
+            RealFurniture.Instance?.PutBack(); // the instruments leave the real furniture before their stations hide
+            m_Announcing = false;
             conductor?.Clear();
             foreach (var station in stations)
                 if (station != null && !station.Hidden)
@@ -411,6 +426,25 @@ namespace RoomOrchestra
         }
 
         bool Popping => Time.time - m_PopStart < PopSeconds;
+
+        /// <summary>
+        /// Flutter says one line after the lesson (finding the real furniture): the bubble pops out for
+        /// <paramref name="seconds"/> with no Skip, then tucks away again.
+        /// </summary>
+        public void Announce(UiTerm term, float seconds)
+        {
+            if (Active) return;
+            Say(term);
+            if (!m_BubbleOut)
+            {
+                m_BubbleOut = true;
+                m_PopStart = Time.time;
+            }
+            BubbleTaps(false);
+            m_Announcing = true;
+            m_CloseAt = Time.time + seconds;
+            Debug.Log($"[RoomOrchestra] Flutter says: {UiText.Get(term, UiLanguage.English)}");
+        }
 
         void Say(UiTerm term)
         {

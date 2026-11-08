@@ -103,10 +103,24 @@ namespace RoomOrchestra
         /// <summary>Places the selected orb on <paramref name="target"/> at the selected petal.</summary>
         public MusicalHitEvent PlaceOn(InstrumentTarget target) => PlaceOn(target, PitchInput.FromPetal(Model.Petal));
 
+        static bool? s_ThrowOnTap;
+        /// <summary>
+        /// A tapped note flies there as a ball (owner, 2026-11-07: "tapping the note seems to defeat the purpose of
+        /// throwing the ball"); still one tap, no aim or strength needed. On by default in the app; the Editor's
+        /// older tests set it off to check the direct path.
+        /// </summary>
+        public static bool ThrowOnTap
+        {
+            get => s_ThrowOnTap ?? !Application.isEditor;
+            set => s_ThrowOnTap = value;
+        }
+
         public MusicalHitEvent PlaceOn(InstrumentTarget target, PitchInput pitch)
         {
             if (target == null) return null;
             Focus(target);
+            if (ThrowOnTap && launcher != null && launcher.TryThrowAt(target, Model.SelectedOrb, pitch, Model.Tier))
+                return null; // the note plays when the ball lands
             long action = MusicalHitPipeline.BeginAction();
             return MusicalHitPipeline.Submit(action, target, Model.SelectedOrb, Model.Tier, pitch, InputPath.Place);
         }

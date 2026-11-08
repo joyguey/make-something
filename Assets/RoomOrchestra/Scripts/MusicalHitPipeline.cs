@@ -29,10 +29,11 @@ namespace RoomOrchestra
 
         /// <summary>Plays and announces a hit, or returns null if this action already produced one.</summary>
         public static MusicalHitEvent Submit(long actionId, InstrumentTarget target, OrbType orb,
-            IntensityTier tier, PitchInput pitch, InputPath path)
+            IntensityTier tier, PitchInput pitch, InputPath path, double? meantAtDsp = null)
         {
             if (target == null) return null;
-            var hit = s_Factory.TryCreate(actionId, target.Instrument, orb, tier, pitch, path, AudioSettings.dspTime);
+            // A tapped note that flew there as a ball keeps its place in the bar from the moment of the tap.
+            var hit = s_Factory.TryCreate(actionId, target.Instrument, orb, tier, pitch, path, meantAtDsp ?? AudioSettings.dspTime);
             if (hit == null) return null;
 
             target.PlayHit(hit);
