@@ -5,7 +5,9 @@
         "RoomOrchestra.Core",
         "RoomOrchestra.Runtime",
         "Unity.TextMeshPro",
-        "ByteDance.PICO.IconConfigurator.Editor"
+        "ByteDance.PICO.IconConfigurator.Editor",
+        "ByteDance.PICO.XR",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [
         "Editor"

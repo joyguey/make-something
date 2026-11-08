@@ -1,18 +1,13 @@
-using System.Collections.Generic;
-using ByteDance.PICO.SpatialAdapter;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.EnhancedTouch;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
-using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace RoomOrchestra
 {
     /// <summary>
     /// Single input path for the room.
-    /// Device/emulator (PICO Spatial Input): pinch-drag-release the dispenser ball to throw it
-    /// (a quick tap tosses it; aim assist snaps throws to the nearest instrument);
-    /// tap a tray orb to select it, tap furniture to place the selected orb there, tap loop buttons.
+    /// Device (PICO XR mode): each controller points a ray; the trigger taps what the ray touches (a tray orb, a
+    /// note, a button, an instrument), and on the ready ball it grabs: hold, swing and let go to throw it (a quick
+    /// pull is a tap toss; pulling back is a slingshot; aim assist snaps throws to the nearest instrument).
     /// Unity Editor only (controller simulator): click like a tap, click elsewhere to throw toward
     /// the cursor; Left/Right choose orb, Up/Down choose target, Enter places, Q changes intensity,
     /// P changes the pitch petal, E toggles echo edit mode (then arrows nudge/select, Enter removes,
@@ -25,49 +20,141 @@ namespace RoomOrchestra
         [Tooltip("Editor-only preview camera used for mouse input; falls back to Camera.main.")]
         [SerializeField] Camera editorCamera;
         [SerializeField, Min(0.1f)] float editorThrowSpeed = 7f;
-        [Tooltip("PICO Spatial Input can report one tap as two touches; repeat taps on the same object " +
-                 "within this window (seconds) are ignored.")]
+        [Tooltip("Repeat taps on the same object within this window (seconds) are ignored (a trigger that bounces).")]
         [SerializeField, Min(0f)] float tapDebounce = 0.2f;
+        [Header("Pointer rays (PICO XR)")]
+        [Tooltip("Left and right: the ray each controller points.")]
+        [SerializeField] LineRenderer[] rays;
+        [Tooltip("Left and right: the dot where the ray touches something.")]
+        [SerializeField] Transform[] reticles;
+        [Tooltip("The ray's look over nothing in particular, and over something it can tap or grab.")]
+        [SerializeField] Material rayIdle, rayHot;
 
-        readonly HashSet<int> m_Grabbing = new();
+        /// <summary>How far a pointer reaches (m), and how long its ray is drawn when it touches nothing.</summary>
+        public const float RayReach = 20f, RayIdleLength = 3f;
 
-        void OnEnable() => EnhancedTouchSupport.Enable();
-        void OnDisable() => EnhancedTouchSupport.Disable();
+        /// <summary>The controllers (a fake in tests).</summary>
+        public IPointerSource Pointers { get; set; }
+        readonly bool[] m_WasSelect = new bool[2];
+        readonly bool[] m_Grabbing = new bool[2];
+        readonly float[] m_GrabDistance = new float[2];
+
+        public void ConfigurePointers(LineRenderer[] handRays, Transform[] handReticles, Material idle, Material hot)
+        {
+            rays = handRays;
+            reticles = handReticles;
+            rayIdle = idle;
+            rayHot = hot;
+        }
 
         void Update()
         {
-            foreach (var touch in Touch.activeTouches)
+#if UNITY_EDITOR
+            if (Pointers != null) for (int hand = 0; hand < 2; hand++) Point(hand);
+            HandleEditorInput();
+#else
+            Pointers ??= new XRPointerSource();
+            for (int hand = 0; hand < 2; hand++) Point(hand);
+#endif
+        }
+
+        /// <summary>The nearest thing a pointer ray touches, skipping balls already in flight.</summary>
+        public static bool Aim(Ray ray, out RaycastHit hit)
+        {
+            hit = default;
+            var hits = Physics.RaycastAll(ray, RayReach, ~0, QueryTriggerInteraction.Collide);
+            float best = float.MaxValue;
+            bool any = false;
+            foreach (var h in hits)
             {
-                SpatialInputState state = SpatialInputSupport.GetInputState(touch);
-                int id = state.interactionId;
-                switch (state.phase)
+                var ball = h.collider.GetComponentInParent<Ball>();
+                if (ball != null && ball.InFlight) continue;
+                if (h.distance < best)
                 {
-                    case TouchPhase.Began:
-                        if (launcher != null && launcher.IsReadyBall(state.targetObject))
-                        {
-                            m_Grabbing.Add(id);
-                            launcher.BeginGrab(id, state.currentPosition);
-                        }
-                        else if (!IsDuplicateTap(state.targetObject))
-                        {
-                            Activate(state.targetObject);
-                        }
-                        break;
-                    case TouchPhase.Moved:
-                        if (m_Grabbing.Contains(id))
-                            launcher.UpdateGrab(id, state.currentPosition, state.currentPosition - state.devicePosition);
-                        break;
-                    case TouchPhase.Ended:
-                    case TouchPhase.Canceled:
-                        if (m_Grabbing.Remove(id))
-                            launcher.EndGrab(id, state.currentPosition - state.devicePosition);
-                        break;
+                    best = h.distance;
+                    hit = h;
+                    any = true;
                 }
             }
+            return any;
+        }
 
-#if UNITY_EDITOR
-            HandleEditorInput();
-#endif
+        // One controller: its ray, then a press (tap or grab), a hold (drag the ball) or a release (throw it).
+        void Point(int hand)
+        {
+            var frame = Pointers.Read(hand);
+            var rig = XrRig.Instance != null ? XrRig.Instance.transform : null;
+            if (!frame.Tracked)
+            {
+                if (m_Grabbing[hand] && launcher != null) launcher.EndGrab(GrabId(hand), Vector3.zero); // lost: let go
+                m_Grabbing[hand] = false;
+                m_WasSelect[hand] = false;
+                ShowRay(hand, false, default, default, false, false);
+                return;
+            }
+            var origin = rig != null ? rig.TransformPoint(frame.Position) : frame.Position;
+            var dir = (rig != null ? rig.rotation * frame.Rotation : frame.Rotation) * Vector3.forward;
+            var ray = new Ray(origin, dir);
+            bool pressed = frame.Select && !m_WasSelect[hand];
+            bool released = !frame.Select && m_WasSelect[hand];
+            m_WasSelect[hand] = frame.Select;
+
+            if (m_Grabbing[hand])
+            {
+                var held = origin + dir * m_GrabDistance[hand];
+                if (released)
+                {
+                    m_Grabbing[hand] = false;
+                    launcher.EndGrab(GrabId(hand), dir);
+                }
+                else launcher.UpdateGrab(GrabId(hand), held, dir);
+                ShowRay(hand, true, origin, held, true, true);
+                return;
+            }
+
+            bool touching = Aim(ray, out var hit);
+            var target = touching ? hit.collider.gameObject : null;
+            bool ball = launcher != null && launcher.IsReadyBall(target);
+            bool tappable = ball || (target != null && PressableOwner(target) != null);
+            ShowRay(hand, true, origin, touching ? hit.point : origin + dir * RayIdleLength, touching, tappable);
+            if (!pressed || target == null) return;
+            if (ball)
+            {
+                m_Grabbing[hand] = true;
+                m_GrabDistance[hand] = hit.distance;
+                launcher.BeginGrab(GrabId(hand), hit.point);
+            }
+            else if (!IsDuplicateTap(target)) Activate(target);
+        }
+
+        static int GrabId(int hand) => 100 + hand;
+
+        void ShowRay(int hand, bool on, Vector3 from, Vector3 to, bool touching, bool hot)
+        {
+            var line = rays != null && hand < rays.Length ? rays[hand] : null;
+            var dot = reticles != null && hand < reticles.Length ? reticles[hand] : null;
+            if (line != null)
+            {
+                if (line.enabled != on) line.enabled = on;
+                if (on)
+                {
+                    line.SetPosition(0, from);
+                    line.SetPosition(1, to);
+                    var look = hot ? rayHot : rayIdle;
+                    if (look != null && line.sharedMaterial != look) line.sharedMaterial = look;
+                }
+            }
+            if (dot != null)
+            {
+                bool showDot = on && touching;
+                if (dot.gameObject.activeSelf != showDot) dot.gameObject.SetActive(showDot);
+                if (showDot) dot.position = to;
+                if (showDot && dot.TryGetComponent<Renderer>(out var r))
+                {
+                    var look = hot ? rayHot : rayIdle;
+                    if (look != null && r.sharedMaterial != look) r.sharedMaterial = look;
+                }
+            }
         }
 
         /// <summary>The pressable thing that owns <paramref name="hit"/> (a button, tile, orb, character...), or null.</summary>

@@ -5,8 +5,8 @@ namespace RoomOrchestra
     /// <summary>
     /// Sits on the stage root. Recenter moves the whole stage so its start point is under the
     /// player's head and it faces where they look (height unchanged), so a seated player never has
-    /// to walk to the table, chair or lamp. Only on request, never at startup: PICO Spatial keeps the
-    /// exported pose of objects moved before its renderer has connected.
+    /// to walk to the table, chair or lamp. On request (Recenter), and once at startup in PICO XR mode
+    /// (<see cref="XrRig"/>), when the headset is first tracked.
     /// </summary>
     public class StageAnchor : MonoBehaviour
     {
@@ -54,11 +54,9 @@ namespace RoomOrchestra
         {
             pose = default;
 #if UNITY_ANDROID && !UNITY_EDITOR
-            // Full Space (Unconstrained spatial camera) reports the headset pose in scene space.
-            int code = ByteDance.PICO.SpatialAdapter.SpatialAdapterRuntime.GetHMDPose(ref pose);
-            bool valid = pose.rotation != new Quaternion(0f, 0f, 0f, 0f);
-            if (!valid) Debug.Log($"[RoomOrchestra] GetHMDPose returned {code} with no rotation");
-            return valid;
+            // PICO XR: the rig's eye camera follows the headset in scene space.
+            var rig = XrRig.Instance;
+            return rig != null && rig.TryGetHeadPose(out pose);
 #else
             // Editor: a camera that is not part of the stage (the preview camera moves with it).
             var cam = Camera.main;

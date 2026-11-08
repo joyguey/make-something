@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using ByteDance.PICO.SpatialAdapter.Component;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -219,6 +218,7 @@ namespace RoomOrchestra.EditorTools
             CreateConfirmCard(root.transform);
             EnsureRealWalls();
             CreateRealSpots(); // beside the real walls, after them
+            CreateXrRig();
             RoundedShapes.RoundBlocks(root.transform.Find("TitleCard"), 0.02f); // softened like the controls
         }
 
@@ -1323,6 +1323,67 @@ namespace RoomOrchestra.EditorTools
             EditorUtility.SetDirty(confirm);
         }
 
+        // PICO XR mode (owner, 2026-11-08): the headset rig at the scene's origin (tracking space = scene space, where
+        // the room scan arrives). Its eye camera clears to transparent black so video seethrough shows the real room,
+        // without HDR or post-processing (PICO: either stops seethrough on Vulkan), and is saved switched off: XrRig
+        // turns it and its ears on only on the device. Each controller gets a pointer ray and a dot.
+        static void CreateXrRig()
+        {
+            foreach (var old in Object.FindObjectsByType<XrRig>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                Object.DestroyImmediate(old.gameObject);
+            var rig = new GameObject("XR Origin");
+            rig.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            var eyes = new GameObject("Main Camera");
+            eyes.tag = "MainCamera";
+            eyes.transform.SetParent(rig.transform, false);
+            eyes.transform.localPosition = Viewer.SeatedEye;
+            var cam = eyes.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            cam.nearClipPlane = 0.03f;
+            cam.farClipPlane = 40f; // the leaf waiting 80 m up before Start is never drawn
+            cam.allowHDR = false;
+            cam.stereoTargetEye = StereoTargetEyeMask.Both;
+            var urp = eyes.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            urp.renderPostProcessing = false;
+            cam.enabled = false;
+            var ears = eyes.AddComponent<AudioListener>();
+            ears.enabled = false;
+            var xr = rig.AddComponent<XrRig>();
+            xr.Configure(cam);
+
+            var idle = Glow(EnsureMaterial("PointerRay", "Ball", new Color(0.85f, 0.92f, 1f)), new Color(0.85f, 0.92f, 1f));
+            var hot = Glow(EnsureMaterial("PointerRayHot", "Ball", new Color(1f, 0.8f, 0.25f)), new Color(1f, 0.8f, 0.25f) * 1.4f);
+            var rays = new LineRenderer[2];
+            var dots = new Transform[2];
+            for (int hand = 0; hand < 2; hand++)
+            {
+                var pointer = new GameObject(hand == 0 ? "PointerLeft" : "PointerRight");
+                pointer.transform.SetParent(rig.transform, false);
+                var line = pointer.AddComponent<LineRenderer>();
+                line.useWorldSpace = true;
+                line.positionCount = 2;
+                line.widthCurve = AnimationCurve.Linear(0f, 0.004f, 1f, 0.0015f);
+                line.sharedMaterial = idle;
+                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                line.receiveShadows = false;
+                line.enabled = false;
+                rays[hand] = line;
+                var dot = Primitive(PrimitiveType.Sphere, "PointerDot", pointer.transform, idle, keepCollider: false);
+                dot.localScale = Vector3.one * 0.02f;
+                dot.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                dot.gameObject.SetActive(false);
+                dots[hand] = dot;
+            }
+            var router = Object.FindFirstObjectByType<InstrumentInputRouter>();
+            if (router != null)
+            {
+                router.ConfigurePointers(rays, dots, idle, hot);
+                EditorUtility.SetDirty(router);
+            }
+            EditorUtility.SetDirty(xr);
+        }
+
         // Glowing spots for the real furniture the scan finds (owner, headset 2026-11-08: "show me visually where I can
         // assign the furniture to the actual furniture"). In the headset's own space beside the real walls (recentring
         // must not move them off the furniture); each waits shrunk in the ball stand's cloud until RealFurniture uses it.
@@ -1448,10 +1509,9 @@ namespace RoomOrchestra.EditorTools
         // PICO's hover highlight (Version 1 feedback: nothing showed what you were pointing at) appears on an
         // object that carries both the tap collider and a visible mesh, so each tap volume sits on a visible
         // part. Taps still reach the control: input looks the owner up from the hit collider's parents.
-        static void Hoverable(GameObject visible)
-        {
-            if (!visible.TryGetComponent<SpatialAdapterHoverEffect>(out _)) visible.AddComponent<SpatialAdapterHoverEffect>();
-        }
+        // PICO XR mode: what can be tapped needs only its collider; the controller's ray turns gold over it
+        // (InstrumentInputRouter). PICO Spatial's per-object hover highlight went with that mode.
+        static void Hoverable(GameObject visible) { }
 
         // The tap box, given in its control's space, placed on the control's visible part (an unrotated child),
         // so it keeps exactly the size and place it had on the control itself.

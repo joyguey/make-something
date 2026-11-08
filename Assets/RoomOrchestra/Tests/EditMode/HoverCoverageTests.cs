@@ -7,10 +7,9 @@ using UnityEngine;
 namespace RoomOrchestra.Tests
 {
     /// <summary>
-    /// Everything you can pinch shows PICO's hover highlight (George, 2026-11-03: "highlight buttons and other objects
-    /// when I target them so I know what I can pinch"). PICO Spatial draws it only on an object that has the hover
-    /// component, a collider and a visible mesh together, and apps aren't told what the player aims at, so the
-    /// scene itself must get this right for every tap collider.
+    /// Everything you can tap is something you can see and point at (George, 2026-11-03: "highlight buttons and other
+    /// objects when I target them so I know what I can pinch"). In PICO XR mode the controller's ray turns gold over
+    /// any of them (InstrumentInputRouter), so every tap collider must sit on a visible mesh.
     /// </summary>
     public class HoverCoverageTests
     {
@@ -20,7 +19,7 @@ namespace RoomOrchestra.Tests
         public void OpenScene() => EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
         [Test]
-        public void EveryTapColliderShowsTheHoverHighlight()
+        public void EveryTapColliderIsOnAVisiblePart()
         {
             var missing = new List<string>();
             int checkedCount = 0;
@@ -33,14 +32,13 @@ namespace RoomOrchestra.Tests
                 if (collider.isTrigger && !(owner is Ball)) continue;
                 checkedCount++;
                 var go = collider.gameObject;
-                bool hover = go.GetComponent("SpatialAdapterHoverEffect") != null;
                 var renderer = go.GetComponent<MeshRenderer>();
                 bool visible = renderer != null && renderer.enabled && go.GetComponent<MeshFilter>()?.sharedMesh != null;
-                if (!hover || !visible)
-                    missing.Add($"{Path(go.transform)} (owner {owner.GetType().Name}: hover={hover}, mesh={visible})");
+                if (!visible)
+                    missing.Add($"{Path(go.transform)} (owner {owner.GetType().Name}: no visible mesh)");
             }
             Assert.Greater(checkedCount, 50, "the scene's tap colliders were found");
-            Assert.IsEmpty(missing, "tap colliders without a hover highlight:\n" + string.Join("\n", missing.Distinct()));
+            Assert.IsEmpty(missing, "tap colliders on nothing visible:\n" + string.Join("\n", missing.Distinct()));
         }
 
         [Test]
@@ -56,7 +54,6 @@ namespace RoomOrchestra.Tests
                 var shells = ball.GetComponentsInChildren<Collider>(true).Where(c => c != solid).ToArray();
                 Assert.AreEqual(1, shells.Length, $"{ball.name}: one hover shell");
                 Assert.IsTrue(shells[0].isTrigger, $"{ball.name}: the shell is a trigger, so bounces are unchanged");
-                Assert.IsNotNull(shells[0].GetComponent("SpatialAdapterHoverEffect"), ball.name);
             }
         }
 

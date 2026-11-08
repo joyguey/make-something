@@ -29,9 +29,9 @@ MonoBehaviour:
   bodyTracking: 0
   adaptiveResolution: 0
   stageMode: 0
-  videoSeeThrough: 0
-  spatialAnchor: 0
-  sceneCapture: 0
+  videoSeeThrough: 1
+  spatialAnchor: 1
+  sceneCapture: 1
   sharedAnchor: 0
   spatialMesh: 1
   planeDetection: 0
@@ -58,4 +58,4 @@ MonoBehaviour:
   portalInited: 1
   isDataCollectionDisabled: 0
   portalFirstSelected: 0
-  isSpatialAdapter: 1
+  isSpatialAdapter: 0

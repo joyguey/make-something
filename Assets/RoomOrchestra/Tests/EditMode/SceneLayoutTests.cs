@@ -333,8 +333,8 @@ namespace RoomOrchestra.Tests
         [Test]
         public void NoEditorOnlyObjectsInSpatialExportedScene()
         {
-            // EditorOnly objects are stripped from the player but still exported by SpatialAdapter, which
-            // shifted every later object by one on the emulator (wrong meshes, colours and positions).
+            // Kept from PICO Spatial mode (its exporter shifted every later object by one): the preview camera uses
+            // EditorPreviewOnly rather than the EditorOnly tag.
             foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 Assert.IsFalse(t.CompareTag("EditorOnly"), $"{t.name} is EditorOnly; use EditorPreviewOnly instead");
         }
@@ -711,7 +711,7 @@ namespace RoomOrchestra.Tests
             Assert.Greater(Mathf.Abs(title.Card.InverseTransformPoint(start.transform.position).x), 0.15f, "off the centre line, clear of PICO's window handle");
             var hit = start.GetComponentInChildren<Collider>();
             Assert.IsNotNull(hit, "Start is tappable");
-            Assert.IsTrue(hit.GetComponents<MonoBehaviour>().Any(m => m.GetType().Name == "SpatialAdapterHoverEffect"), "and lights up under the pointer");
+            Assert.IsTrue(InstrumentInputRouter.PressableOwner(hit.gameObject) is TitleStartButton, "and the pointer knows it can tap it (its ray turns gold)");
             var texts = title.Card.GetComponentsInChildren<LocalizedLabel>().Select(l => l.TextFor(UiLanguage.English)).ToArray();
             CollectionAssert.Contains(texts, "Start");
             CollectionAssert.Contains(texts, "A mixed-reality musical playground");
@@ -726,19 +726,19 @@ namespace RoomOrchestra.Tests
             Assert.IsFalse(hit.enabled, "and its button no longer catches taps");
         }
 
-        // Version 1 feedback: nothing showed what the eye or pointer was on. PICO's system hover highlight
-        // needs the hit collider, a visible mesh and its hover component on the same object.
+        // Version 1 feedback: nothing showed what the eye or pointer was on. In PICO XR mode the controller's ray turns
+        // gold over anything it can tap; each of those colliders sits on a visible mesh.
         [Test]
-        public void EverythingTappableLightsUpUnderThePointer()
+        public void EverythingTappableIsSomethingYouCanSee()
         {
             // TapOwner leaves out the echoes on the rings (the pointer tests skip them); they are tappable too.
             Component Owner(Collider c) => TapOwner(c) ?? c.GetComponentInParent<EchoMini>();
             var tappable = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None).Where(c => c.enabled && Owner(c) != null).ToArray();
             Assert.Greater(tappable.Length, 90, "controls, tiles, characters, the 54 echoes and furniture");
             var missing = tappable
-                .Where(c => !c.TryGetComponent<MeshRenderer>(out _) || !c.GetComponents<MonoBehaviour>().Any(m => m != null && m.GetType().Name == "SpatialAdapterHoverEffect"))
+                .Where(c => !c.TryGetComponent<MeshRenderer>(out _))
                 .Select(c => $"{Owner(c).name} ({c.name})").ToArray();
-            Assert.IsEmpty(missing, "no hover highlight on: " + string.Join(", ", missing));
+            Assert.IsEmpty(missing, "nothing visible under: " + string.Join(", ", missing));
         }
 
         [Test]

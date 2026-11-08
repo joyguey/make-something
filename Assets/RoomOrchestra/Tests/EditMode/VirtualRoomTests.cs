@@ -49,7 +49,7 @@ namespace RoomOrchestra.Tests
                 Assert.AreEqual(!floor, panel.GetComponent<Collider>() != null, $"{panel.name}: walls and ceiling stop balls, the floor is the real one");
                 Assert.AreEqual(!floor, panel.GetComponent<BounceSurface>() != null, $"{panel.name}: a ball bounces off it with its own sound");
                 Assert.IsFalse(InstrumentInputRouter.Activate(panel.gameObject), $"a tap on {panel.name} does nothing");
-                Assert.IsFalse(panel.GetComponents<MonoBehaviour>().Any(m => m != null && m.GetType().Name == "SpatialAdapterHoverEffect"), $"{panel.name} does not light up");
+                Assert.IsNull(InstrumentInputRouter.PressableOwner(panel.gameObject), $"{panel.name}: the pointer's ray stays plain over it");
                 Assert.AreEqual(UnityEngine.Rendering.ShadowCastingMode.Off, panel.GetComponent<MeshRenderer>().shadowCastingMode, panel.name);
             }
         }
