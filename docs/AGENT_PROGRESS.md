@@ -621,7 +621,19 @@ Owner approved all nine corrections, in this order: 5, 4, 6, 3, 2, 1, 8, 9 (7 wa
 - **2**: Quit done; separate in-play menu left as a question for the owner (Pause/Lesson/Quit are on the leaf).
 - Tests: EditMode 222/222, PlayMode 94/94. Running owner list: `docs/OWNER_CHECKLIST.md`. Latest `Builds/RoomOrchestra-test.apk` (10:00) not visually verified on the emulator (screen locked: 3 FPS).
 
+## 2026-11-07 (evening) | First headset session, then the original vision: real furniture
+Owner played `RoomOrchestra-test.apk` on their own PICO (OS 6.2.0, model B3110) over USB; I read its log (`adb logcat`).
+- **Found on the headset:** (1) `Application.Quit()` segfaults in PICO's `libStagePlatform HMDTracking::stop` (XR shutdown after the Stage is gone). (2) No room scan at all: PICO's `PXR_Manifest` returns early under `PICO_MS_SDK`, so `com.picovr.permission.SPATIAL_DATA` was never declared. (3) The lesson ran silent: the app was launched by adb while the headset lay on the desk, `OnApplicationPause(true)` paused the music and by design it stayed paused (every echo on step 14).
+- **v3.4 "before occlusion"** released on GitHub (29106c8, tag `v3.4`, app 0.3.4 / code 8) at the owner's request, with the known issues listed. Build note: never use `-nographics` (exported images come out blank).
+- **Fixes** (5f7642e, 587a002, 70e0b0e): quit by `finishAndRemoveTask` + ending the process (emulator: clean, no crash); permission declared in `Plugins/Android/AndroidManifest.xml`; system pauses resume on return (player's Pause stays).
+- **Real furniture** (f411bbd): `RoomScan` reads the labelled scan (`PXR_Manager.SpatialMeshDataUpdated`, per-vertex semantic labels: table 7, sofa 8, chair 9, cabinet 14, bed 15, lamp 22...) into `FurnitureClusters`; `RealFurniture` waits for the lesson to end and the virtual room to come down, Flutter says "look around", then the udu/mbira/erhu move onto a real table/chair-or-sofa/lamp (preferences, reach 0.6-4.5 m, top 0.2-2.3 m, in front, best pairs first). The virtual piece becomes a 30 % marker on the real one; an invisible box the real piece's size takes the hits; orbit follows; Lesson puts it all back. Emulator (virtual bedroom): bed, chair and lamp found, Flutter's lines show (screenshot).
+- **Tap throws the ball** (f411bbd): a tapped note throws the ready ball, which plays that note on landing (or at the planned landing time if blocked), keeping the tap's place in the bar. Falls back to the direct note when no ball is ready. `OrbSelector.ThrowOnTap` (off in Editor tests by default).
+- **Confirm card** (587a002): first tap on Quit/Clear/Lesson/Leave shows "Quit Little Echoes?" etc. above the button with a coral do-it and a green Cancel.
+- Testing hooks: `adb shell am start -n com.roomorchestra.app/com.unity3d.player.SpatialAdapterPlayerActivity --ez le_freeplay true` (Start + Skip) and `--ef le_autoquit 40`.
+- Tests: EditMode 230/230, PlayMode 97/97. Not pushed.
+
 ## Resume here (next session)
+0. **2026-11-07 evening:** real-furniture build committed locally (not pushed). Headset shows "unauthorized" to adb until the owner accepts the prompt inside it. Next: owner's headset checks (`docs/OWNER_CHECKLIST.md` top section); owner decisions: occlusion route, voice notes, in-play menu.
 0. **2026-11-07:** all nine of George's items have changes (section above), committed locally, not pushed. Owner's list: `docs/OWNER_CHECKLIST.md`. First: confirm the latest test build draws on the emulator (screen was locked).
 0. **2026-11-06:** working through George's V2.1 feedback (section above): 5, 4, 6 and Quit done and committed locally (not pushed); next 3, then 1, 8, 9. Owner tests `Builds/RoomOrchestra-test.apk` on their own headset 2026-11-07.
 0. **2026-10-31:** Echo Battle restyled in street style (see above), committed locally, not pushed. Emulator slow (2-4 FPS); ask the owner before wiping its data.

@@ -2,8 +2,30 @@
 
 A running list of what needs your eyes, ears or hands on a real PICO headset. I add to it as I work; tick items off (or note what you saw) and I'll act on it. Newest build to install: `Builds/RoomOrchestra-test.apk` (`pico-cli app install Builds/RoomOrchestra-test.apk`, or `adb install -r`). It is a throwaway test build; it gets deleted once you've tried it.
 
-## Before anything else (2026-11-07)
-- [ ] **Emulator check of the latest build:** the last `RoomOrchestra-test.apk` (built 10:00 on 2026-11-07, with all the fixes below) installed and launched with no app errors and opened as the named Stage, but your Mac's screen was locked, so the emulator ran at 3 FPS and its one frame showed only the emulator's own room, not the app. An earlier build with the same launch change drew the title card normally at 60 FPS. With the screen unlocked, open the app on the emulator (keep its window in front) and confirm the title card appears. If it doesn't, tell me first.
+## New since your headset session (2026-11-07 evening): please check these first
+Install the newest `Builds/RoomOrchestra-test.apk`. First, put the headset on and accept **Allow USB debugging**, ticking **Always allow from this computer** (the headset currently shows "unauthorized" to my tools, so I can't install or watch it).
+
+**Fixed from your session** (I read the headset's log while you played):
+- [ ] **The lesson's music now plays.** In your session the music was paused the whole time: I launched the app over USB while the headset sat on your desk, the headset paused the app, and the music stayed paused. Now a pause the system causes ends when you come back (your own Pause button still stays paused). During the lesson, do your notes loop round and play by themselves?
+- [ ] **Quit no longer crashes.** The old Quit closed the app but PICO logged a crash. Quit now closes it the clean way (emulator: no crash). Quit, then reopen: normal?
+- [ ] **Quit, Clear, Lesson and Leave show a card** above the button: "Quit Little Echoes?" with a coral **Quit** and a green **Cancel**. Is it clear? Is the card easy to read and tap?
+
+**Your original vision: the real furniture**
+The room scan wasn't reaching the app at all before (a missing permission); it does now. The lesson still happens in the virtual room with its virtual table, chair and lamp. When it ends (or you skip it) and the room comes down, Flutter says "Now look slowly around your room...". After a few seconds, each instrument moves onto a real piece of furniture: the drum (udu) onto a table (or a cabinet, bed or sofa), the mbira onto a chair or sofa, and the erhu onto a lamp. The little virtual piece sits on top of the real one as a marker, and its ring of echoes floats above. Then Flutter says "Found them!". Anything not found stays where it was ("I couldn't find your furniture..." if nothing).
+- [ ] Does it find your furniture? Which pieces did it pick? Anything silly (a shelf as a table, something behind you)?
+- [ ] Throw a ball at the real furniture: does it play that instrument? Higher up the piece, higher note?
+- [ ] Are the little markers clear enough to show which instrument lives where?
+- [ ] Lesson: does everything go back to the virtual room?
+- [ ] Does the scan stay quiet (no lag) while you play?
+
+**Tapping a note now throws the ball**
+- [ ] Tap a note tile: the character on the cloud flies to that instrument and plays that note when it lands. Does that feel better than the instant note? Is the short delay OK?
+- [ ] Tap quickly several times: every tap still plays (if no ball is ready, it plays at once).
+
+## Decisions for you (2026-11-07 evening)
+- [ ] **Occlusion.** PICO's tools for the mode this app uses have no way to make real walls hide virtual things (no occluder material; only standard materials). Options: (a) **object-level hiding:** I fade or shrink a flower, ring or ball whenever the scan says a real object is between your eyes and it (doable now, a few hours, coarse: whole objects, not edges); (b) **switch the app to PICO XR mode**, which has depth-based occlusion: a big migration of rendering, input and windows, days of work and new risks; (c) leave it: flowers already grow only where you can see them, and now the scan actually works.
+- [ ] **Voice notes.** Saying the note before a throw is possible with an on-device recogniser (e.g. Vosk, Apache 2.0, about 50 MB, nothing leaves the headset); about a day's work, as an extra option alongside tapping. Want it? (An online recogniser would upload your voice: not without your approval.)
+- [ ] **In-play menu** (from George): still open; Pause, Lesson and Quit are on the leaf.
 
 ## From George's headset feedback (2026-11-03)
 
