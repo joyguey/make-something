@@ -22,9 +22,10 @@ namespace RoomOrchestra.Tests
         static StationReveal[] Stations => Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None);
 
         [Test]
-        public void TheLampAndTableAreSavedInsideTheCloudAndTheChairAtHome()
+        public void EveryStationIsSavedInsideTheCloud()
         {
-            CollectionAssert.AreEquivalent(new[] { InstrumentType.Udu, InstrumentType.Erhu }, Stations.Select(s => s.Instrument));
+            // owner, headset 2026-11-08: nothing of the lesson behind the title card, the chair included
+            CollectionAssert.AreEquivalent(new[] { InstrumentType.Mbira, InstrumentType.Udu, InstrumentType.Erhu }, Stations.Select(s => s.Instrument));
             var core = new Bounds(Park, new Vector3(0.12f, 0.16f, 0.12f)); // the cloud's solid core
             foreach (var station in Stations)
             {
@@ -36,8 +37,6 @@ namespace RoomOrchestra.Tests
                         Assert.IsFalse(r.GetComponent<Collider>() != null && r.GetComponent<Collider>().enabled, $"{r.name} is tappable while hidden");
                     }
             }
-            var chair = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None).First(t => t.Instrument == InstrumentType.Mbira);
-            Assert.Greater(Vector3.Distance(chair.AimPosition, Park), 0.5f, "the chair is at home");
         }
 
         [Test]

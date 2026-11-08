@@ -13,6 +13,9 @@ namespace RoomOrchestra
     {
         /// <summary>A beat after the renderer connects, so the swoop is seen from its start.</summary>
         public const float StartAfterSeconds = 0.4f;
+        /// <summary>Until Start the leaf waits this far above where the swoop begins: out of sight, not floating in
+        /// the room (owner, headset 2026-11-08: the leaf hung in mid-air up to the right during the title).</summary>
+        public const float HiddenLift = 80f;
 
         [Tooltip("Holds the leaf and everything on it; its local pose is the swoop's offset from home.")]
         [SerializeField] Transform leaf;
@@ -63,8 +66,14 @@ namespace RoomOrchestra
                 floorSpots[i] = pad.InverseTransformPoint(floorWorld[i]);
             }
             Pose(0f);
+            HideLeaf(); // saved out of sight: PICO Spatial keeps the saved pose until the renderer connects
             for (int i = 0; i < cast.Length; i++) PlaceOnFloor(i);
         }
+
+        void HideLeaf() => leaf.localPosition += Vector3.up * HiddenLift;
+
+        /// <summary>The leaf is out of sight, waiting for Start.</summary>
+        public bool LeafHidden => leaf != null && leaf.localPosition.y > HiddenLift * 0.5f;
 
         public void ConfigureTutorial(TutorialDirector guide) => tutorial = guide;
 
@@ -128,7 +137,12 @@ namespace RoomOrchestra
             if (m_Done || m_Start >= 0f) return;
             m_Start = Time.time;
             m_Bounce = new int[characters.Length];
-            Debug.Log("[RoomOrchestra] Intro: the leaf swoops in");
+            if (leaf != null)
+            {
+                Pose(0f); // appears behind the player's head, in a poof
+                PoofCloud.PoofAt(leaf.position, 0.6f);
+            }
+            Debug.Log("[RoomOrchestra] Intro: the leaf appears behind you and floats down");
         }
 
         /// <summary>

@@ -27,8 +27,13 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(room.Standing);
             var inside = new Bounds();
             inside.SetMinMax(new Vector3(-2.55f, -0.02f, -1.55f), new Vector3(2.55f, 2.65f, 3.75f));
+            // the leaf waits out of sight until Start (owner, headset 2026-11-08), far above the room
+            var intro = Object.FindFirstObjectByType<IntroSequence>();
+            Assert.IsTrue(intro.LeafHidden, "the leaf is out of sight at launch");
+            Assert.Greater(intro.Leaf.position.y, 50f);
             var stage = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None)
-                .Where(r => !r.transform.IsChildOf(room.transform) && r.transform.root.name == "RoomOrchestra" && r.bounds.size.sqrMagnitude > 0f);
+                .Where(r => !r.transform.IsChildOf(room.transform) && !r.transform.IsChildOf(intro.Leaf)
+                            && r.transform.root.name == "RoomOrchestra" && r.bounds.size.sqrMagnitude > 0f);
             foreach (var r in stage)
                 Assert.IsTrue(inside.Contains(r.bounds.center), $"{r.name} at {r.bounds.center} is outside the virtual room");
             Assert.IsTrue(inside.Contains(new Vector3(0f, 1.15f, 0f)), "the seat is inside");

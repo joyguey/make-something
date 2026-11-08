@@ -71,6 +71,7 @@ namespace RoomOrchestra
         {
             m_Shown = false;
             if (tap != null) tap.enabled = false;
+            if (labelHolder != null) labelHolder.localPosition = Vector3.zero; // the label tucks into the cloud's core too
             if (park == null) return;
             transform.position = park.position;
             transform.localScale = Vector3.one * ParkedScale;

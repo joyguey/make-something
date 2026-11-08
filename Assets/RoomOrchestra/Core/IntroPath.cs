@@ -18,11 +18,11 @@ namespace RoomOrchestra
         public static readonly float[] BounceSeconds = { 0.22f, 0.26f, 0.5f };
         static readonly float[] BounceHeights = { 0.06f, 0.1f, 0.22f };
 
-        // A cubic Bezier from up and to the right (out of view), sweeping across in front of the player,
-        // dipping left and low, and settling home.
+        // A cubic Bezier from just behind and above the player's head (owner, headset 2026-11-08: "appear behind the
+        // player's head and float down"), over the right shoulder, across in front, dipping left and low, home.
         static readonly (float x, float y, float z)[] Swoop =
         {
-            (2.6f, 1.6f, -0.3f),
+            (0.5f, 1.45f, -2.1f),
             (1.6f, 1.5f, 1.6f),
             (-0.7f, 0.5f, 0.9f),
             (0f, 0f, 0f),

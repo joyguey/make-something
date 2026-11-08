@@ -309,7 +309,9 @@ namespace RoomOrchestra.EditorTools
         // The guided first song (owner, 2026-10-29): the chair alone at first; the lamp and the table wait in the
         // ball stand's cloud with their tiles, rings, vines and sparkles, and appear in a big poof when the song
         // needs them. Flutter talks in a speech bubble above it, with a Skip leaf; the wanted tile glows.
-        static readonly InstrumentType[] Introduced = { InstrumentType.Erhu, InstrumentType.Udu };
+        // Every station waits in the cloud until the lesson needs it; the chair's mbira too (owner, headset 2026-11-08:
+        // the chair and its note keys showed behind the title card).
+        static readonly InstrumentType[] Introduced = { InstrumentType.Mbira, InstrumentType.Erhu, InstrumentType.Udu };
         static readonly Vector3 BubbleAt = new Vector3(-0.62f, 0.85f, 1.28f); // above Flutter, left of the sight lines
         // The virtual starting room (owner: start in a virtual room that tears down to reveal the real room): a
         // simple, cosy room of panels around the stage, the seat and everything the music grows. Sage walls in two
@@ -616,9 +618,12 @@ namespace RoomOrchestra.EditorTools
                 var parts = new List<Transform> { targets[i].transform, columns[i].transform, orbits[i].transform };
                 if (rainforest != null)
                 {
-                    var names = type == InstrumentType.Erhu
-                        ? new[] { "Vine_Lamp", "Sparkles_Erhu", "Flock" }
-                        : new[] { "Vine_TableL", "Vine_TableR", $"Sparkles_{type}" };
+                    var names = type switch
+                    {
+                        InstrumentType.Erhu => new[] { "Vine_Lamp", "Sparkles_Erhu", "Flock" },
+                        InstrumentType.Udu => new[] { "Vine_TableL", "Vine_TableR", $"Sparkles_{type}" },
+                        _ => new[] { $"Sparkles_{type}" },
+                    };
                     foreach (var n in names)
                     {
                         var part = rainforest.Find(n);
