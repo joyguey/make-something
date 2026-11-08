@@ -229,6 +229,7 @@ namespace RoomOrchestra.EditorTools
             go.transform.SetParent(null, false);
             go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
             go.transform.localScale = Vector3.one;
+            if (!go.TryGetComponent<RoomScan>(out _)) go.AddComponent<RoomScan>(); // the labelled scan (furniture), same space
         }
 
         // Owner (emulator): white words over the light green leaf were hard to read. Every label on the leaf gets a dark
