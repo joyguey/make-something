@@ -83,6 +83,14 @@ namespace RoomOrchestra
             Debug.Log($"[RoomOrchestra] Confirm card: \"{UiText.Get(m_Question, UiLanguage.English)}\"");
         }
 
+        // The ball stand travels with the leaf (and glides in during the opening): the parked card goes with it,
+        // written only when the cloud has moved (emulator, 2026-11-07: it was left hanging where the cloud began).
+        void LateUpdate()
+        {
+            if (m_Pending != null || park == null || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            if (transform.position != park.position) transform.position = park.position;
+        }
+
         /// <summary>No question any more (answered, cancelled, or another press).</summary>
         public void Hide()
         {

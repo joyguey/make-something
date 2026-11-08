@@ -236,8 +236,25 @@ namespace RoomOrchestra
             m_Replaying = true; // Update begins it at once (the opening is over)
         }
 
+        Transform m_Skip;
+        Vector3 m_SkipScale;
+
+        // The Skip leaf on the bubble: shrunk out of sight (inside the card) for a line after the lesson.
+        void ShowSkip(bool on)
+        {
+            if (m_Skip == null && bubble != null)
+            {
+                m_Skip = bubble.Find("SkipButton");
+                if (m_Skip != null) m_SkipScale = m_Skip.localScale;
+            }
+            if (m_Skip == null) return;
+            var want = on ? m_SkipScale : m_SkipScale * 0.05f;
+            if (m_Skip.localScale != want) m_Skip.localScale = want;
+        }
+
         void Begin()
         {
+            ShowSkip(true);
             InstrumentPacks.Instance?.ResetPlaces(); // the lesson is about the chair's mbira, the lamp's erhu, the table's udu
             // Notes played during the opening (a ball thrown before Flutter spoke) are not part of the tune: one sat
             // where "had" belongs and jammed the lesson (owner, emulator).
@@ -434,6 +451,7 @@ namespace RoomOrchestra
         public void Announce(UiTerm term, float seconds)
         {
             if (Active) return;
+            ShowSkip(false); // nothing to skip: the leaf would only confuse (emulator, 2026-11-07)
             Say(term);
             if (!m_BubbleOut)
             {
