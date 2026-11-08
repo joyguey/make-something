@@ -127,6 +127,24 @@ namespace RoomOrchestra
         /// </summary>
         public static bool OcclusionWanted { get; private set; }
 
+        /// <summary>
+        /// The real room bounces balls only once the lesson's virtual room is down (owner, headset 2026-11-08: every throw
+        /// at the virtual chair bounced back off the real desk in front of her; the lesson is played in the virtual room).
+        /// The scan goes on meanwhile (the leaf's desk height, choosing places), it just doesn't touch the balls.
+        /// </summary>
+        public static bool WallsActive { get; private set; }
+
+        void UpdateWalls()
+        {
+            var room = VirtualRoom.Instance;
+            bool active = room == null || room.Gone;
+            if (active == WallsActive) return;
+            WallsActive = active;
+            foreach (var wall in m_Walls.Values)
+                if (wall != null) wall.enabled = active && wall.sharedMesh != null;
+            Debug.Log($"[RoomOrchestra] Real walls {(active ? "bounce the balls now (the virtual room is down)" : "wait: the lesson's virtual room is the stage")}");
+        }
+
         void UpdateOcclusion()
         {
             var room = VirtualRoom.Instance;
@@ -203,6 +221,7 @@ namespace RoomOrchestra
             Instance = this;
             s_ShowScan = false;
             s_Occlude = false;
+            WallsActive = false;
             StageAnchor.Recentered += Reshield;
         }
         void OnDisable()
@@ -266,6 +285,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            UpdateWalls();
             UpdateOcclusion();
             if (Time.time < m_NextPoll) return;
             m_NextPoll = Time.time + PollSeconds;
@@ -320,6 +340,12 @@ namespace RoomOrchestra
             });
         }
 
+        /// <summary>Test hook: a scanned piece arrives (as from the headset's meshing).</summary>
+        public void ApplyForTest(MeshId id, Mesh scanned, Vector3 position) => Apply(id, scanned, position, Quaternion.identity, Vector3.one);
+
+        /// <summary>The bounce wall made from a scanned piece, if any.</summary>
+        public MeshCollider WallFor(MeshId id) => m_Walls.TryGetValue(id, out var c) ? c : null;
+
         // Keeps only the steep triangles of a scanned piece of the room, as an invisible bounce wall.
         void Apply(MeshId id, Mesh scanned, Vector3 position, Quaternion rotation, Vector3 scale)
         {
@@ -341,7 +367,7 @@ namespace RoomOrchestra
             bool any = walls.triangles.Length > 0;
             collider.sharedMesh = any ? walls : null; // a piece with no steep surface (a bit of floor) is no wall
             if (!any) Destroy(walls);
-            collider.enabled = any;
+            collider.enabled = any && WallsActive;
             // new pieces only: updates arrive every second (headset 2026-11-08: 700 lines a minute)
             if (any && isNew) Debug.Log($"[RoomOrchestra] Real walls: piece {id}: {walls.triangles.Length / 3} wall triangles, {collider.bounds.min:F1} to {collider.bounds.max:F1} ({m_Walls.Count} pieces)");
         }

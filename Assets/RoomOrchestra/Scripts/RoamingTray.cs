@@ -120,7 +120,7 @@ namespace RoomOrchestra
         // they start to move around". Fitted after every opening, after Recenter and Height, and again whenever the
         // player stands up, sits down or walks off (a change held for a moment, so leaning never moves it).
         /// <summary>A head this much higher or lower (m), or this far away across the floor (m), held this long (s), refits.</summary>
-        public const float RefitRise = 0.15f, RefitWalk = 0.6f, RefitHold = 1.5f;
+        public const float RefitRise = 0.15f, RefitWalk = 0.6f, RefitHold = 3f, LowestEyes = 0.95f;
         /// <summary>The ball on its cloud: this far right of the eyes and out in front (m).</summary>
         public const float BallAside = 0.3f, BallOut = 0.4f;
         Vector3 m_FittedHead;
@@ -134,7 +134,8 @@ namespace RoomOrchestra
             if (device && Time.time >= m_NextDeskLook)
             {
                 m_NextDeskLook = Time.time + 0.25f;
-                if (TryGetHeadInFrame(out var head))
+                // bending down (to pick up a controller) is not sitting lower: a head below LowestEyes never refits
+                if (TryGetHeadInFrame(out var head) && (head.y >= LowestEyes || !m_Fitted))
                 {
                     var flat = head - m_FittedHead;
                     flat.y = 0f;

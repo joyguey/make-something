@@ -54,7 +54,12 @@ namespace RoomOrchestra
             foreach (var r in m_All)
             {
                 if (r == null || IsCloud(r.transform)) continue;
-                if (ready != null && r.transform.IsChildOf(ready.transform)) continue;
+                if (ready != null && r.transform.IsChildOf(ready.transform))
+                {
+                    // the ball that came up out of the cloud onto it (owner, headset 2026-11-08: it disappeared)
+                    if (m_Hidden.Remove(r)) r.enabled = true;
+                    continue;
+                }
                 var b = r.bounds;
                 bool inside = (b.center - at).sqrMagnitude < CoreRadius * CoreRadius && b.extents.magnitude < CoreRadius;
                 if (inside)
