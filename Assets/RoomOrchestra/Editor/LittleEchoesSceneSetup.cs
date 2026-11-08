@@ -1248,6 +1248,19 @@ namespace RoomOrchestra.EditorTools
 
         static void TuckForLesson(Transform leafRoot)
         {
+            // The hiding place under the leaf is measured with the leaf at home: by now the opening has posed it out
+            // of sight, and a hiding place measured there left the tucked buttons on the floor in front of the player
+            // (owner, headset 2026-11-08: "a bunch of keys from the leaf still shows up on the floor").
+            var posed = (leafRoot.localPosition, leafRoot.localRotation);
+            leafRoot.localPosition = Vector3.zero;
+            leafRoot.localRotation = Quaternion.identity;
+            TuckAll(leafRoot);
+            leafRoot.localPosition = posed.localPosition;
+            leafRoot.localRotation = posed.localRotation;
+        }
+
+        static void TuckAll(Transform leafRoot)
+        {
             foreach (var name in LessonTucked)
             {
                 var control = leafRoot.Find(name);

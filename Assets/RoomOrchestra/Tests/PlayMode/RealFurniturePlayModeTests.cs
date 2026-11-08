@@ -22,6 +22,7 @@ namespace RoomOrchestra.Tests
         public IEnumerator LoadScene()
         {
             PlayerPrefs.DeleteKey(TutorialDirector.DonePrefKey);
+            RealFurniture.Enabled = false; // as shipped; the tests of the (switched-off) placement turn it on
             LogAssert.ignoreFailingMessages = true;
             yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Single);
             yield return null;
@@ -34,6 +35,7 @@ namespace RoomOrchestra.Tests
         public IEnumerator Unload()
         {
             OrbSelector.ThrowOnTap = false;
+            RealFurniture.Enabled = false;
             var empty = SceneManager.CreateScene($"RealFurnitureEmpty{Time.frameCount}");
             SceneManager.SetActiveScene(empty);
             var real = SceneManager.GetSceneByPath(ScenePath);
@@ -67,8 +69,24 @@ namespace RoomOrchestra.Tests
             GameObject.Find("RoomOrchestra").transform.Find($"Furniture/{furniture}").GetComponentInChildren<InstrumentTarget>();
 
         [UnityTest]
+        public IEnumerator OffInTheShippedBuildTheInstrumentsStayOnTheirVirtualFurniture()
+        {
+            RealFurniture.Enabled = false;
+            Scan(FurnitureKind.Table, RealTableMin, RealTableMax);
+            var room = VirtualRoom.Instance;
+            room.TearDown();
+            float until = Time.time + room.TearDownSeconds + 3f;
+            while (!room.Gone && Time.time < until) yield return null;
+            yield return new WaitForSeconds(2f);
+            Assert.AreEqual(RealFurniture.Phase.Waiting, RealFurniture.Instance.State);
+            Assert.AreEqual(0, RealFurniture.Instance.MatchedCount);
+            Assert.IsFalse(RealFurniture.Instance.SpotAt(0).Shown, "no plates anywhere");
+        }
+
+        [UnityTest]
         public IEnumerator AfterTheLessonInstrumentsMoveOntoRealFurnitureAndPlayThere()
         {
+            RealFurniture.Enabled = true; // switched off in the shipped build; kept working for PICO XR
             Assert.IsNotNull(RoomScan.Instance, "the scene has the room scan");
             Assert.IsNotNull(RealFurniture.Instance, "and the furniture step");
             Scan(FurnitureKind.Table, RealTableMin, RealTableMax);
@@ -117,6 +135,7 @@ namespace RoomOrchestra.Tests
         [UnityTest]
         public IEnumerator EveryFoundPieceGetsASpotAndTappingOneChoosesItsInstrument()
         {
+            RealFurniture.Enabled = true; // switched off in the shipped build; kept working for PICO XR
             Scan(FurnitureKind.Table, RealTableMin, RealTableMax);
             Scan(FurnitureKind.Chair, new Vector3(0.3f, 0f, 2.6f), new Vector3(0.8f, 0.9f, 3.1f));
             Scan(FurnitureKind.Lamp, new Vector3(1.4f, 0f, 1.8f), new Vector3(1.7f, 1.5f, 2.1f));
@@ -132,7 +151,8 @@ namespace RoomOrchestra.Tests
 
             // spots show up while it is still looking
             until = Time.time + 3f;
-            while (real.State == RealFurniture.Phase.Scanning && real.SpotCount == 0 && Time.time < until) yield return null;
+            while (real.State != RealFurniture.Phase.Placed && real.SpotCount == 0 && Time.time < until) yield return null;
+            Assert.AreEqual(RealFurniture.Phase.Scanning, real.State, "still looking");
             Assert.AreEqual(4, real.SpotCount, "a spot on each piece found, before anything moves");
             Assert.IsTrue(real.SpotAt(0).Shown);
 

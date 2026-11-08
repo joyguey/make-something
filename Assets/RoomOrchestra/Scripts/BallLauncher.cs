@@ -124,7 +124,8 @@ namespace RoomOrchestra
             if (m_GrabId >= 0)
             {
                 Vector3 drag = DragVelocity();
-                Vector3 dir = Flat(drag).sqrMagnitude > 0.64f ? drag : m_Facing; // > 0.8 m/s sideways = intentional swing
+                Vector3 dir = PulledBack(drag, m_Facing) ? m_Facing // a slingshot pull aims ahead
+                    : Flat(drag).sqrMagnitude > 0.64f ? drag : m_Facing; // > 0.8 m/s sideways = intentional swing
                 if (Flat(dir).sqrMagnitude > 1e-4f) m_AimDirection = Flat(dir).normalized;
             }
             Preview(m_Ready.transform.position, m_AimDirection);
@@ -162,7 +163,15 @@ namespace RoomOrchestra
 
             Vector3 velocity = DragVelocity();
             Vector3 dir = Flat(velocity).sqrMagnitude > 0.64f ? velocity : m_Facing;
-            if (velocity.magnitude < minThrowSpeed)
+            if (PulledBack(velocity, m_Facing))
+            {
+                // Pulled toward the player, like drawing a slingshot: it flies away from them, never behind
+                // (owner, headset 2026-11-08: "pinch and pull back on the floating ball... it would toss it behind me").
+                Debug.Log("[RoomOrchestra] Slingshot release: thrown ahead");
+                dir = m_Facing;
+                velocity = Flat(m_Facing).normalized * Mathf.Max(tossSpeed, Flat(velocity).magnitude) + Vector3.up * tossLift;
+            }
+            else if (velocity.magnitude < minThrowSpeed)
                 velocity = m_Facing.normalized * tossSpeed + Vector3.up * tossLift;
             ThrowAssisted(m_Ready.transform.position, dir, Vector3.ClampMagnitude(velocity, maxThrowSpeed));
         }
@@ -358,5 +367,14 @@ namespace RoomOrchestra
         }
 
         static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+        /// <summary>Was the hand moving back toward the player (against where they face) when they let go?</summary>
+        public static bool PulledBack(Vector3 dragVelocity, Vector3 facing)
+        {
+            var drag = Flat(dragVelocity);
+            var ahead = Flat(facing);
+            if (drag.sqrMagnitude < 0.04f || ahead.sqrMagnitude < 1e-4f) return false; // under 0.2 m/s: a tap
+            return Vector3.Dot(drag.normalized, ahead.normalized) < -0.2f;
+        }
     }
 }

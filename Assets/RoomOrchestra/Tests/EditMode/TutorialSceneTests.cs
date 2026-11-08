@@ -21,6 +21,28 @@ namespace RoomOrchestra.Tests
 
         static StationReveal[] Stations => Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None);
 
+        // Owner, headset 2026-11-08: "a bunch of keys from the leaf still shows up on the floor" at the start.
+        [Test]
+        public void TuckedLeafButtonsWaitUnderTheLeafNotOnTheFloor()
+        {
+            var intro = Object.FindFirstObjectByType<IntroSequence>();
+            var tucked = Object.FindObjectsByType<TuckAway>(FindObjectsSortMode.None);
+            Assert.GreaterOrEqual(tucked.Length, 5);
+            var leaf = intro.Leaf.Find("Leaf").GetComponent<Renderer>().bounds;
+            foreach (var t in tucked)
+            {
+                Assert.IsTrue(t.Tucked, t.name);
+                foreach (var r in t.GetComponentsInChildren<Renderer>())
+                {
+                    Assert.Greater(r.bounds.center.y, 50f, $"{r.name} of {t.name} is out of sight with the leaf at launch");
+                    var flat = r.bounds.center - leaf.center;
+                    flat.y = 0f;
+                    Assert.Less(flat.magnitude, 0.5f, $"{r.name} of {t.name} is tucked under the leaf");
+                    Assert.Less(r.bounds.max.y, leaf.max.y, $"{r.name} of {t.name} stays below the leaf's top");
+                }
+            }
+        }
+
         [Test]
         public void EveryStationIsSavedInsideTheCloud()
         {

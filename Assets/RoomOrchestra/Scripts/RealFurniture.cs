@@ -75,6 +75,13 @@ namespace RoomOrchestra
         Phase m_Phase = Phase.Waiting;
         float m_ScanStart, m_NextTry;
 
+        /// <summary>
+        /// Off in the shipped build (owner, headset 2026-11-08): the scan's furniture labels were unreliable in PICO
+        /// Spatial mode, so plates landed all over the room. The instruments stay on their virtual furniture; tests
+        /// switch it on to keep the code honest until the PICO XR version brings player-chosen placement.
+        /// </summary>
+        public static bool Enabled { get; set; }
+
         public static RealFurniture Instance { get; private set; }
         /// <summary>How long Flutter's "look around" shows before a full match is used (tests shorten it).</summary>
         public static float LookSeconds { get; set; } = MinLookSeconds;
@@ -145,6 +152,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            if (!Enabled && m_Phase == Phase.Waiting) return;
             var tutorial = TutorialDirector.Instance;
             bool lesson = tutorial != null && tutorial.Active;
             if (lesson && m_Phase != Phase.Waiting)
