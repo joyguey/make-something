@@ -177,10 +177,10 @@ namespace RoomOrchestra.Tests
             if (posture == PlayPosture.Standing)
             {
                 // Height waits on the leaf's menu (owner, 2026-11-08): open it, press Height, close it
-                Tap(SeatedHand(hand), Find<MenuButton>());
+                Tap(SeatedHand(hand), Find<MenuButton>(b => b.name == "MenuButton"));
                 yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
                 Tap(SeatedHand(hand), Find<HeightButton>()); // reached while still seated
-                Tap(SeatedHand(hand), Find<MenuButton>());
+                Tap(SeatedHand(hand), Find<MenuButton>(b => b.name == "MenuCloseButton")); // Close, where Menu was
                 yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
             }
             Assert.AreEqual(posture, ComfortSettings.Posture);

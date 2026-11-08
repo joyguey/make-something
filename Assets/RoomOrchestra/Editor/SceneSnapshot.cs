@@ -49,6 +49,26 @@ namespace RoomOrchestra.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>The leaf from the seat with its menu closed and open (-snapshotPath: folder). Not saved.</summary>
+        public static void CaptureMenu()
+        {
+            string dir = "docs/evidence";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") dir = args[i + 1];
+            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            Object.FindFirstObjectByType<IntroSequence>()?.Finish();
+            var tray = Object.FindFirstObjectByType<MenuTray>();
+            var eye = new Vector3(0f, 1.15f, 0.05f);
+            var leaf = new Vector3(-0.2f, 0.55f, 1.15f);
+            tray.transform.localScale = Vector3.one * MenuTray.ClosedScale;
+            CaptureCloseUp(Path.Combine(dir, "leaf-menu-closed.png"), eye, leaf, 45f);
+            tray.transform.localScale = Vector3.one;
+            CaptureCloseUp(Path.Combine(dir, "leaf-menu-open.png"), eye, leaf, 45f);
+            Debug.Log($"[RoomOrchestra] Menu snapshots saved to {dir}");
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>
         /// Close-up of part of the open scene (e.g. the blob tray) from <paramref name="eye"/>, with a
         /// temporary camera that is destroyed afterwards (never saved). Unity's renderer, not PICO's.

@@ -133,7 +133,7 @@ namespace RoomOrchestra.Tests
                     AssertSeated(tile.name + " of " + column.name, tile.transform.position);
                     if (i > 0) Assert.Greater(tile.transform.position.y, column.Tiles[i - 1].transform.position.y, "higher tile = higher note");
                     var note = new MusicalNote(column.Target.Instrument, i);
-                    string expected = note.IsPercussion ? note.Articulation.ToString() : NoteMapping.NoteName(i);
+                    string expected = UiText.Tile(note, UiLanguage.English); // the udu's sounds in plain words (Deep, Soft, Slap, Wobble, Tap)
                     var label = column.transform.Find($"TileLabel{i}")?.GetComponentInChildren<TMP_Text>();
                     Assert.IsNotNull(label, $"{column.name} tile {i} has a label");
                     Assert.AreEqual(expected, label.text);

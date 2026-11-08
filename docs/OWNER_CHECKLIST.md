@@ -2,6 +2,13 @@
 
 A running list of what needs your eyes, ears or hands on a real PICO headset. I add to it as I work; tick items off (or note what you saw) and I'll act on it.
 
+## Version 3.8 (2026-11-08, after the 3.7 test): installed on your headset
+- [ ] Nothing pokes out of the cloud at the start (whatever waits inside it is now not drawn).
+- [ ] The leaf and cloud sit at your own seated eye height (measured after the opening) and 0.85 m out, or on your desk.
+- [ ] Menu: a flat two-step tray over the leaf; **Close** sits where Menu is. Every label reads level.
+- [ ] Drum bands read **Deep, Soft, Slap, Wobble, Tap** (was Open, Muted, Slap, Bend, Tap).
+- After a session, I can read the whole game log from the headset (`files/logs/session.log`, last 3 sessions kept, nothing sent anywhere).
+
 ## Version 3.7 test (2026-11-08, after your morning feedback)
 **Already installed on your headset** (0.3.7). APK: `Builds/RoomOrchestra-v3.7-pico-xr.apk`, branch `feat/pico-xr` (committed, not pushed). v3.5 is still the fallback.
 Emulator: launch, lesson skip, the room glow and choosing (mbira first) all ran with no errors. The emulator has no controllers and no depth sensing, so **pressing, the note bands, depth occlusion and saved places are untested**.

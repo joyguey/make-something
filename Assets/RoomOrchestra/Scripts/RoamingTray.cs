@@ -51,12 +51,14 @@ namespace RoomOrchestra
         {
             Instance = this;
             StageAnchor.Recentered += GoHomeNow;
+            StageAnchor.Recentered += OnRecentered;
         }
 
         void OnDisable()
         {
             if (Instance == this) Instance = null;
             StageAnchor.Recentered -= GoHomeNow;
+            StageAnchor.Recentered -= OnRecentered;
         }
 
         void Update()
@@ -92,6 +94,12 @@ namespace RoomOrchestra
         public Vector2 DeskOffset => new(m_Desk.y, m_Desk.z);
         public Vector2 DeskTarget => new(m_DeskTarget.y, m_DeskTarget.z);
 
+        /// <summary>The eye height the leaf was laid out for (seated, m), and where its middle sits without a desk (m out).</summary>
+        public const float DesignEye = 1.15f, FittedLeafZ = 0.85f;
+        float m_EyeLift = -1f;
+
+        void OnRecentered() => m_EyeLift = -1f; // measure the player again
+
         void UpdateDesk(float deltaSeconds)
         {
             var intro = IntroSequence.Instance;
@@ -99,17 +107,32 @@ namespace RoomOrchestra
             if (Time.time >= m_NextDeskLook)
             {
                 m_NextDeskLook = Time.time + 1f;
+                // Owner, headset 2026-11-08: the leaf still wasn't placed well. The layout assumed a seated eye 1.15 m
+                // above the floor; the owner's was 1.57 m. On the headset the leaf follows the player's own eye height
+                // (seated: Standing has its own lift) and comes in closer, then sits above a desk if there is one.
+                bool device = XrRig.Instance != null && XrRig.Instance.Tracked;
+                if (device && m_EyeLift < 0f && ComfortSettings.Posture == PlayPosture.Seated && TryGetHeadHeight(out float eye))
+                {
+                    m_EyeLift = Mathf.Clamp(eye - DesignEye, 0f, 0.8f);
+                    Debug.Log($"[RoomOrchestra] Leaf pad: the player's eyes are {eye:F2} m up: the leaf rises {m_EyeLift:F2} m to match");
+                }
+                float lift = device ? Mathf.Max(0f, m_EyeLift) : 0f;
+                float pull = device ? LeafHomeZ - FittedLeafZ : 0f;
                 if (TryFindDesk(out float top, out float frontZ))
                 {
-                    float lift = Mathf.Max(0f, top + AboveDesk - LeafUnderside);
-                    float leafZ = Mathf.Max(NearestLeaf, frontZ + OnDeskFront);
-                    float pull = Mathf.Max(0f, LeafHomeZ - leafZ);
-                    var target = new Vector3(0f, Mathf.Max(lift, m_DeskTarget.y), lift > 0f ? pull : m_DeskTarget.z);
-                    if ((target - m_DeskTarget).sqrMagnitude > 0.03f * 0.03f)
+                    lift = Mathf.Max(lift, top + AboveDesk - LeafUnderside);
+                    pull = Mathf.Max(0f, LeafHomeZ - Mathf.Max(NearestLeaf, frontZ + OnDeskFront));
+                    if (Time.time > m_NextDeskLog)
                     {
-                        m_DeskTarget = target;
-                        Debug.Log($"[RoomOrchestra] Leaf pad: a desk {top:F2} m high in front (front edge {frontZ:F2} m out): the leaf rises {target.y:F2} m and comes {target.z:F2} m closer");
+                        m_NextDeskLog = Time.time + 20f;
+                        Debug.Log($"[RoomOrchestra] Leaf pad: a desk {top:F2} m high in front (front edge {frontZ:F2} m out)");
                     }
+                }
+                var target = new Vector3(0f, lift, pull);
+                if ((target - m_DeskTarget).sqrMagnitude > 0.03f * 0.03f)
+                {
+                    m_DeskTarget = target;
+                    Debug.Log($"[RoomOrchestra] Leaf pad: rises {target.y:F2} m and comes {target.z:F2} m closer");
                 }
             }
             if ((m_Desk - m_DeskTarget).sqrMagnitude < 1e-6f) return;
@@ -120,6 +143,16 @@ namespace RoomOrchestra
                 m_DeskVelocity = Vector3.zero;
             }
             Apply();
+        }
+
+        float m_NextDeskLog;
+
+        bool TryGetHeadHeight(out float eye)
+        {
+            eye = 0f;
+            if (frame == null || StageAnchor.Instance == null || !StageAnchor.Instance.TryGetHeadPose(out var pose)) return false;
+            eye = frame.InverseTransformPoint(pose.position).y;
+            return eye > 0.5f;
         }
 
         /// <summary>Test hook: as if the scan had found a desk this high with its front edge this far out.</summary>

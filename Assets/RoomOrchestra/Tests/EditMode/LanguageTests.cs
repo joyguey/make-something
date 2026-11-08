@@ -39,7 +39,7 @@ namespace RoomOrchestra.Tests
                 string.Join(" ", Enumerable.Range(0, NoteMapping.Count).Select(i => UiText.Tile(new MusicalNote(instrument, i), language)));
             Assert.AreEqual("D E F# A B", Tiles(InstrumentType.Mbira, UiLanguage.English));
             Assert.AreEqual("1 2 3 5 6", Tiles(InstrumentType.Erhu, UiLanguage.Chinese), "jianpu with 1 = D");
-            Assert.AreEqual("Open Muted Slap Bend Tap", Tiles(InstrumentType.Udu, UiLanguage.English));
+            Assert.AreEqual("Deep Soft Slap Wobble Tap", Tiles(InstrumentType.Udu, UiLanguage.English));
             Assert.AreEqual(5, Tiles(InstrumentType.Udu, UiLanguage.Chinese).Split(' ').Distinct().Count(), "five different udu words");
         }
 

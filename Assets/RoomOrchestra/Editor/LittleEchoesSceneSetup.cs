@@ -1504,18 +1504,23 @@ namespace RoomOrchestra.EditorTools
         static readonly string[][] MenuRows =
         {
             new[] { "TierButton", "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton" },
-            new[] { "CallButton", "RecenterButton", "PlacesButton", "LessonButton", "QuitButton" },
+            new[] { "MenuCloseButton", "CallButton", "RecenterButton", "PlacesButton", "LessonButton", "QuitButton" },
         };
-        public const float MenuStep = 0.125f, MenuRowGap = 0.19f, MenuLift = 0.2f, MenuTilt = 30f;
+        // Flat over the leaf, like the leaf's own buttons (owner, headset 2026-11-08: the tilted tray was hard to read and
+        // covered the Menu button): its own Close sits where Menu is.
+        public const float MenuStep = 0.125f, MenuRowGap = 0.2f, MenuLift = 0.13f, MenuTilt = 0f, MenuFarStep = 0.08f;
         static readonly Vector3 MenuPlate = new(0.8f, 0.02f, 0.44f);
 
         static MenuTray CreateMenuTray(Transform leafRoot, Material mark)
         {
             var tray = Holder("MenuTray", leafRoot, Vector3.zero);
             tray.position = new Vector3(LeafCenter.x, ButtonY + MenuLift, LeafCenter.z + 0.04f);
-            tray.localRotation = Quaternion.Euler(-MenuTilt, 0f, 0f); // far edge up: it faces the seated player
+            tray.localRotation = Quaternion.Euler(-MenuTilt, 0f, 0f);
+            CreateMenuButton(LeafRow(0), leafRoot, AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Pedestal.mat"), mark, "MenuCloseButton", UiTerm.MenuClose);
             var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
-            Box("MenuPlate", tray, new Vector3(0f, -0.016f, -0.02f), MenuPlate, plum, keepCollider: false);
+            // two level steps, the far row higher (like stadium seats) so a pointer from the lap clears the near row
+            Box("MenuPlate", tray, new Vector3(0f, -0.016f, -MenuRowGap / 2f + 0.01f), new Vector3(MenuPlate.x, MenuPlate.y, MenuPlate.z / 2f + 0.02f), plum, keepCollider: false);
+            Box("MenuPlateBack", tray, new Vector3(0f, MenuFarStep - 0.016f, MenuRowGap / 2f + 0.01f), new Vector3(MenuPlate.x, MenuPlate.y, MenuPlate.z / 2f), plum, keepCollider: false);
             for (int row = 0; row < MenuRows.Length; row++)
             {
                 var names = MenuRows[row];
@@ -1528,19 +1533,22 @@ namespace RoomOrchestra.EditorTools
                         continue;
                     }
                     button.SetParent(tray, false);
-                    button.localPosition = new Vector3(MenuStep * (i - (names.Length - 1) / 2f), 0f, row == 0 ? MenuRowGap / 2f : -MenuRowGap / 2f);
+                    button.localPosition = new Vector3(MenuStep * (i - (names.Length - 1) / 2f), row == 0 ? MenuFarStep : 0f, row == 0 ? MenuRowGap / 2f : -MenuRowGap / 2f);
                     button.localRotation = Quaternion.identity;
+                    if (row == 0) // the far step: two-line labels rise clear of its edge
+                        foreach (Transform part in button)
+                            if (part.name.EndsWith("Label") && part.name != "LanguageLabel") part.localPosition += Vector3.up * 0.03f; // 中文 already sits on top
                 }
             }
             return tray.gameObject.AddComponent<MenuTray>();
         }
 
-        static void CreateMenuButton(Vector3 position, Transform root, Material slab, Material mark)
+        static void CreateMenuButton(Vector3 position, Transform root, Material slab, Material mark, string name = "MenuButton", UiTerm word = UiTerm.Menu)
         {
-            var go = SmallButton("MenuButton", position, root, slab, "MenuSlab");
+            var go = SmallButton(name, position, root, slab, "MenuSlab");
             for (int i = 0; i < 3; i++) // three bars
                 Box($"MenuBar{i}", go.transform, new Vector3(0f, 0.02f + 0.014f * i, 0f), new Vector3(0.04f, 0.007f, 0.01f), mark, keepCollider: false);
-            Localize(Label("MenuLabel", UiText.Get(UiTerm.Menu, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 1.25f), UiTerm.Menu); // "Menu" has no tall letters: a little bigger to read
+            Localize(Label("MenuLabel", UiText.Get(word, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 1.25f), word); // "Menu" has no tall letters: a little bigger to read
             go.AddComponent<MenuButton>();
         }
 
@@ -2000,6 +2008,10 @@ namespace RoomOrchestra.EditorTools
             var old = dispenser.Find("CloudPuffs");
             if (old != null) Object.DestroyImmediate(old.gameObject);
             var puffs = Holder("CloudPuffs", dispenser, CloudCoreHeight);
+            // what waits inside the cloud is not drawn (PICO XR mode: bits poked out of it, owner 2026-11-08)
+            var hider = dispenser.GetComponent<CloudHider>() ?? dispenser.gameObject.AddComponent<CloudHider>();
+            hider.Configure(park, new[] { core, puffs });
+            EditorUtility.SetDirty(hider);
             for (int i = 0; i < CloudPuffs.Length; i++)
             {
                 var puff = Primitive(PrimitiveType.Sphere, $"CloudPuff{i}", puffs, cloudMaterial, keepCollider: false);

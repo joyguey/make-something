@@ -406,12 +406,12 @@ namespace RoomOrchestra.Tests
             }
             foreach (var always in new[] { typeof(UndoButton), typeof(MenuButton) })
             {
-                var c = (Component)Object.FindFirstObjectByType(always);
+                var c = Object.FindObjectsByType(always, FindObjectsSortMode.None).Cast<Component>().First(b => b.name != "MenuCloseButton");
                 Assert.IsNull(c.GetComponentInParent<TuckAway>(), $"{always.Name} is always there");
                 Assert.IsTrue(c.GetComponentsInChildren<Collider>().Any(col => col.enabled), $"{always.Name} can be tapped during the lesson");
             }
             // the menu opens during the lesson too, with every comfort setting and Quit on it
-            Assert.IsTrue(InstrumentInputRouter.Activate(Object.FindFirstObjectByType<MenuButton>().GetComponentInChildren<Collider>().gameObject));
+            Assert.IsTrue(InstrumentInputRouter.Activate(Object.FindObjectsByType<MenuButton>(FindObjectsSortMode.None).First(b => b.name == "MenuButton").GetComponentInChildren<Collider>().gameObject));
             yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
             foreach (var onMenu in new[] { typeof(RecenterButton), typeof(HeightButton), typeof(ViewButton), typeof(LanguageButton), typeof(QuitButton) })
             {
