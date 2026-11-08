@@ -173,6 +173,17 @@ namespace RoomOrchestra
         double m_TapDsp;
         float m_TapDeadline = -1f;
 
+        RigidbodyInterpolation m_Interpolation;
+        bool m_InterpolationKept;
+
+        /// <summary>No physics smoothing while it is held still (moved by hand or with its cloud).</summary>
+        public void StopSmoothing()
+        {
+            if (m_Body == null) m_Body = GetComponent<Rigidbody>();
+            if (!m_InterpolationKept) { m_Interpolation = m_Body.interpolation; m_InterpolationKept = true; }
+            if (m_Body.interpolation != RigidbodyInterpolation.None) m_Body.interpolation = RigidbodyInterpolation.None;
+        }
+
         /// <summary>A tapped note this ball is carrying, if any.</summary>
         public InstrumentTarget CarryingTo => m_TapTarget;
 
@@ -202,6 +213,9 @@ namespace RoomOrchestra
         public void Hold()
         {
             if (m_Body == null) m_Body = GetComponent<Rigidbody>();
+            // Held still (on the cloud, in the hand): no physics smoothing, or every move of the cloud drags the ball
+            // back toward where it was for a few frames (owner, headset 2026-11-08: the ball not seated on the cloud).
+            StopSmoothing();
             if (m_TapTarget != null) DeliverTapNote(null); // recycled or parked before it landed: its note still plays
             InFlight = false;
             m_PoofAt = -1f;
@@ -211,6 +225,7 @@ namespace RoomOrchestra
         public void Launch(Vector3 velocity)
         {
             if (m_Body == null) m_Body = GetComponent<Rigidbody>();
+            if (m_InterpolationKept) m_Body.interpolation = m_Interpolation; // smooth in flight
             m_Body.isKinematic = false;
             m_Body.linearVelocity = Vector3.ClampMagnitude(velocity, OrbCatalog.Get(orb).MaxLaunchSpeed);
             m_Body.angularVelocity = Vector3.zero;

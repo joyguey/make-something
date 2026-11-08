@@ -52,6 +52,8 @@ namespace RoomOrchestra
         OrbType m_Orb = OrbType.Flutter;
 
         public Ball ReadyBall => m_Ready;
+        /// <summary>Where the ready ball sits on its cloud (scene space), if the stand has a spawn point.</summary>
+        public Vector3? SpawnPosition => spawnPoint != null ? spawnPoint.position : (Vector3?)null;
         public OrbType CurrentOrb => m_Orb;
 
         /// <summary>Chooses which orb the ready ball (and every later ball) is.</summary>
@@ -104,6 +106,7 @@ namespace RoomOrchestra
         static void Teleport(Ball ball, Vector3 position, Quaternion rotation)
         {
             var body = ball.GetComponent<Rigidbody>();
+            if (body.isKinematic) ball.StopSmoothing(); // held still: it goes exactly where it is put
             body.position = position;
             body.rotation = rotation;
             ball.transform.SetPositionAndRotation(position, rotation);

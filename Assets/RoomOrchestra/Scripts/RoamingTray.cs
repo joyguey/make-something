@@ -52,6 +52,7 @@ namespace RoomOrchestra
             Instance = this;
             StageAnchor.Recentered += GoHomeNow;
             StageAnchor.Recentered += OnRecentered;
+            ComfortSettings.PostureChanged += OnPosture;
         }
 
         void OnDisable()
@@ -59,6 +60,7 @@ namespace RoomOrchestra
             if (Instance == this) Instance = null;
             StageAnchor.Recentered -= GoHomeNow;
             StageAnchor.Recentered -= OnRecentered;
+            ComfortSettings.PostureChanged -= OnPosture;
         }
 
         void Update()
@@ -94,104 +96,154 @@ namespace RoomOrchestra
         public Vector2 DeskOffset => new(m_Desk.y, m_Desk.z);
         public Vector2 DeskTarget => new(m_DeskTarget.y, m_DeskTarget.z);
 
-        /// <summary>The eye height the leaf was laid out for (seated, m), and where its middle sits without a desk (m out).</summary>
-        public const float DesignEye = 1.15f, FittedLeafZ = 0.85f;
-        float m_EyeLift = -1f;
+        // ---- Within the player's reach (owner, headset 2026-11-08: "I CAN'T REACH ANYTHING, PLEASE REDO THE HEIGHT") ----
+        // The leaf was laid out from the floor for a seated eye 1.15 m up, 1.17 m out. On the headset everything is now
+        // placed from the player's own head once the opening is over (and again after Recenter or Height): the leaf's
+        // middle a forearm's length in front of them and a little left, its top 40 cm below their eyes; the ball on its
+        // cloud just right of it, 30 cm below the eyes. Over a desk both stay just above the desk's own top (the most
+        // common flat height there: the monitor and things on the desk no longer count as the desk).
 
-        void OnRecentered() => m_EyeLift = -1f; // measure the player again
+        /// <summary>The leaf's middle in front of the eyes (m), and its top below them (m).</summary>
+        public const float ReachOut = 0.45f, LeafBelowEyes = 0.40f, LeafAside = -0.1f;
+        /// <summary>The ball on the cloud below the eyes (m), at least this far above a desk (m), and the cloud's place from the leaf (m).</summary>
+        public const float BallBelowEyes = 0.30f, BallAboveDesk = 0.25f, StandInward = 0.2f;
+        /// <summary>Authored (home) heights: the leaf's top and underside, and the ball on the cloud (m above the floor).</summary>
+        public const float LeafHomeTop = 0.505f, LeafHomeX = -0.2f, BallHome = 1.06f;
+
+        Vector3 m_Stand, m_StandTarget, m_StandVelocity; // the cloud's own offset (x, up, toward the player)
+        bool m_Fitted;
+
+        void OnRecentered() => m_Fitted = false; // measure the player again
+        void OnPosture(PlayPosture posture) => m_Fitted = false;
+
+        // Owner, 2026-11-08: "adapt to the height with each playthrough ... and follow them at a comfortable height as
+        // they start to move around". Fitted after every opening, after Recenter and Height, and again whenever the
+        // player stands up, sits down or walks off (a change held for a moment, so leaning never moves it).
+        /// <summary>A head this much higher or lower (m), or this far away across the floor (m), held this long (s), refits.</summary>
+        public const float RefitRise = 0.15f, RefitWalk = 0.6f, RefitHold = 1.5f;
+        /// <summary>The ball on its cloud: this far right of the eyes and out in front (m).</summary>
+        public const float BallAside = 0.3f, BallOut = 0.4f;
+        Vector3 m_FittedHead;
+        float m_ChangedSince = -1f;
 
         void UpdateDesk(float deltaSeconds)
         {
             var intro = IntroSequence.Instance;
             if (intro != null && !intro.Done) return;
-            if (Time.time >= m_NextDeskLook)
+            bool device = XrRig.Instance != null && XrRig.Instance.Tracked;
+            if (device && Time.time >= m_NextDeskLook)
             {
-                m_NextDeskLook = Time.time + 1f;
-                // Owner, headset 2026-11-08: the leaf still wasn't placed well. The layout assumed a seated eye 1.15 m
-                // above the floor; the owner's was 1.57 m. On the headset the leaf follows the player's own eye height
-                // (seated: Standing has its own lift) and comes in closer, then sits above a desk if there is one.
-                bool device = XrRig.Instance != null && XrRig.Instance.Tracked;
-                if (device && m_EyeLift < 0f && ComfortSettings.Posture == PlayPosture.Seated && TryGetHeadHeight(out float eye))
+                m_NextDeskLook = Time.time + 0.25f;
+                if (TryGetHeadInFrame(out var head))
                 {
-                    m_EyeLift = Mathf.Clamp(eye - DesignEye, 0f, 0.8f);
-                    Debug.Log($"[RoomOrchestra] Leaf pad: the player's eyes are {eye:F2} m up: the leaf rises {m_EyeLift:F2} m to match");
-                }
-                float lift = device ? Mathf.Max(0f, m_EyeLift) : 0f;
-                float pull = device ? LeafHomeZ - FittedLeafZ : 0f;
-                if (TryFindDesk(out float top, out float frontZ))
-                {
-                    lift = Mathf.Max(lift, top + AboveDesk - LeafUnderside);
-                    pull = Mathf.Max(0f, LeafHomeZ - Mathf.Max(NearestLeaf, frontZ + OnDeskFront));
-                    if (Time.time > m_NextDeskLog)
+                    var flat = head - m_FittedHead;
+                    flat.y = 0f;
+                    bool changed = Mathf.Abs(head.y - m_FittedHead.y) > RefitRise || flat.magnitude > RefitWalk;
+                    if (!changed) m_ChangedSince = -1f;
+                    else if (m_ChangedSince < 0f) m_ChangedSince = Time.time;
+                    if (!m_Fitted || (changed && Time.time - m_ChangedSince >= RefitHold))
                     {
-                        m_NextDeskLog = Time.time + 20f;
-                        Debug.Log($"[RoomOrchestra] Leaf pad: a desk {top:F2} m high in front (front edge {frontZ:F2} m out)");
+                        Fit(head, true);
+                        m_ChangedSince = -1f;
                     }
                 }
-                var target = new Vector3(0f, lift, pull);
-                if ((target - m_DeskTarget).sqrMagnitude > 0.03f * 0.03f)
-                {
-                    m_DeskTarget = target;
-                    Debug.Log($"[RoomOrchestra] Leaf pad: rises {target.y:F2} m and comes {target.z:F2} m closer");
-                }
             }
-            if ((m_Desk - m_DeskTarget).sqrMagnitude < 1e-6f) return;
+            bool moving = (m_Desk - m_DeskTarget).sqrMagnitude > 1e-6f || (m_Stand - m_StandTarget).sqrMagnitude > 1e-6f;
+            if (!moving) return;
             m_Desk = Vector3.SmoothDamp(m_Desk, m_DeskTarget, ref m_DeskVelocity, 0.4f, 1.5f, deltaSeconds);
-            if ((m_Desk - m_DeskTarget).sqrMagnitude < 1e-6f)
-            {
-                m_Desk = m_DeskTarget;
-                m_DeskVelocity = Vector3.zero;
-            }
+            m_Stand = Vector3.SmoothDamp(m_Stand, m_StandTarget, ref m_StandVelocity, 0.4f, 1.5f, deltaSeconds);
+            if ((m_Desk - m_DeskTarget).sqrMagnitude < 1e-6f) { m_Desk = m_DeskTarget; m_DeskVelocity = Vector3.zero; }
+            if ((m_Stand - m_StandTarget).sqrMagnitude < 1e-6f) { m_Stand = m_StandTarget; m_StandVelocity = Vector3.zero; }
             Apply();
+        }
+
+        // Places the leaf and the ball on its cloud from the head (frame space), facing the way the pad faces.
+        void Fit(Vector3 head, bool log)
+        {
+            m_FittedHead = head;
+            float rig = PostureLayout.ControlsLift(ComfortSettings.Posture); // the Controls holder lifts the leaf already
+            var turn = Quaternion.Euler(0f, m_Follow.Target.YawDegrees, 0f);
+            var origin = TargetPosition;
+            var leafMiddle = head + turn * new Vector3(LeafAside, 0f, ReachOut);
+            var ballAt = head + turn * new Vector3(BallAside, 0f, BallOut);
+            float leafTop = head.y - LeafBelowEyes;
+            float ball = head.y - BallBelowEyes;
+            bool desk = TryFindDeskUnder(leafMiddle, head.y, out float deskTop);
+            if (desk)
+            {
+                leafTop = Mathf.Max(leafTop, deskTop + AboveDesk + (LeafHomeTop - LeafUnderside));
+                ball = Mathf.Max(ball, deskTop + BallAboveDesk);
+            }
+            // the leaf: offsets from its authored place, in the pad's frame (across, up, toward the player)
+            var leafLocal = Quaternion.Inverse(turn) * (leafMiddle - origin);
+            var leaf = new Vector3(leafLocal.x - LeafHomeX, leafTop - LeafHomeTop - rig, LeafHomeZ - leafLocal.z);
+            // the cloud: from where the ball sits now, back to its authored place, then on to where it should be
+            var stand = m_StandTarget;
+            if (launcher != null && launcher.SpawnPosition.HasValue)
+            {
+                var nowTurn = Quaternion.Euler(0f, m_Yaw, 0f);
+                var spawn = frame.InverseTransformPoint(launcher.SpawnPosition.Value);
+                var home = Quaternion.Inverse(nowTurn) * (spawn - m_Position) - new Vector3(m_Stand.x, m_Stand.y, -m_Stand.z);
+                var want = Quaternion.Inverse(turn) * (new Vector3(ballAt.x, ball, ballAt.z) - origin);
+                var offset = want - home;
+                stand = new Vector3(offset.x, offset.y, -offset.z);
+            }
+            m_DeskTarget = leaf;
+            m_StandTarget = stand;
+            if (log)
+                Debug.Log($"[RoomOrchestra] Leaf pad: fitted to the player (eyes {head.y:F2} m up{(desk ? $", desk top {deskTop:F2} m" : ", no desk under the leaf")}): leaf top {leafTop:F2} m, {ReachOut:F2} m out; ball {ball:F2} m");
+            m_Fitted = true;
         }
 
         float m_NextDeskLog;
 
-        bool TryGetHeadHeight(out float eye)
+        /// <summary>Test hook: fits to a head at <paramref name="head"/> (stage space) at once.</summary>
+        public void FitForTest(Vector3 head)
         {
-            eye = 0f;
-            if (frame == null || StageAnchor.Instance == null || !StageAnchor.Instance.TryGetHeadPose(out var pose)) return false;
-            eye = frame.InverseTransformPoint(pose.position).y;
-            return eye > 0.5f;
-        }
-
-        /// <summary>Test hook: as if the scan had found a desk this high with its front edge this far out.</summary>
-        public void SetDeskForTest(float top, float frontZ)
-        {
-            float lift = Mathf.Max(0f, top + AboveDesk - LeafUnderside);
-            float leafZ = Mathf.Max(NearestLeaf, frontZ + OnDeskFront);
-            m_DeskTarget = m_Desk = new Vector3(0f, lift, Mathf.Max(0f, LeafHomeZ - leafZ));
+            m_Fitted = false;
+            Fit(head, true);
+            m_Desk = m_DeskTarget;
+            m_Stand = m_StandTarget;
             Apply();
         }
 
-        // Looks straight down onto the scanned room over the leaf's area in front of the seat.
-        bool TryFindDesk(out float top, out float frontZ)
+        bool TryGetHeadInFrame(out Vector3 head)
+        {
+            head = default;
+            if (frame == null || StageAnchor.Instance == null || !StageAnchor.Instance.TryGetHeadPose(out var pose)) return false;
+            head = frame.InverseTransformPoint(pose.position);
+            return head.y > 0.5f;
+        }
+
+        // A desk under the leaf: flat scanned surfaces below the eyes over the leaf's footprint; the desk's top is the
+        // most common height among them (things standing on the desk are fewer and higher).
+        bool TryFindDeskUnder(Vector3 middle, float eye, out float top)
         {
             top = 0f;
-            frontZ = 0f;
             if (frame == null || RealWalls.Instance == null || RealWalls.Instance.SurfaceCount == 0) return false;
-            var turn = Quaternion.Euler(0f, m_Yaw, 0f);
-            var heights = new System.Collections.Generic.List<(float y, float z)>();
-            int samples = 0;
+            var bins = new System.Collections.Generic.Dictionary<int, int>();
+            int samples = 0, hits = 0;
             float floor = frame.position.y;
-            for (float x = DeskMinX; x <= DeskMaxX + 1e-4f; x += DeskStep)
-            for (float z = DeskNearZ; z <= DeskFarZ + 1e-4f; z += DeskStep)
+            const float bin = 0.04f;
+            for (float x = -0.5f; x <= 0.5f + 1e-4f; x += DeskStep)
+            for (float z = -0.25f; z <= 0.35f + 1e-4f; z += DeskStep)
             {
                 samples++;
-                var local = turn * new Vector3(x, 0f, z) + m_Position;
-                var from = frame.TransformPoint(new Vector3(local.x, DeskHigh + 0.3f, local.z));
-                if (!Physics.Raycast(from, Vector3.down, out var hit, DeskHigh + 0.3f, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore)) continue;
+                var from = frame.TransformPoint(new Vector3(middle.x + x, eye - 0.1f, middle.z + z));
+                if (!Physics.Raycast(from, Vector3.down, out var hit, eye, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore)) continue;
                 float y = hit.point.y - floor;
-                if (y < DeskLow || y > DeskHigh || Mathf.Abs(hit.normal.y) < 0.7f) continue;
-                heights.Add((y, z));
+                if (y < DeskLow || y > eye - 0.15f || Mathf.Abs(hit.normal.y) < 0.7f) continue;
+                int k = Mathf.RoundToInt(y / bin);
+                bins[k] = bins.TryGetValue(k, out int n) ? n + 1 : 1;
+                hits++;
             }
-            if (samples == 0 || heights.Count < samples * DeskCover) return false;
-            heights.Sort((a, b) => a.y.CompareTo(b.y));
-            top = heights[Mathf.Clamp(Mathf.FloorToInt(heights.Count * 0.8f), 0, heights.Count - 1)].y;
-            frontZ = float.MaxValue;
-            foreach (var (y, z) in heights) if (Mathf.Abs(y - top) < 0.08f) frontZ = Mathf.Min(frontZ, z);
-            return frontZ < float.MaxValue;
+            if (hits < samples * DeskCover) return false;
+            int best = 0, bestCount = -1;
+            foreach (var pair in bins) if (pair.Value > bestCount) { best = pair.Key; bestCount = pair.Value; }
+            top = best * bin;
+            return true;
         }
+
 
         /// <summary>Option C: come to the player now (or home, if they are at the seat).</summary>
         public bool Call()
@@ -259,7 +311,8 @@ namespace RoomOrchestra
         void Apply()
         {
             var turn = Quaternion.Euler(0f, m_Yaw, 0f);
-            var desk = new Vector3(0f, m_Desk.y, -m_Desk.z); // up off the desk and in toward the seat, in the pad's frame
+            var desk = new Vector3(m_Desk.x, m_Desk.y, -m_Desk.z); // fitted to the player: across, up, in toward them (pad frame)
+            var standOffset = new Vector3(m_Stand.x, m_Stand.y, -m_Stand.z);
             // The pad sits in the Controls holder, which only lifts it (Height); x/z/yaw are ours.
             transform.localPosition = new Vector3(m_Position.x, 0f, m_Position.z) + turn * desk;
             transform.localRotation = turn;
@@ -270,7 +323,7 @@ namespace RoomOrchestra
                 {
                     if (carried[i] == null) continue;
                     carried[i].SetPositionAndRotation(
-                        frame.TransformPoint(turn * (carriedHomePositions[i] + desk) + m_Position),
+                        frame.TransformPoint(turn * (carriedHomePositions[i] + standOffset) + m_Position),
                         frame.rotation * turn * carriedHomeRotations[i]);
                 }
             if (keepStill != null) keepStill.SetPositionAndRotation(still.position, still.rotation);
