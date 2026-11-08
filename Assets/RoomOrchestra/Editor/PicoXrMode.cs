@@ -82,6 +82,8 @@ namespace RoomOrchestra.EditorTools
             config.spatialMesh = true;     // real walls for the balls, and the scan grid
             config.sceneCapture = true;    // PICO's Room Capture: walls, tables, chairs, sofas
             config.spatialAnchor = true;   // instruments pinned to places the player picks
+            config.handTracking = true;    // point and pinch with the hands when the controllers are down
+            config.handTrackingSupportType = HandTrackingSupport.ControllersAndHands;
             PXR_ProjectSetting.SaveAssets();
 
             foreach (var path in SpatialManifests) AssetDatabase.DeleteAsset(path); // PICO Spatial's launcher manifests

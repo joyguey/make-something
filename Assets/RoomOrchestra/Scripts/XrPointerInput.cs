@@ -25,6 +25,8 @@ namespace RoomOrchestra
     /// <summary>
     /// PICO controllers in PICO XR mode through UnityEngine.XR InputDevices: the controller's pose and its trigger.
     /// (In PICO Spatial mode the system turned the trigger into pinch touches; in PICO XR mode the app reads it.)
+    /// With the controllers put down, the hands point instead: PICO's hand aim ray, and a pinch selects (the owner
+    /// pinched the ball on the headset, 2026-11-08).
     /// </summary>
     public sealed class XRPointerSource : IPointerSource
     {
@@ -39,6 +41,10 @@ namespace RoomOrchestra
 
         public PointerFrame Read(int hand)
         {
+#if UNITY_ANDROID && !UNITY_EDITOR && ENABLE_PICO_XR_SDK
+            if (ByteDance.PICO.XR.PXR_HandTracking.GetActiveInputDevice() == ByteDance.PICO.XR.ActiveInputDevice.HandTrackingActive)
+                return ReadHand(hand);
+#endif
             if (!m_Devices[hand].isValid)
             {
                 if (Time.unscaledTime < m_NextTry[hand]) return default;
@@ -59,5 +65,22 @@ namespace RoomOrchestra
             frame.Select = m_Held[hand];
             return frame;
         }
+
+#if UNITY_ANDROID && !UNITY_EDITOR && ENABLE_PICO_XR_SDK
+        static PointerFrame ReadHand(int hand)
+        {
+            var aim = new ByteDance.PICO.XR.HandAimState();
+            if (!ByteDance.PICO.XR.PXR_HandTracking.GetAimState(hand == 0 ? ByteDance.PICO.XR.HandType.HandLeft : ByteDance.PICO.XR.HandType.HandRight, ref aim))
+                return default;
+            var status = aim.aimStatus;
+            return new PointerFrame
+            {
+                Tracked = (status & ByteDance.PICO.XR.HandAimStatus.AimRayValid) != 0,
+                Position = aim.aimRayPose.Position.ToVector3(),
+                Rotation = aim.aimRayPose.Orientation.ToQuat(),
+                Select = (status & (ByteDance.PICO.XR.HandAimStatus.AimRayTouched | ByteDance.PICO.XR.HandAimStatus.AimIndexPinching)) != 0,
+            };
+        }
+#endif
     }
 }
