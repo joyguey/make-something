@@ -185,3 +185,10 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
   - The scanned room glows while the player chooses where each instrument lives (no automatic guessing).
   - A depth-only room occluder, never within 1.5 m of the seat.
 - Not done: PICO's Environment Depth occlusion (its shaders are Built-in pipeline only, and the game uses URP); Room Capture furniture boxes as hints; spatial anchors to remember places between sessions (places last one session).
+
+## 2026-11-08: v3.7, real objects instead of virtual furniture (owner headset feedback)
+- **Notes along the longest side** (owner chose it; a table top has no height). The bands show on pointing; pressing a band plays that note, with no throw needed. The lesson keeps its 5-tile columns; they are put away once places are chosen.
+- **Leaf:** Essentials + Menu (owner chose it). Characters, Menu, Undo, Pause and Clear stay on the leaf; the rest go on a menu tray. During the lesson only Clear tucks away.
+- **Choosing:** in the lesson's order with the lesson's arrangement, which is restored first (a saved swap had the table holding the erhu). The object comes from the scan's labelled cluster tightened to its triangles, or from growing the surface pointed at. A chosen object's virtual furniture is hidden, and its scanned shape takes the hits.
+- **Occlusion:** PICO's environment depth is written into the depth buffer by one URP pass (PICO's own shaders are Built-in only, per material). The scanned-room shield is the fallback, and Menu has a "Hiding" toggle. Untested on the headset.
+- **Saved places:** PICO spatial anchors are persisted on the device, and only the anchor ids and object sizes go into local PlayerPrefs. Nothing is uploaded.

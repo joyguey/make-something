@@ -2,6 +2,19 @@
 
 A running list of what needs your eyes, ears or hands on a real PICO headset. I add to it as I work; tick items off (or note what you saw) and I'll act on it.
 
+## Version 3.7 test (2026-11-08, after your morning feedback)
+**Already installed on your headset** (0.3.7). APK: `Builds/RoomOrchestra-v3.7-pico-xr.apk`, branch `feat/pico-xr` (committed, not pushed). v3.5 is still the fallback.
+Emulator: launch, lesson skip, the room glow and choosing (mbira first) all ran with no errors. The emulator has no controllers and no depth sensing, so **pressing, the note bands, depth occlusion and saved places are untested**.
+
+- [ ] **Start:** no flower, toadstool or vine specks anywhere before music grows them.
+- [ ] **Leaf above your desk:** a few seconds after the opening, the leaf and the cloud rise onto your desk and come closer. The ball on the cloud turns to face you.
+- [ ] **Leaf buttons:** the characters plus Menu, Undo, Pause and Clear. **Menu** opens a tilted tray with Loudness, Sounds, View, language, Height, Hiding, Come here, Recenter, Places, Lesson and Quit. Press Menu (now "Close") again to fold it.
+- [ ] **Choosing places** (after the lesson): Flutter asks in the lesson's order: **mbira (chair), then erhu (lamp), then udu (table)**. Pointing at a real object lights up its scanned shape in the instrument's colour. Press, and the virtual furniture disappears in a poof; the instrument's echo ring floats over the real object, and its vines and sparkles move there. Pressing the virtual furniture itself keeps it.
+- [ ] **Notes:** point at a real object and 5 bands show along its longest side (across a table, up a lamp). The band under the ray is brighter and shows its note. Press it and that note plays (the ball flies there). A thrown ball plays the band it hits.
+- [ ] **Wall bounces:** a soft bell on top of the bounce, climbing D–F#–A–B–D through a throw (Flutter high, Boom low).
+- [ ] **PICO depth occlusion:** after choosing, virtual things behind real furniture, walls or your hands should be hidden. If things vanish wrongly, Menu → **Hiding** turns it off; please tell me what you saw.
+- [ ] **Saved places:** quit and start again. After the lesson (or its skip), Flutter should say "Welcome back!" and each instrument should be back on its object. **Menu → Places** chooses again.
+
 ## Tonight's test (2026-11-08): Version 3.6, the first PICO XR build
 **Install:** `adb install -r Builds/RoomOrchestra-v3.6-pico-xr.apk` (branch `feat/pico-xr`). If it isn't good enough to hand in, submit **v3.5** (`Builds/RoomOrchestra-v3.5-last-pico-spatial-test.apk`, also on GitHub).
 - Plug in, put the headset on and accept **Allow USB debugging** (tick **Always allow**). If my tools still say "unauthorized", unplug and replug the cable.
