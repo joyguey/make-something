@@ -90,7 +90,7 @@ namespace RoomOrchestra
         // written only when the cloud has moved (emulator, 2026-11-07: it was left hanging where the cloud began).
         void LateUpdate()
         {
-            if (m_Pending != null || park == null || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            if (m_Pending != null || park == null) return;
             if (transform.position != park.position) transform.position = park.position;
         }
 

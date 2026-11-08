@@ -121,6 +121,11 @@ namespace RoomOrchestra
         {
             FaceThePlayer();
             if (arc == null || m_Ready == null || m_ArcHeld) return;
+            if (!Playing())
+            {
+                if (arc.IsVisible) arc.Hide(); // a clean start: no trajectory over the title or the opening
+                return;
+            }
 
             if (m_GrabId >= 0)
             {
@@ -130,6 +135,13 @@ namespace RoomOrchestra
                 if (Flat(dir).sqrMagnitude > 1e-4f) m_AimDirection = Flat(dir).normalized;
             }
             Preview(m_Ready.transform.position, m_AimDirection);
+        }
+
+        static bool Playing()
+        {
+            var title = TitleScreen.Instance;
+            var intro = IntroSequence.Instance;
+            return (title == null || !title.Showing) && (intro == null || intro.Done);
         }
 
         // Owner, headset 2026-11-08: "The floating ball on cloud is ... not facing towards the player". The ready ball

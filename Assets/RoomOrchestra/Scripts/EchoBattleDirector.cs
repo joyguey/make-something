@@ -114,7 +114,7 @@ namespace RoomOrchestra
             WatchForTheSecret();
             if (State == Phase.Hidden)
             {
-                if (park != null && card != null && card.position != park.position && Time.timeSinceLevelLoad >= JellyBody.StartDelaySeconds) Park();
+                if (park != null && card != null && card.position != park.position) Park();
                 return;
             }
             if (m_Link != null)

@@ -79,28 +79,37 @@ namespace RoomOrchestra
 
         /// <summary>Puts the ball stand <paramref name="frontOffset"/> from its home, in front of the player, for the
         /// first frame (scene setup); the opening glides it home.</summary>
-        public void ConfigureStand(Transform[] carried, Vector3 frontOffset, BallLauncher balls)
+        // Homes and offset are kept in the stage's own space (owner, headset 2026-11-08: the cloud and ball were "very
+        // off"): the headset recentres the stage on the player a second in, and homes kept in the room's space put the
+        // cloud back where the stage used to be.
+        [SerializeField] Transform standFrame;
+
+        public void ConfigureStand(Transform[] carried, Vector3 frontOffset, BallLauncher balls, Transform frame = null)
         {
             stand = carried;
-            standFrontOffset = frontOffset;
             launcher = balls;
+            standFrame = frame;
+            standFrontOffset = frame != null ? frame.InverseTransformVector(frontOffset) : frontOffset;
             standHomes = new Vector3[carried.Length];
             for (int i = 0; i < carried.Length; i++)
             {
-                standHomes[i] = carried[i].position;
-                carried[i].position = standHomes[i] + frontOffset;
+                standHomes[i] = frame != null ? frame.InverseTransformPoint(carried[i].position) : carried[i].position;
+                carried[i].position += frontOffset;
             }
         }
 
+        Vector3 StandHome(int i, float away) =>
+            standFrame != null ? standFrame.TransformPoint(standHomes[i] + standFrontOffset * away) : standHomes[i] + standFrontOffset * away;
+
         /// <summary>How far the stand still is from home (0 once it has glided into place).</summary>
-        public float StandAway => stand == null || stand.Length == 0 ? 0f : Vector3.Distance(stand[0].position, standHomes[0]);
+        public float StandAway => stand == null || stand.Length == 0 ? 0f : Vector3.Distance(stand[0].position, StandHome(0, 0f));
 
         void PoseStand(float u)
         {
             if (stand == null) return;
             float e = u * u * (3f - 2f * u);
             for (int i = 0; i < stand.Length; i++)
-                if (stand[i] != null) stand[i].position = standHomes[i] + standFrontOffset * (1f - e);
+                if (stand[i] != null) stand[i].position = StandHome(i, 1f - e);
             if (launcher != null && Application.isPlaying) launcher.FollowStand(); // the ready ball rides along on the cloud
         }
 

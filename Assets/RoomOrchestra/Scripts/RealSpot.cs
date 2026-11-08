@@ -82,7 +82,7 @@ namespace RoomOrchestra
             if (!m_Shown)
             {
                 // the ball stand travels with the leaf: the parked spot goes with it
-                if (park != null && Time.timeSinceLevelLoad >= JellyBody.StartDelaySeconds && transform.position != park.position)
+                if (park != null && transform.position != park.position)
                     transform.position = park.position;
                 return;
             }

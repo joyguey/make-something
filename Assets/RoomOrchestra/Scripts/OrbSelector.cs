@@ -139,6 +139,27 @@ namespace RoomOrchestra
             }
         }
 
+        // The focus marker (a yellow disc over the focused instrument) shows only in play, over an instrument that is
+        // out (owner, headset 2026-11-08: "a yellow disk behind the menu" at the start).
+        Renderer[] m_MarkerLooks;
+
+        void LateUpdate()
+        {
+            if (focusMarker == null) return;
+            m_MarkerLooks ??= focusMarker.GetComponentsInChildren<Renderer>(true);
+            var title = TitleScreen.Instance;
+            var intro = IntroSequence.Instance;
+            var target = FocusedTarget;
+            bool on = (title == null || !title.Showing) && (intro == null || intro.Done) && target != null
+                      && !StationReveal.IsHidden(target.Instrument);
+            foreach (var r in m_MarkerLooks) if (r != null && r.enabled != on) r.enabled = on;
+            if (on && target.Home != null) // over the real object it lives on now
+            {
+                var p = target.AimPosition + Vector3.up * focusMarkerLift;
+                if (focusMarker.position != p) focusMarker.position = p;
+            }
+        }
+
         // Visuals only change after a real selection change, never at startup.
         void Refresh()
         {

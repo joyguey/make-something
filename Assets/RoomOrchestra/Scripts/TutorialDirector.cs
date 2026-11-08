@@ -498,7 +498,7 @@ namespace RoomOrchestra
         // leaf). Written only when the cloud has moved.
         void KeepParkedInTheCloud()
         {
-            if (park == null || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            if (park == null) return; // at once: the stage recentres a second in (PICO XR)
             if (bubble != null && !m_BubbleOut && !Popping && !BubbleParked) ParkBubble();
             if (glow != null && !m_GlowOut && glow.position != park.position) ParkGlow();
             if (arrow != null && (!Active || !ArrowOut) && (ArrowOut || arrow.position != park.position)) ParkArrow();

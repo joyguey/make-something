@@ -163,7 +163,7 @@ namespace RoomOrchestra
                 return;
             }
             // The ball stand travels with the leaf; a hidden station goes with it (written only when it moves).
-            if (park != null && park.position != m_ParkedAt && Time.timeSinceLevelLoad >= JellyBody.StartDelaySeconds) Park();
+            if (park != null && park.position != m_ParkedAt) Park(); // at once: the stage recentres a second in (PICO XR)
         }
     }
 }

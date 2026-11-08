@@ -207,7 +207,7 @@ namespace RoomOrchestra.EditorTools
             BackLabels(pad, lift: true); // while the leaf is still at home (the opening then poses it out of view)
             CreateEchoBattle(root, conductor);
             var intro = CreateIntro(root, swoop, tokens, leafStalk);
-            intro.ConfigureStand(standCarried, StandFrontOffset, launcher); // and back in front for the first frame
+            intro.ConfigureStand(standCarried, StandFrontOffset, launcher, parent != null ? parent.transform : null); // and back in front for the first frame
             leafStalk.Apply(); // its closed hole waits in the cloud, wherever the cloud starts
             var poofPark = root.transform.Find("PoofPark");
             if (poofPark != null) // idle poof clouds wait in the stand's cloud from the first frame too
