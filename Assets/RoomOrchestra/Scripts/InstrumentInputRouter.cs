@@ -62,7 +62,7 @@ namespace RoomOrchestra
         public static bool Aim(Ray ray, out RaycastHit hit)
         {
             hit = default;
-            var hits = Physics.RaycastAll(ray, RayReach, ~0, QueryTriggerInteraction.Collide);
+            var hits = Physics.RaycastAll(ray, RayReach, ~(1 << RealWalls.SurfaceLayer), QueryTriggerInteraction.Collide); // the room's surface only while choosing places
             float best = float.MaxValue;
             bool any = false;
             foreach (var h in hits)
@@ -112,6 +112,8 @@ namespace RoomOrchestra
                 return;
             }
 
+            if (Choose(hand, ray, origin, pressed)) return;
+
             bool touching = Aim(ray, out var hit);
             var target = touching ? hit.collider.gameObject : null;
             bool ball = launcher != null && launcher.IsReadyBall(target);
@@ -128,6 +130,48 @@ namespace RoomOrchestra
         }
 
         static int GrabId(int hand) => 100 + hand;
+
+        // After the lesson the player chooses where each instrument lives (owner, headset 2026-11-08): the ray touches
+        // the scanned room, a glowing spot previews the place, and a press puts the instrument there. A press on that
+        // instrument itself keeps it on its virtual furniture. The leaf's buttons and the ball still work as always.
+        int m_PreviewHand = -1;
+
+        bool Choose(int hand, Ray ray, Vector3 origin, bool pressed)
+        {
+            var placer = RealFurniture.Instance;
+            if (placer == null || !placer.Choosing)
+            {
+                m_PreviewHand = -1;
+                return false;
+            }
+            bool ui = Aim(ray, out var near);
+            var owner = ui ? PressableOwner(near.collider.gameObject) : null;
+            if (owner is RealSpot) owner = null; // the preview spot itself
+            bool keep = owner is InstrumentTarget t && t == placer.ChoosingTarget;
+            bool roomFirst = Physics.Raycast(ray, out var room, RayReach, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore)
+                             && (owner == null || room.distance < near.distance);
+            if (keep && !roomFirst)
+            {
+                if (m_PreviewHand == hand) placer.HidePreview();
+                ShowRay(hand, true, origin, near.point, true, true);
+                if (pressed) placer.KeepVirtual();
+                return true;
+            }
+            if (roomFirst)
+            {
+                placer.Preview(room.point);
+                m_PreviewHand = hand;
+                ShowRay(hand, true, origin, room.point, true, true);
+                if (pressed) placer.PlaceAt(room.point);
+                return true;
+            }
+            if (m_PreviewHand == hand)
+            {
+                placer.HidePreview(); // this hand's ray left the room's surface
+                m_PreviewHand = -1;
+            }
+            return false; // a button, the ball or nothing: as always
+        }
 
         void ShowRay(int hand, bool on, Vector3 from, Vector3 to, bool touching, bool hot)
         {

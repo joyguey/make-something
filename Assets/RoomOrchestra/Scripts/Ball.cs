@@ -226,7 +226,7 @@ namespace RoomOrchestra
             if (m_Body == null || m_Body.isKinematic) return false;
             var velocity = m_Body.linearVelocity;
             if (velocity.y <= -ScaredFallSpeed)
-                return Physics.Raycast(transform.position, velocity.normalized, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)
+                return Physics.Raycast(transform.position, velocity.normalized, out var hit, ScaredLookAhead, ~(1 << RealWalls.SurfaceLayer), QueryTriggerInteraction.Ignore)
                     && IsGround(hit.collider);
             return IsRollingTowardAnEdge(velocity);
         }
@@ -243,7 +243,7 @@ namespace RoomOrchestra
             foreach (float seconds in EdgeLookAheadSeconds)
             {
                 var ahead = transform.position + flat * seconds;
-                if (!Physics.Raycast(ahead + Vector3.up * radius, Vector3.down, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)) continue;
+                if (!Physics.Raycast(ahead + Vector3.up * radius, Vector3.down, out var hit, ScaredLookAhead, ~(1 << RealWalls.SurfaceLayer), QueryTriggerInteraction.Ignore)) continue;
                 if (hit.collider.attachedRigidbody == m_Body) continue;
                 if (IsGround(hit.collider) && transform.position.y - hit.point.y > radius + EdgeMinDrop) return true;
             }

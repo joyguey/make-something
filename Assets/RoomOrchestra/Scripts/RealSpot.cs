@@ -43,14 +43,14 @@ namespace RoomOrchestra
         }
 
         /// <summary>Lies on a real top (centre, footprint in metres) and names what lives there.</summary>
-        public void Show(Vector3 top, Vector2 footprint, string text)
+        public void Show(Vector3 top, Vector2 footprint, string text, bool tappable = true)
         {
             m_Shown = true;
             transform.SetPositionAndRotation(top + Vector3.up * 0.005f, Quaternion.identity);
             transform.localScale = Vector3.one;
             m_PadScale = new Vector3(Mathf.Clamp(footprint.x, MinSide, MaxSide), PadThickness, Mathf.Clamp(footprint.y, MinSide, MaxSide));
             if (pad != null) pad.localScale = m_PadScale;
-            if (tap != null) tap.enabled = true;
+            if (tap != null) tap.enabled = tappable; // a preview of where something will go takes no taps
             SetText(text);
         }
 

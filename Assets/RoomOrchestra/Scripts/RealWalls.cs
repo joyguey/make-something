@@ -20,6 +20,66 @@ namespace RoomOrchestra
         /// <summary>A triangle is kept if its normal is this close to horizontal (|y| below it): about 60 degrees or steeper.</summary>
         public const float SteepNormalY = 0.5f;
         public const string SpatialDataPermission = "com.picovr.permission.SPATIAL_DATA";
+        /// <summary>
+        /// The layer of the room's whole surface (PICO XR mode): drawn as a see-through glow while the player chooses where
+        /// the instruments live (owner, headset 2026-11-08: "shouldn't there be a visual that shows me when the room is
+        /// being mapped"), and pointed at to choose. Balls never touch it (only the steep walls bounce them).
+        /// </summary>
+        public const int SurfaceLayer = 30;
+
+        [Tooltip("How the scanned room looks while it is shown (see-through).")]
+        [SerializeField] Material scanLook;
+        readonly Dictionary<string, MeshCollider> m_Surfaces = new();
+        static bool s_ShowScan;
+
+        public void ConfigureScanLook(Material look) => scanLook = look;
+
+        /// <summary>Show the scanned room (while choosing places), or hide it.</summary>
+        public static bool ShowScan
+        {
+            get => s_ShowScan;
+            set
+            {
+                if (s_ShowScan == value) return;
+                s_ShowScan = value;
+                if (Instance != null)
+                    foreach (var surface in Instance.m_Surfaces.Values)
+                        if (surface != null && surface.TryGetComponent<MeshRenderer>(out var r)) r.enabled = value && Instance.scanLook != null;
+                Debug.Log($"[RoomOrchestra] Room scan shown: {value}");
+            }
+        }
+
+        public int SurfaceCount => m_Surfaces.Count;
+
+        /// <summary>A scanned piece's whole surface (the headset's mesh; tests feed a pretend one).</summary>
+        public void SetSurface(string key, Mesh mesh, Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            if (!m_Surfaces.TryGetValue(key, out var surface) || surface == null)
+            {
+                var go = new GameObject($"RoomSurface_{key}") { layer = SurfaceLayer };
+                go.transform.SetParent(transform, false);
+                go.AddComponent<MeshFilter>();
+                var look = go.AddComponent<MeshRenderer>();
+                look.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                look.receiveShadows = false;
+                surface = go.AddComponent<MeshCollider>();
+                m_Surfaces[key] = surface;
+            }
+            surface.transform.SetPositionAndRotation(position, rotation);
+            surface.transform.localScale = scale;
+            var filter = surface.GetComponent<MeshFilter>();
+            if (filter.sharedMesh != null && filter.sharedMesh != mesh) Destroy(filter.sharedMesh);
+            filter.sharedMesh = mesh;
+            surface.sharedMesh = mesh;
+            var renderer = surface.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = scanLook;
+            renderer.enabled = s_ShowScan && scanLook != null;
+        }
+
+        void Awake()
+        {
+            for (int layer = 0; layer < 32; layer++) Physics.IgnoreLayerCollision(layer, SurfaceLayer); // balls pass through
+        }
         const float PollSeconds = 1f;
 
         readonly List<MeshInfo> m_Infos = new();
@@ -36,7 +96,11 @@ namespace RoomOrchestra
         public int WallCount => m_Walls.Count;
         public static RealWalls Instance { get; private set; }
 
-        void OnEnable() => Instance = this;
+        void OnEnable()
+        {
+            Instance = this;
+            s_ShowScan = false;
+        }
         void OnDisable() { if (Instance == this) Instance = null; }
 
         /// <summary>
@@ -149,7 +213,7 @@ namespace RoomOrchestra
         {
             var walls = SteepOnly(scanned, rotation);
             SetPiece(id, WorldTriangles(scanned, position, rotation, scale));
-            Destroy(scanned);
+            SetSurface(id.ToString(), scanned, position, rotation, scale); // kept: shown while choosing, and pointed at
             bool isNew = !m_Walls.TryGetValue(id, out var collider);
             if (isNew)
             {

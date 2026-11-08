@@ -35,7 +35,8 @@ namespace RoomOrchestra.Tests
         public IEnumerator Unload()
         {
             OrbSelector.ThrowOnTap = false;
-            RealFurniture.Enabled = false;
+            RealFurniture.Enabled = true;
+            RealFurniture.AutoPlace = false;
             var empty = SceneManager.CreateScene($"RealFurnitureEmpty{Time.frameCount}");
             SceneManager.SetActiveScene(empty);
             var real = SceneManager.GetSceneByPath(ScenePath);
@@ -86,7 +87,8 @@ namespace RoomOrchestra.Tests
         [UnityTest]
         public IEnumerator AfterTheLessonInstrumentsMoveOntoRealFurnitureAndPlayThere()
         {
-            RealFurniture.Enabled = true; // switched off in the shipped build; kept working for PICO XR
+            RealFurniture.Enabled = true; // the automatic placement (switched off: the player chooses instead)
+            RealFurniture.AutoPlace = true;
             Assert.IsNotNull(RoomScan.Instance, "the scene has the room scan");
             Assert.IsNotNull(RealFurniture.Instance, "and the furniture step");
             Scan(FurnitureKind.Table, RealTableMin, RealTableMax);
@@ -135,7 +137,8 @@ namespace RoomOrchestra.Tests
         [UnityTest]
         public IEnumerator EveryFoundPieceGetsASpotAndTappingOneChoosesItsInstrument()
         {
-            RealFurniture.Enabled = true; // switched off in the shipped build; kept working for PICO XR
+            RealFurniture.Enabled = true; // the automatic placement (switched off: the player chooses instead)
+            RealFurniture.AutoPlace = true;
             Scan(FurnitureKind.Table, RealTableMin, RealTableMax);
             Scan(FurnitureKind.Chair, new Vector3(0.3f, 0f, 2.6f), new Vector3(0.8f, 0.9f, 3.1f));
             Scan(FurnitureKind.Lamp, new Vector3(1.4f, 0f, 1.8f), new Vector3(1.7f, 1.5f, 2.1f));

@@ -233,6 +233,34 @@ namespace RoomOrchestra.EditorTools
             go.transform.localScale = Vector3.one;
             if (!go.TryGetComponent<RoomScan>(out _)) go.AddComponent<RoomScan>(); // the labelled scan (furniture), same space
             if (!go.TryGetComponent<RealFurniture>(out _)) go.AddComponent<RealFurniture>(); // after the lesson, instruments onto it
+            var walls = go.GetComponent<RealWalls>();
+            walls.ConfigureScanLook(ScanLook());
+            EditorUtility.SetDirty(walls);
+        }
+
+        // The scanned room while the player chooses places (owner, headset 2026-11-08: show me the room being mapped): a
+        // see-through sky-blue glow over every real surface, unlit so it reads the same in any room light.
+        static Material ScanLook()
+        {
+            string path = $"{MaterialDir}/RoomScan.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.SetColor("_BaseColor", new Color(0.45f, 0.85f, 1f, 0.22f));
+            m.SetFloat("_Surface", 1f); // transparent
+            m.SetFloat("_Blend", 0f);   // alpha
+            m.SetFloat("_ZWrite", 0f);
+            m.SetFloat("_Cull", 0f);    // both sides: scanned pieces face any way
+            m.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            m.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            m.SetOverrideTag("RenderType", "Transparent");
+            m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            EditorUtility.SetDirty(m);
+            return m;
         }
 
         // Owner (emulator): white words over the light green leaf were hard to read. Every label on the leaf gets a dark

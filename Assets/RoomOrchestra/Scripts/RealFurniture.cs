@@ -35,7 +35,7 @@ namespace RoomOrchestra
         public const float HitMargin = 0.04f;
         const float SayLookSeconds = 7f, SayResultSeconds = 6f;
 
-        public enum Phase { Waiting, Scanning, Placed }
+        public enum Phase { Waiting, Scanning, Choosing, Placed }
 
         /// <summary>Which real furniture each virtual piece prefers, best first.</summary>
         public static FurnitureKind[] Preferences(string virtualPiece) => virtualPiece switch
@@ -76,11 +76,24 @@ namespace RoomOrchestra
         float m_ScanStart, m_NextTry;
 
         /// <summary>
-        /// Off in the shipped build (owner, headset 2026-11-08): the scan's furniture labels were unreliable in PICO
-        /// Spatial mode, so plates landed all over the room. The instruments stay on their virtual furniture; tests
-        /// switch it on to keep the code honest until the PICO XR version brings player-chosen placement.
+        /// On in PICO XR mode: after the lesson the player chooses where each instrument lives. (Off in v3.5, the last
+        /// PICO Spatial build: its automatic placement put plates all over the owner's room, 2026-11-08.)
         /// </summary>
-        public static bool Enabled { get; set; }
+        public static bool Enabled { get; set; } = true;
+        /// <summary>
+        /// The old automatic placement from the scan's furniture labels (unreliable on the headset, 2026-11-08). Off:
+        /// the player chooses instead (<see cref="Phase.Choosing"/>). Its tests switch it on.
+        /// </summary>
+        public static bool AutoPlace { get; set; }
+
+        int m_Choosing;
+        /// <summary>Choosing where the instruments live (the pointer places them).</summary>
+        public bool Choosing => m_Phase == Phase.Choosing;
+        /// <summary>The instrument being placed now, or null.</summary>
+        public InstrumentTarget ChoosingTarget => Choosing && m_Choosing < m_Stations.Count ? m_Stations[m_Choosing].Target : null;
+        /// <summary>The size of the spot that previews where the instrument will go (m).</summary>
+        public const float CursorSide = 0.25f;
+        const float SayPlaceSeconds = 30f;
 
         public static RealFurniture Instance { get; private set; }
         /// <summary>How long Flutter's "look around" shows before a full match is used (tests shorten it).</summary>
@@ -167,9 +180,20 @@ namespace RoomOrchestra
                     if (lesson || room == null || !room.Gone || m_Stations.Count == 0) return;
                     if (tutorial != null && !tutorial.Plan.Done) return; // a lesson about to start (Lesson) or not yet finished
                     if (tutorial != null && tutorial.BubbleOut) return; // let Flutter finish the lesson's last line first
+                    RememberHomes(); // now, not at startup: the opening still has the lamp and table tucked in the cloud
+                    if (!AutoPlace)
+                    {
+                        // owner, headset 2026-11-08: show me the mapped room and let me choose, instead of guessing
+                        m_Phase = Phase.Choosing;
+                        m_Choosing = 0;
+                        MatchedCount = 0;
+                        RealWalls.ShowScan = true;
+                        Debug.Log("[RoomOrchestra] Real furniture: the lesson is over; the player chooses where each instrument lives");
+                        AskWhere();
+                        break;
+                    }
                     m_Phase = Phase.Scanning;
                     m_ScanStart = Time.time;
-                    RememberHomes(); // now, not at startup: the opening still has the lamp and table tucked in the cloud
                     Debug.Log("[RoomOrchestra] Real furniture: the lesson is over; looking for the real table, chair and lamp");
                     if (!Application.isEditor) tutorial?.Announce(UiTerm.ScanLook, SayLookSeconds);
                     break;
@@ -185,6 +209,68 @@ namespace RoomOrchestra
                     WriteSpots(); // language or instrument changes
                     break;
             }
+        }
+
+        static UiTerm PlaceLine(InstrumentType instrument) => instrument switch
+        {
+            InstrumentType.Udu => UiTerm.PlaceUdu,
+            InstrumentType.Mbira => UiTerm.PlaceMbira,
+            _ => UiTerm.PlaceErhu
+        };
+
+        void AskWhere()
+        {
+            var target = ChoosingTarget;
+            if (target == null) return;
+            Debug.Log($"[RoomOrchestra] Real furniture: where should the {target.Instrument} live?");
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(PlaceLine(target.Instrument), SayPlaceSeconds);
+        }
+
+        /// <summary>Where the pointer touches the room now: a glowing spot shows where the instrument would go.</summary>
+        public void Preview(Vector3 point)
+        {
+            var target = ChoosingTarget;
+            var cursor = SpotAt(0);
+            if (target == null || cursor == null) return;
+            cursor.Show(point, new Vector2(CursorSide, CursorSide), UiText.Get(TermFor(target.Instrument), Localization.Current), tappable: false);
+        }
+
+        /// <summary>The pointer left the room's surface.</summary>
+        public void HidePreview() => SpotAt(0)?.Hide();
+
+        /// <summary>The player pressed on the room's surface: the instrument being placed lives there now.</summary>
+        public void PlaceAt(Vector3 point)
+        {
+            if (!Choosing) return;
+            var s = m_Stations[m_Choosing];
+            var box = new Bounds(point - Vector3.up * 0.15f, new Vector3(0.45f, 0.3f, 0.45f));
+            MoveOnto(s, new FurniturePiece(FurnitureKind.Other, box, point.y, 1));
+            MatchedCount++;
+            Physics.SyncTransforms();
+            NextChoice();
+        }
+
+        /// <summary>The player pressed the instrument itself: it stays on its virtual furniture.</summary>
+        public void KeepVirtual()
+        {
+            if (!Choosing) return;
+            Debug.Log($"[RoomOrchestra] Real furniture: the {m_Stations[m_Choosing].Target.Instrument} stays on its virtual furniture");
+            NextChoice();
+        }
+
+        void NextChoice()
+        {
+            HidePreview();
+            m_Choosing++;
+            if (m_Choosing < m_Stations.Count)
+            {
+                AskWhere();
+                return;
+            }
+            m_Phase = Phase.Placed;
+            RealWalls.ShowScan = false;
+            Debug.Log($"[RoomOrchestra] Real furniture: {MatchedCount} of {m_Stations.Count} instruments on real places the player chose");
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.PlaceDone, SayResultSeconds);
         }
 
         /// <summary>Every real piece an instrument could live on, biggest first (the scan's order).</summary>
@@ -304,7 +390,7 @@ namespace RoomOrchestra
 
         void LateUpdate()
         {
-            if (m_Phase != Phase.Placed) return;
+            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return;
             foreach (var s in m_Stations)
             {
                 if (!s.Matched && !s.GoingHome) continue;
@@ -497,6 +583,7 @@ namespace RoomOrchestra
             m_Candidates.Clear();
             m_Occupant.Clear();
             foreach (var spot in m_Spots) spot.Hide();
+            RealWalls.ShowScan = false;
             m_Phase = Phase.Waiting;
             Debug.Log("[RoomOrchestra] Real furniture: back in the virtual room for the lesson");
         }
