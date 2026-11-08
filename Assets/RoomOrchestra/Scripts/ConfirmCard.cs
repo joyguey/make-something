@@ -76,7 +76,10 @@ namespace RoomOrchestra
             toEye.y = 0f;
             if (toEye.sqrMagnitude < 1e-6f) toEye = -Vector3.forward;
             var place = at + toEye.normalized * TowardPlayer + Vector3.up * Above;
+            // Upright, turned only left/right toward the player (headset 2026-11-08: pitched at the eye, the card
+            // leaned back and read as "angled downward").
             var look = place - eye;
+            look.y = 0f;
             transform.SetPositionAndRotation(place, Quaternion.LookRotation(look.sqrMagnitude > 1e-6f ? look : Vector3.forward, Vector3.up));
             transform.localScale = shownScale;
             SetTaps(true);

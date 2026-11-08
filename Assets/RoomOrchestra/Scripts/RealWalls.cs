@@ -150,7 +150,8 @@ namespace RoomOrchestra
             var walls = SteepOnly(scanned, rotation);
             SetPiece(id, WorldTriangles(scanned, position, rotation, scale));
             Destroy(scanned);
-            if (!m_Walls.TryGetValue(id, out var collider))
+            bool isNew = !m_Walls.TryGetValue(id, out var collider);
+            if (isNew)
             {
                 var go = new GameObject($"RealWall_{id}");
                 go.transform.SetParent(transform, false);
@@ -165,7 +166,8 @@ namespace RoomOrchestra
             collider.sharedMesh = any ? walls : null; // a piece with no steep surface (a bit of floor) is no wall
             if (!any) Destroy(walls);
             collider.enabled = any;
-            if (any) Debug.Log($"[RoomOrchestra] Real walls: piece {id}: {walls.triangles.Length / 3} wall triangles, {collider.bounds.min:F1} to {collider.bounds.max:F1} ({m_Walls.Count} pieces)");
+            // new pieces only: updates arrive every second (headset 2026-11-08: 700 lines a minute)
+            if (any && isNew) Debug.Log($"[RoomOrchestra] Real walls: piece {id}: {walls.triangles.Length / 3} wall triangles, {collider.bounds.min:F1} to {collider.bounds.max:F1} ({m_Walls.Count} pieces)");
         }
 
         /// <summary>The triangles of <paramref name="mesh"/> that face sideways in the world (walls, furniture sides).</summary>
