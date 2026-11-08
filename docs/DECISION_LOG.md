@@ -170,3 +170,18 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Packs:** "Classic" (approved) and "Earthy" (the alternative synthesized set); names are placeholders the owner may change. Places and pack are remembered locally; the lesson always uses the first arrangement and refuses Change while running.
 - **View (A11Y-08):** one button cycling four settings rather than separate size and contrast buttons (the leaf has no more room); large text skips the pitch columns (already large, auto-fit).
 - **PxrPlatform launch error:** not patched (SDK git package); documented.
+
+
+## 2026-11-08 | PICO Spatial to PICO XR mode (owner decision)
+- Owner, after the second headset session: automatic furniture placement was unusable (plates all over the room, wrong furniture), and there was no visible scan and no occlusion. Owner asked why PICO XR hadn't been used from the start.
+- Evidence: PICO SDK 6.1 docs (`unity-getting-started_functionalities-supported-by-each-development-mode.md`). PICO Spatial mode has no spatial anchors, Scene Capture, Spatial Mesh rendering, Environment Depth or haptics; PICO XR mode has all of them. PICO's Room Capture app (`com.pvr.roomcapture`) is on the owner's headset.
+- My mistake, recorded honestly: on 2026-10-22 this log already noted that Scene Capture labels are XR-mode only, and I didn't raise switching modes then.
+- Decision (owner): release v3.5 as the last PICO Spatial build (automatic placement off), then move to PICO XR on branch `feat/pico-xr`. Work overnight; the owner tests in the evening before the 2026-11-08 23:59 APK deadline and falls back to v3.5 if needed.
+- Done:
+  - `PicoXrMode.Apply` does the Portal's "Apply All" in batch mode.
+  - The Spatial package and its 143 scene components are removed.
+  - XR rig: passthrough, floor tracking, recentre at start.
+  - Controller and hand pointer rays.
+  - The scanned room glows while the player chooses where each instrument lives (no automatic guessing).
+  - A depth-only room occluder, never within 1.5 m of the seat.
+- Not done: PICO's Environment Depth occlusion (its shaders are Built-in pipeline only, and the game uses URP); Room Capture furniture boxes as hints; spatial anchors to remember places between sessions (places last one session).

@@ -632,6 +632,17 @@ Owner played `RoomOrchestra-test.apk` on their own PICO (OS 6.2.0, model B3110) 
 - Testing hooks: `adb shell am start -n com.roomorchestra.app/com.unity3d.player.SpatialAdapterPlayerActivity --ez le_freeplay true` (Start + Skip) and `--ef le_autoquit 40`.
 - Tests: EditMode 230/230, PlayMode 97/97. Not pushed.
 
+## 2026-11-08 (night) | v3.5 released; the move to PICO XR (branch feat/pico-xr)
+- **v3.5 "last PICO Spatial test (failed)"**: GitHub pre-release, tag `v3.5` → b5f1c28. Automatic furniture placement off, no leaf keys on the floor at the start, slingshot release, chair hidden until the lesson.
+- **PICO XR**, branch `feat/pico-xr`, app 0.3.6, `Builds/RoomOrchestra-v3.6-pico-xr.apk`:
+  - mode switch (PicoXrMode), XrRig, pointer rays (controllers and hands);
+  - the room glows and the player chooses where each instrument lives (RealFurniture `Choosing`);
+  - room occluder (Shaders/RoomOccluder, RealWalls.NearClear 1.5 m).
+- **Tests:** EditMode 232/232, PlayMode 105/105.
+- **Emulator** (exact APK): runs, recentres, opening, lesson skip, room glow, choosing begins, clean quit. Screenshots showed the glow aligned with the emulator room and the virtual chair hidden behind its bed.
+- **NOT verified:** anything on the headset; controller and hand input (the emulator has none); the odd light patches seen with occlusion on the emulator.
+- **Launch for testing:** `am start -n com.roomorchestra.app/com.unity3d.player.UnityPlayerActivity --ez le_freeplay true --ef le_autoquit N`. Grant `SPATIAL_DATA` and `HAND_TRACKING` first.
+
 ## Resume here (next session)
 0. **2026-11-07 evening:** real-furniture build committed locally (not pushed). Headset shows "unauthorized" to adb until the owner accepts the prompt inside it. Next: owner's headset checks (`docs/OWNER_CHECKLIST.md` top section); owner decisions: occlusion route, voice notes, in-play menu.
 0. **2026-11-07:** all nine of George's items have changes (section above), committed locally, not pushed. Owner's list: `docs/OWNER_CHECKLIST.md`. First: confirm the latest test build draws on the emulator (screen was locked).

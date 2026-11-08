@@ -1,8 +1,31 @@
 # Owner checklist: things to try on the headset
 
-A running list of what needs your eyes, ears or hands on a real PICO headset. I add to it as I work; tick items off (or note what you saw) and I'll act on it. Newest build to install: `Builds/RoomOrchestra-test.apk` (`pico-cli app install Builds/RoomOrchestra-test.apk`, or `adb install -r`). It is a throwaway test build; it gets deleted once you've tried it.
+A running list of what needs your eyes, ears or hands on a real PICO headset. I add to it as I work; tick items off (or note what you saw) and I'll act on it.
 
-## New since your headset session (2026-11-07 evening): please check these first
+## Tonight's test (2026-11-08): Version 3.6, the first PICO XR build
+**Install:** `adb install -r Builds/RoomOrchestra-v3.6-pico-xr.apk` (branch `feat/pico-xr`). If it isn't good enough to hand in, submit **v3.5** (`Builds/RoomOrchestra-v3.5-last-pico-spatial-test.apk`, also on GitHub).
+- Plug in, put the headset on and accept **Allow USB debugging** (tick **Always allow**). If my tools still say "unauthorized", unplug and replug the cable.
+- On first launch the headset asks for **room scan** and **hand tracking** permission: tap **Allow** both times.
+- The emulator ran this exact APK: opening, lesson skip, the room glow, choosing begins, clean quit. **Nothing has been tried on a headset**, and the emulator has no controllers or hands, so pointing and pressing are untested.
+
+**Please check, in this order:**
+- [ ] **It opens and you see your room through it**, with the title card in front of you. If you see black instead of your room, stop and tell me (passthrough setup).
+- [ ] **Nothing distracting at the start:** no leaf, chair or keys before Start. On Start the leaf appears behind you and floats down.
+- [ ] **Controller ray:** each controller shows a thin ray, which turns **gold** over anything you can press. The trigger presses. Try Start, a note tile and Pause. Is the ray coming out of the controller where you expect?
+- [ ] **Hands:** put the controllers down. Does a ray come from your hand, and does a pinch press?
+- [ ] **Throwing:** point at the ball on the cloud, hold the trigger (or pinch), swing and let go. Pulling back toward you should fling it forward, never behind you.
+- [ ] **Your size and place:** the stage should start around you, the furniture at sensible sizes, the leaf in reach.
+- [ ] **After the lesson (or Skip):** your real room glows see-through blue. Flutter asks where the udu should live.
+  - Point at a real table or shelf: a small glowing spot follows the ray. Press, and the udu hops there.
+  - Pressing the udu itself keeps it on its virtual furniture.
+  - Then the mbira, then the erhu.
+  - Does the glow line up with your real room?
+- [ ] **Play with the real furniture:** throw at an instrument you placed. Does the real surface play it?
+- [ ] **Occlusion:** once you've chosen, real walls and furniture should hide virtual things behind them, but never within about 1.5 m of where you sit, so your own desk never hides the leaf. Does anything disappear that shouldn't, or show through that shouldn't? The emulator showed odd light patches; tell me if you see any.
+- [ ] **Quit** closes cleanly.
+
+
+## Earlier (2026-11-07 evening, PICO Spatial builds; mostly superseded by the list above)
 Install the newest `Builds/RoomOrchestra-test.apk`. First, put the headset on and accept **Allow USB debugging**, ticking **Always allow from this computer** (the headset currently shows "unauthorized" to my tools, so I can't install or watch it).
 
 **Fixed from your session** (I read the headset's log while you played):
