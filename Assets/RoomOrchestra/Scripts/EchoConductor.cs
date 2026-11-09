@@ -58,12 +58,30 @@ namespace RoomOrchestra
             if (Instance == this) Instance = null;
         }
 
-        // PICO can send the app to the background (system menu, another app) and Unity freezes there, so
-        // pause the music on the way out. It stays paused on return (the button shows Play): nothing
-        // restarts by surprise.
-        void OnApplicationPause(bool pausing)
+        // PICO can send the app to the background (system menu, another app, the headset taken off) and Unity
+        // freezes there, so the music pauses on the way out. Headset, 2026-11-07: the app was launched while the
+        // headset sat on a desk, so it started paused and the whole lesson ran with the music stopped (every note
+        // on the same step, no loop ever played). So a pause the system caused ends when the app comes back; a pause
+        // the player chose (the Pause button) stays until they press Play.
+        bool m_SystemPaused;
+
+        /// <summary>The music is paused because the app went to the background, not because the player chose it.</summary>
+        public bool SystemPaused => m_SystemPaused;
+
+        void OnApplicationPause(bool pausing) => SystemPause(pausing);
+
+        /// <summary>The app going to the background (true) and coming back (false).</summary>
+        public void SystemPause(bool pausing)
         {
-            if (pausing && !IsPaused) TogglePause();
+            if (pausing)
+            {
+                if (IsPaused) return;
+                TogglePause();
+                m_SystemPaused = true;
+                return;
+            }
+            if (m_SystemPaused && IsPaused) TogglePause();
+            m_SystemPaused = false;
         }
 
         void OnEnable() => MusicalHitPipeline.Committed += OnHit;
@@ -94,7 +112,7 @@ namespace RoomOrchestra
             foreach (var due in m_Sequencer.Collect(now))
             {
                 var target = TargetFor(due.Echo.Target);
-                if (target != null) target.PlayEcho(due.Echo, due.DspTime);
+                if (target != null && !SongMuted) target.PlayEcho(due.Echo, due.DspTime);
                 m_ScheduledThisBar++;
                 Scheduled?.Invoke(due);
             }
@@ -137,6 +155,9 @@ namespace RoomOrchestra
         }
 
         // Cancel what was already handed to audio, then re-queue from now: used after every edit.
+        /// <summary>Re-queues every echo from now (an instrument moved to other furniture, or its sound changed).</summary>
+        public void Requeue() => Resync();
+
         void Resync()
         {
             double now = AudioSettings.dspTime;
@@ -185,6 +206,64 @@ namespace RoomOrchestra
             return true;
         }
 
+        /// <summary>Puts an echo on a chosen step (the tutorial's snap into the tune; Undo takes the note back whole).</summary>
+        public bool MoveEcho(long stableId, int step)
+        {
+            if (!m_Sequencer.MoveTo(stableId, step, AudioSettings.dspTime, undoable: false)) return false;
+            Resync();
+            return true;
+        }
+
+        /// <summary>
+        /// Takes out the echo on <paramref name="type"/> at <paramref name="step"/>, if any (the lesson clearing a note it
+        /// didn't ask for from the place a right note belongs). Silenced at once; Undo can bring it back.
+        /// </summary>
+        public bool RemoveAt(InstrumentType type, int step)
+        {
+            EchoEvent found = null;
+            foreach (var e in m_Sequencer.Echoes)
+                if (e.Target == type && e.Step == step) found = e;
+            if (found == null || !m_Sequencer.Remove(found.StableId)) return false;
+            TargetFor(type)?.CancelScheduled(found.StableId);
+            if (SelectedEchoId == found.StableId) SelectedEchoId = 0;
+            Resync();
+            Debug.Log($"[RoomOrchestra] Took out {found} to make room");
+            return true;
+        }
+
+        /// <summary>An empty song with nothing to undo (the lesson starts from scratch; no Clear smoke).</summary>
+        public void StartFresh()
+        {
+            if (m_Sequencer.Echoes.Count == 0) return;
+            m_Sequencer.Reset();
+            Resync();
+            SelectedEchoId = 0;
+            Debug.Log("[RoomOrchestra] Song started fresh");
+        }
+
+        public IReadOnlyList<EchoEvent> Echoes => m_Sequencer.Echoes;
+
+        /// <summary>The song keeps its place but makes no sound (the Echo Battle mode borrows the instruments for a while).</summary>
+        public bool SongMuted { get; private set; }
+
+        public void SetSongMuted(bool muted)
+        {
+            if (SongMuted == muted) return;
+            SongMuted = muted;
+            Resync(); // drops what was queued; unmuted, the song picks up from now
+            Debug.Log($"[RoomOrchestra] Song {(muted ? "set aside (kept, silent)" : "back")}");
+        }
+
+        /// <summary>Takes one echo out of the song by its id (a one-shot note in the Echo Battle). Undo can bring it back.</summary>
+        public bool RemoveEcho(long stableId)
+        {
+            var echo = Find(stableId);
+            if (echo == null || !m_Sequencer.Remove(stableId)) return false;
+            TargetFor(echo.Target)?.CancelScheduled(stableId);
+            if (SelectedEchoId == stableId) SelectedEchoId = 0;
+            return true;
+        }
+
         public bool Nudge(int direction)
         {
             if (!m_Sequencer.Nudge(SelectedEchoId, direction, AudioSettings.dspTime)) return false;
@@ -213,6 +292,7 @@ namespace RoomOrchestra
 
         public void TogglePause()
         {
+            m_SystemPaused = false;
             double now = AudioSettings.dspTime;
             if (m_Clock.IsPaused)
             {

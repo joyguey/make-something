@@ -43,6 +43,7 @@ namespace RoomOrchestra
 
             LandingPoint = start + velocity * duration + 0.5f * duration * duration * g;
             SetMarker(hasTarget, LandingPoint + nudge);
+            Draw(true);
             IsVisible = true;
         }
 
@@ -51,7 +52,26 @@ namespace RoomOrchestra
             foreach (var d in dots)
                 d.position = ParkPosition;
             SetMarker(false, Vector3.zero);
+            Draw(false);
             IsVisible = false;
+        }
+
+        // PICO XR mode draws exactly what is enabled: hidden dots are not drawn at all (owner, headset 2026-11-08: the
+        // trajectory showed at the start, off the cloud).
+        Renderer[] m_Looks;
+
+        void Draw(bool on)
+        {
+            m_Looks ??= GetLooks();
+            foreach (var r in m_Looks) if (r != null && r.enabled != on) r.enabled = on;
+        }
+
+        Renderer[] GetLooks()
+        {
+            var looks = new System.Collections.Generic.List<Renderer>();
+            if (dots != null) foreach (var d in dots) if (d != null) looks.AddRange(d.GetComponentsInChildren<Renderer>(true));
+            if (landingMarker != null) looks.AddRange(landingMarker.GetComponentsInChildren<Renderer>(true));
+            return looks.ToArray();
         }
 
         Vector3 m_MarkerScale;
@@ -59,6 +79,7 @@ namespace RoomOrchestra
         void Awake()
         {
             if (landingMarker != null) m_MarkerScale = landingMarker.localScale;
+            Draw(false); // nothing drawn until there is a throw to preview
         }
 
         // The ring is wider than the park spot, so a parked ring is also shrunk to nothing.

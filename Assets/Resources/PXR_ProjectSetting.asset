@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PXR_ProjectSetting
   m_EditorClassIdentifier: ByteDance.PICO.XR::ByteDance.PICO.XR.PXR_ProjectSetting
   useContentProtect: 0
-  handTracking: 0
+  handTracking: 1
   adaptiveHand: 0
   highFrequencyHand: 0
   openMRC: 1
@@ -29,11 +29,11 @@ MonoBehaviour:
   bodyTracking: 0
   adaptiveResolution: 0
   stageMode: 0
-  videoSeeThrough: 0
-  spatialAnchor: 0
-  sceneCapture: 0
+  videoSeeThrough: 1
+  spatialAnchor: 1
+  sceneCapture: 1
   sharedAnchor: 0
-  spatialMesh: 0
+  spatialMesh: 1
   planeDetection: 0
   secureMR: 0
   meshLod: 0
@@ -43,12 +43,12 @@ MonoBehaviour:
   fixedFoveatedSharpening: 0
   selfAdaptiveSharpening: 0
   handTrackingSupportType: 0
-  environmentDepth: 0
+  environmentDepth: 1
   lightEstimation: 0
   lightEstimationTextureResolution: 0
   objectTracking: 0
   keyboardPassthrough: 0
-  arFoundation: 0
+  arFoundation: 1
   mrSafeguard: 0
   enableRecommendMSAA: 0
   recommendSubsamping: 0
@@ -58,4 +58,4 @@ MonoBehaviour:
   portalInited: 1
   isDataCollectionDisabled: 0
   portalFirstSelected: 0
-  isSpatialAdapter: 1
+  isSpatialAdapter: 0

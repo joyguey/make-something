@@ -139,3 +139,56 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Submission text (owner):** the reduced-motion setting and adjustable control sensitivity are removed from the overview (neither is built; the Calm motion toggle was already removed on 2026-10-25 as too many buttons). Note: CLAUDE.md lists adjustable motion as an accessibility requirement; the owner has chosen not to offer it in this version.
 - **Moving an echo by hand** around its ring: to revisit after the dev team's headset test. Today an echo moves a step at a time in the controller's edit mode.
 - **Leftovers deleted:** two test-runner scenes and Unity's crash backup (`Assets/_Recovery`), none used by the build.
+
+## 2026-10-29 — App icon, name and layered launcher icon
+- **Icon:** the owner's combination (see AGENT_PROGRESS), with the cover's hand lettering lifted from the owner's own key art (no font file exists for it). If that cover lettering came from an AI image tool, its terms should allow use in a published app icon (flagged to the owner).
+- **Name:** the app is now called "Little Echoes" on the device (was "Room Orchestra"). The package id `com.roomorchestra.app` is unchanged, so updates still install over earlier versions.
+- **Layered icon without the Configurator's manifest edits:** to keep SpatialAdapter's required stock manifests, the launcher entries live in the generated Android library's manifest instead. If PICO adds Spatial-mode support to the Icon Configurator, switch to it.
+
+## 2026-10-29 — Plan for the Version 1 feedback (owner's choices)
+- **This round:** hover feedback on every tappable thing, a title screen with a brief intro, a focused start (ball stand in front) with a step-by-step tutorial that starts with one piece of furniture and a guided tutorial song, and scale tweaks for seated desk play.
+- **Tutorial song (owner: a well-known melody):** "Mary Had a Little Lamb" (public domain). It uses only scale degrees 1, 2, 3 and 5 (D, E, F#, A), all in the instruments' five notes; "Twinkle Twinkle" needs the 4th (G), which the D pentatonic set does not have.
+- **Next version:** start in a fully virtual room that tears down to reveal the real room, once the tutorial works in mixed reality.
+- **Version 3:** instrument packs and assigning any instrument to any furniture (with wall-bounce sounds).
+
+## 2026-10-29 — Furniture scale (Version 1 feedback; developer: "the virtual furniture looked big")
+- **Feedback text:** "When playing seated at a desk, the scale of the environment and objects felt uncomfortably large." The developer added (via the owner) that everything should scale like PICO's virtual room environments.
+- **Checked:** the spatial camera config `RoomOrchestraFullSpace` is Unconstrained, which PICO documents as one Unity metre = one metre (no system scaling; `worldscaletype=2` is fixed scale). The furniture was close to real size: table 1.20 x 0.83 m tall, chair 1.08 m tall with a 0.46 m seat, floor lamp 1.54 m. An emulator screenshot cross-check (our 0.55 m chair at 2.0 m against the emulator bedroom's bed) puts the bed at about 2 m wide and 2.2 m away, so the emulator room and our furniture share a real-world scale. PICO's documentation gives no dimensions for its virtual rooms.
+- **Decision (owner: true real-world sizes):** standard sizes, a 0.75 m table top (was 0.83) and a chair back topping out at 0.90 m (was 1.08; seat unchanged); the lamp is already standard. All three moved 0.2 m further out (table and lamp at z 2.5, chair at 2.2) so they sit around a seated player rather than over them. Set in code (`LittleEchoesSceneSetup.FitFurnitureToRealSizes`); the table-leg and chair vines were re-fitted in Blender, and the vines now follow the furniture's position.
+- **Not yet done:** the virtual starting room (next version) is where the reviewer suggested setting the initial scale.
+
+## 2026-10-30 — Guided tutorial
+- **Plays every launch, with Skip** (so the dev team sees it each time). Remembering completion per device is a small follow-up if the owner wants it.
+- **Wrong notes are taken back** (they still sound) so the tutorial song stays correct; free play resumes after the song or Skip.
+- **Timed finish (owner: rhythm-game count):** only the last note ("lamb") is timed, landing on Go (beat 4) with +/-2 sixteenths (about +/-0.34 s at 88 BPM); after 2 misses it counts anywhere. Accessibility gate: no mechanic requires throwing or fast reflexes, so a tap or the controller's place counts like a throw, and timing is never required to finish.
+- **Any lamp note counts on Go:** a thrown ball's pitch comes from the height it hits, so requiring F# would make throwing frustrating; F# glows as the suggestion. Owner may prefer to require F#.
+- **Colours are never the only cue:** the count's numbers carry the meaning; blue/purple/gold/green are as asked.
+
+## 2026-10-30 — Virtual room, bounces, packs, View
+- **Virtual room** comes apart only at the lesson's end or Skip (returning players: straight after the opening). The Lesson replay happens in the real room (no room again).
+- **Wall bounces** play only off `BounceSurface` walls: the virtual room's walls and ceiling until real walls can be mapped on a headset. Floor landings stay silent (owner 2026-10-28).
+- **Packs:** "Classic" (approved) and "Earthy" (the alternative synthesized set); names are placeholders the owner may change. Places and pack are remembered locally; the lesson always uses the first arrangement and refuses Change while running.
+- **View (A11Y-08):** one button cycling four settings rather than separate size and contrast buttons (the leaf has no more room); large text skips the pitch columns (already large, auto-fit).
+- **PxrPlatform launch error:** not patched (SDK git package); documented.
+
+
+## 2026-11-08 | PICO Spatial to PICO XR mode (owner decision)
+- Owner, after the second headset session: automatic furniture placement was unusable (plates all over the room, wrong furniture), and there was no visible scan and no occlusion. Owner asked why PICO XR hadn't been used from the start.
+- Evidence: PICO SDK 6.1 docs (`unity-getting-started_functionalities-supported-by-each-development-mode.md`). PICO Spatial mode has no spatial anchors, Scene Capture, Spatial Mesh rendering, Environment Depth or haptics; PICO XR mode has all of them. PICO's Room Capture app (`com.pvr.roomcapture`) is on the owner's headset.
+- My mistake, recorded honestly: on 2026-10-22 this log already noted that Scene Capture labels are XR-mode only, and I didn't raise switching modes then.
+- Decision (owner): release v3.5 as the last PICO Spatial build (automatic placement off), then move to PICO XR on branch `feat/pico-xr`. Work overnight; the owner tests in the evening before the 2026-11-08 23:59 APK deadline and falls back to v3.5 if needed.
+- Done:
+  - `PicoXrMode.Apply` does the Portal's "Apply All" in batch mode.
+  - The Spatial package and its 143 scene components are removed.
+  - XR rig: passthrough, floor tracking, recentre at start.
+  - Controller and hand pointer rays.
+  - The scanned room glows while the player chooses where each instrument lives (no automatic guessing).
+  - A depth-only room occluder, never within 1.5 m of the seat.
+- Not done: PICO's Environment Depth occlusion (its shaders are Built-in pipeline only, and the game uses URP); Room Capture furniture boxes as hints; spatial anchors to remember places between sessions (places last one session).
+
+## 2026-11-08: v3.7, real objects instead of virtual furniture (owner headset feedback)
+- **Notes along the longest side** (owner chose it; a table top has no height). The bands show on pointing; pressing a band plays that note, with no throw needed. The lesson keeps its 5-tile columns; they are put away once places are chosen.
+- **Leaf:** Essentials + Menu (owner chose it). Characters, Menu, Undo, Pause and Clear stay on the leaf; the rest go on a menu tray. During the lesson only Clear tucks away.
+- **Choosing:** in the lesson's order with the lesson's arrangement, which is restored first (a saved swap had the table holding the erhu). The object comes from the scan's labelled cluster tightened to its triangles, or from growing the surface pointed at. A chosen object's virtual furniture is hidden, and its scanned shape takes the hits.
+- **Occlusion:** PICO's environment depth is written into the depth buffer by one URP pass (PICO's own shaders are Built-in only, per material). The scanned-room shield is the fallback, and Menu has a "Hiding" toggle. Untested on the headset.
+- **Saved places:** PICO spatial anchors are persisted on the device, and only the anchor ids and object sizes go into local PlayerPrefs. Nothing is uploaded.

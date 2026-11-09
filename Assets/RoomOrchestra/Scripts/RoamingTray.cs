@@ -51,25 +51,283 @@ namespace RoomOrchestra
         {
             Instance = this;
             StageAnchor.Recentered += GoHomeNow;
+            StageAnchor.Recentered += OnRecentered;
+            ComfortSettings.PostureChanged += OnPosture;
         }
 
         void OnDisable()
         {
             if (Instance == this) Instance = null;
             StageAnchor.Recentered -= GoHomeNow;
+            StageAnchor.Recentered -= OnRecentered;
+            ComfortSettings.PostureChanged -= OnPosture;
         }
 
         void Update()
         {
             if (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            if (m_HandPlaced) return; // where the player put it, until Come here (or Recenter)
             if (TryGetHead(out var head) && m_Follow.Update(head.X, head.Z, head.YawDegrees, Time.deltaTime))
                 Log();
             Glide(Time.deltaTime);
+            UpdateDesk(Time.deltaTime);
         }
+
+        // ---- Moved by hand (owner, headset 2026-11-08: "make the leaf grabbable from the side so if I try and grab it
+        // with my full hand or controller, I can adjust it to where the location makes sense and the cloud will keep its
+        // position relative to the leaf") ----
+        // A grab (controller grip, or a fist) at the leaf's edge moves the leaf and everything it carries (the cloud
+        // too, so it keeps its place beside the leaf); it stays upright and keeps facing the way it faced. It then stays
+        // where it was put: no following and no refitting until Come here or Recenter.
+        Vector3 m_Grab, m_GrabStart, m_HandStart; // frame space
+        bool m_HandPlaced, m_Grabbing;
+
+        /// <summary>The leaf was put somewhere by hand (it stays there until Come here or Recenter).</summary>
+        public bool HandPlaced => m_HandPlaced;
+        public bool Grabbing => m_Grabbing;
+        /// <summary>The lowest the leaf's top may be put (m above the frame's floor).</summary>
+        public const float LowestByHand = 0.3f, HighestByHand = 1.8f;
+
+        /// <summary>A hand at <paramref name="handWorld"/> takes hold of the leaf.</summary>
+        public void BeginGrab(Vector3 handWorld)
+        {
+            if (frame == null) return;
+            m_Grabbing = true;
+            m_HandPlaced = true;
+            m_GrabStart = m_Grab;
+            m_HandStart = frame.InverseTransformPoint(handWorld);
+            // finish any glide where it is now, so the leaf doesn't run off under the hand
+            m_Follow.Reset(); // its target is then the frame's home; ignored while placed by hand
+            m_Velocity = Vector3.zero;
+            m_YawVelocity = 0f;
+            m_Desk = m_DeskTarget;
+            m_Stand = m_StandTarget;
+            Debug.Log("[RoomOrchestra] Leaf pad: taken by hand");
+        }
+
+        /// <summary>The hand moved to <paramref name="handWorld"/>: the leaf (and the cloud with it) follow it.</summary>
+        public void MoveGrab(Vector3 handWorld)
+        {
+            if (!m_Grabbing || frame == null) return;
+            var want = m_GrabStart + (frame.InverseTransformPoint(handWorld) - m_HandStart);
+            // keep its top between knee and head height
+            float top = LeafHomeTop + m_Desk.y + (transform.parent != null ? transform.parent.localPosition.y : 0f);
+            want.y = Mathf.Clamp(want.y, LowestByHand - top, HighestByHand - top);
+            m_Grab = want;
+            Apply();
+        }
+
+        public void EndGrab()
+        {
+            if (!m_Grabbing) return;
+            m_Grabbing = false;
+            Debug.Log($"[RoomOrchestra] Leaf pad: put down by hand, moved {m_Grab:F2} m; it stays there until Come here");
+        }
+
+        void LetGoOfHandPlace()
+        {
+            m_Grabbing = false;
+            m_HandPlaced = false;
+            m_Grab = Vector3.zero;
+        }
+
+        // ---- Above the player's desk ----
+        // Owner, headset 2026-11-08: "Because usually people have a desk in front of them, I also can not access the
+        // leaf with the buttons. The floating ball on cloud is also further away from me." The leaf was built 49 cm
+        // above the floor, under a desk. Once the room scan shows a table-top in front of the seat, the leaf, the ball
+        // stand and what travels with them rise to sit just above it and come in toward the player, onto the desk's
+        // front. Never during the opening (it poses the stand itself). Only rises (a scan that briefly misses the desk
+        // never drops the leaf back under it).
+
+        /// <summary>Where the leaf looks for a desk (pad frame, m): across, and how far out.</summary>
+        public const float DeskMinX = -0.75f, DeskMaxX = 0.9f, DeskNearZ = 0.3f, DeskFarZ = 1.45f, DeskStep = 0.1f;
+        /// <summary>A desk-top is this high above the floor (m), and covers at least this share of the samples.</summary>
+        public const float DeskLow = 0.3f, DeskHigh = 1.2f, DeskCover = 0.2f;
+        /// <summary>The leaf's underside at home (m above the floor), and how far above a desk it then floats.</summary>
+        public const float LeafUnderside = 0.475f, AboveDesk = 0.05f;
+        /// <summary>The leaf's middle comes no closer than this (m), and this far in from the desk's front edge.</summary>
+        public const float NearestLeaf = 0.68f, OnDeskFront = 0.25f, LeafHomeZ = 1.17f;
+
+        Vector3 m_Desk, m_DeskTarget, m_DeskVelocity; // (0, lift, pull) in the pad's frame
+        float m_NextDeskLook;
+
+        /// <summary>How far the leaf has risen (m) and come toward the player (m) to clear a desk.</summary>
+        public Vector2 DeskOffset => new(m_Desk.y, m_Desk.z);
+        public Vector2 DeskTarget => new(m_DeskTarget.y, m_DeskTarget.z);
+
+        // ---- Within the player's reach (owner, headset 2026-11-08: "I CAN'T REACH ANYTHING, PLEASE REDO THE HEIGHT") ----
+        // The leaf was laid out from the floor for a seated eye 1.15 m up, 1.17 m out. On the headset everything is now
+        // placed from the player's own head once the opening is over (and again after Recenter or Height): the leaf's
+        // middle a forearm's length in front of them and a little left, its top 40 cm below their eyes; the ball on its
+        // cloud just right of it, 30 cm below the eyes. Over a desk both stay just above the desk's own top (the most
+        // common flat height there: the monitor and things on the desk no longer count as the desk).
+
+        /// <summary>Seated: the leaf's middle in front of the eyes (m), and its top below them (m).</summary>
+        public const float ReachOut = 0.45f, LeafBelowEyes = 0.40f, LeafAside = -0.18f;
+        // Owner, headset 2026-11-08 (standing, eyes 1.52 m): the leaf sat right under the face, "the height needs to be
+        // adjusted". Standing, the leaf goes lower and a little further out, near elbow height; between the two it blends.
+        /// <summary>Standing: the leaf's middle in front of the eyes (m) and its top below them (m); eyes from seated to standing (m).</summary>
+        public const float StandingReachOut = 0.55f, StandingLeafBelowEyes = 0.55f, SeatedEyes = 1.25f, StandingEyes = 1.5f;
+        // Owner, headset 2026-11-08: "the cloud needs to move with the leaf, but should be separate, maybe slightly higher
+        // than the height of the leaf". The cloud rides beside the leaf's right edge with a gap, its ball a little above the leaf.
+        /// <summary>The ball on the cloud above the leaf's top (m), at least this far above a desk (m), and the cloud's place from the leaf (m).</summary>
+        public const float BallAboveLeaf = 0.15f, BallAboveDesk = 0.25f, StandInward = 0.2f;
+        /// <summary>Authored (home) heights: the leaf's top and underside, and the ball on the cloud (m above the floor).</summary>
+        public const float LeafHomeTop = 0.505f, LeafHomeX = -0.2f, BallHome = 1.06f;
+
+        Vector3 m_Stand, m_StandTarget, m_StandVelocity; // the cloud's own offset (x, up, toward the player)
+        bool m_Fitted;
+
+        void OnRecentered() => m_Fitted = false; // measure the player again
+        void OnPosture(PlayPosture posture) => m_Fitted = false;
+
+        // Owner, 2026-11-08: "adapt to the height with each playthrough ... and follow them at a comfortable height as
+        // they start to move around". Fitted after every opening, after Recenter and Height, and again whenever the
+        // player stands up, sits down or walks off (a change held for a moment, so leaning never moves it).
+        /// <summary>A head this much higher or lower (m), or this far away across the floor (m), held this long (s), refits.</summary>
+        public const float RefitRise = 0.15f, RefitWalk = 0.6f, RefitHold = 3f, LowestEyes = 0.95f;
+        /// <summary>The ball on its cloud: this far right of the eyes (clear of the leaf's right edge) and out in front (m).</summary>
+        public const float BallAside = 0.58f, BallOut = 0.45f;
+
+        /// <summary>How far out the leaf's middle sits and how far below the eyes its top is, for eyes this high (m).</summary>
+        public static (float out_, float below) LeafFor(float eyes)
+        {
+            float t = Mathf.InverseLerp(SeatedEyes, StandingEyes, eyes);
+            return (Mathf.Lerp(ReachOut, StandingReachOut, t), Mathf.Lerp(LeafBelowEyes, StandingLeafBelowEyes, t));
+        }
+        Vector3 m_FittedHead;
+        float m_ChangedSince = -1f;
+
+        void UpdateDesk(float deltaSeconds)
+        {
+            var intro = IntroSequence.Instance;
+            if (intro != null && !intro.Done) return;
+            bool device = XrRig.Instance != null && XrRig.Instance.Tracked;
+            if (device && Time.time >= m_NextDeskLook)
+            {
+                m_NextDeskLook = Time.time + 0.25f;
+                // bending down (to pick up a controller) is not sitting lower: a head below LowestEyes never refits
+                if (TryGetHeadInFrame(out var head) && (head.y >= LowestEyes || !m_Fitted))
+                {
+                    var flat = head - m_FittedHead;
+                    flat.y = 0f;
+                    bool changed = Mathf.Abs(head.y - m_FittedHead.y) > RefitRise || flat.magnitude > RefitWalk;
+                    if (!changed) m_ChangedSince = -1f;
+                    else if (m_ChangedSince < 0f) m_ChangedSince = Time.time;
+                    if (!m_Fitted || (changed && Time.time - m_ChangedSince >= RefitHold))
+                    {
+                        Fit(head, true);
+                        m_ChangedSince = -1f;
+                    }
+                }
+            }
+            bool moving = (m_Desk - m_DeskTarget).sqrMagnitude > 1e-6f || (m_Stand - m_StandTarget).sqrMagnitude > 1e-6f;
+            if (!moving) return;
+            m_Desk = Vector3.SmoothDamp(m_Desk, m_DeskTarget, ref m_DeskVelocity, 0.4f, 1.5f, deltaSeconds);
+            m_Stand = Vector3.SmoothDamp(m_Stand, m_StandTarget, ref m_StandVelocity, 0.4f, 1.5f, deltaSeconds);
+            if ((m_Desk - m_DeskTarget).sqrMagnitude < 1e-6f) { m_Desk = m_DeskTarget; m_DeskVelocity = Vector3.zero; }
+            if ((m_Stand - m_StandTarget).sqrMagnitude < 1e-6f) { m_Stand = m_StandTarget; m_StandVelocity = Vector3.zero; }
+            Apply();
+        }
+
+        // Places the leaf and the ball on its cloud from the head (frame space), facing the way the pad faces.
+        void Fit(Vector3 head, bool log)
+        {
+            m_FittedHead = head;
+            float rig = PostureLayout.ControlsLift(ComfortSettings.Posture); // the Controls holder lifts the leaf already
+            var turn = Quaternion.Euler(0f, m_Follow.Target.YawDegrees, 0f);
+            var origin = TargetPosition;
+            var (reachOut, below) = LeafFor(head.y);
+            var leafMiddle = head + turn * new Vector3(LeafAside, 0f, reachOut);
+            var ballAt = head + turn * new Vector3(BallAside, 0f, BallOut);
+            float leafTop = head.y - below;
+            bool desk = TryFindDeskUnder(leafMiddle, head.y, out float deskTop);
+            if (desk) leafTop = Mathf.Max(leafTop, deskTop + AboveDesk + (LeafHomeTop - LeafUnderside));
+            float ball = leafTop + BallAboveLeaf;
+            if (desk) ball = Mathf.Max(ball, deskTop + BallAboveDesk);
+            // the leaf: offsets from its authored place, in the pad's frame (across, up, toward the player)
+            var leafLocal = Quaternion.Inverse(turn) * (leafMiddle - origin);
+            var leaf = new Vector3(leafLocal.x - LeafHomeX, leafTop - LeafHomeTop - rig, LeafHomeZ - leafLocal.z);
+            // the cloud: from where the ball sits now, back to its authored place, then on to where it should be
+            var stand = m_StandTarget;
+            if (launcher != null && launcher.SpawnPosition.HasValue)
+            {
+                var nowTurn = Quaternion.Euler(0f, m_Yaw, 0f);
+                var spawn = frame.InverseTransformPoint(launcher.SpawnPosition.Value);
+                var home = Quaternion.Inverse(nowTurn) * (spawn - m_Position) - new Vector3(m_Stand.x, m_Stand.y, -m_Stand.z);
+                var want = Quaternion.Inverse(turn) * (new Vector3(ballAt.x, ball, ballAt.z) - origin);
+                var offset = want - home;
+                stand = new Vector3(offset.x, offset.y, -offset.z);
+            }
+            m_DeskTarget = leaf;
+            m_StandTarget = stand;
+            if (log)
+                Debug.Log($"[RoomOrchestra] Leaf pad: fitted to the player (eyes {head.y:F2} m up{(desk ? $", desk top {deskTop:F2} m" : ", no desk under the leaf")}): leaf top {leafTop:F2} m, {reachOut:F2} m out; ball {ball:F2} m, beside it");
+            m_Fitted = true;
+        }
+
+        float m_NextDeskLog;
+
+        /// <summary>Test hook: fits to a head at <paramref name="head"/> (stage space) at once.</summary>
+        public void FitForTest(Vector3 head)
+        {
+            m_Fitted = false;
+            Fit(head, true);
+            m_Desk = m_DeskTarget;
+            m_Stand = m_StandTarget;
+            Apply();
+        }
+
+        bool TryGetHeadInFrame(out Vector3 head)
+        {
+            head = default;
+            if (frame == null || StageAnchor.Instance == null || !StageAnchor.Instance.TryGetHeadPose(out var pose)) return false;
+            head = frame.InverseTransformPoint(pose.position);
+            return head.y > 0.5f;
+        }
+
+        // A desk under the leaf: flat scanned surfaces below the eyes over the leaf's footprint; the desk's top is the
+        // most common height among them (things standing on the desk are fewer and higher).
+        bool TryFindDeskUnder(Vector3 middle, float eye, out float top)
+        {
+            top = 0f;
+            if (frame == null || RealWalls.Instance == null || RealWalls.Instance.SurfaceCount == 0) return false;
+            var bins = new System.Collections.Generic.Dictionary<int, int>();
+            int samples = 0, hits = 0;
+            float floor = frame.position.y;
+            const float bin = 0.04f;
+            for (float x = -0.5f; x <= 0.5f + 1e-4f; x += DeskStep)
+            for (float z = -0.25f; z <= 0.35f + 1e-4f; z += DeskStep)
+            {
+                samples++;
+                var from = frame.TransformPoint(new Vector3(middle.x + x, eye - 0.1f, middle.z + z));
+                if (!Physics.Raycast(from, Vector3.down, out var hit, eye, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore)) continue;
+                float y = hit.point.y - floor;
+                if (y < DeskLow || y > eye - 0.15f || Mathf.Abs(hit.normal.y) < 0.7f) continue;
+                int k = Mathf.RoundToInt(y / bin);
+                bins[k] = bins.TryGetValue(k, out int n) ? n + 1 : 1;
+                hits++;
+            }
+            if (hits < samples * DeskCover) return false;
+            int best = 0, bestCount = -1;
+            foreach (var pair in bins) if (pair.Value > bestCount) { best = pair.Key; bestCount = pair.Value; }
+            top = best * bin;
+            return true;
+        }
+
 
         /// <summary>Option C: come to the player now (or home, if they are at the seat).</summary>
         public bool Call()
         {
+            if (m_HandPlaced)
+            {
+                // from where the hand put it: the pad's real place now, then the call glides it to the player
+                m_Position += m_Grab;
+                m_Position.y = 0f;
+                LetGoOfHandPlace();
+                m_Fitted = false; // fitted to the player again
+                Apply();
+            }
             if (!TryGetHead(out var head) || !m_Follow.Call(head.X, head.Z, head.YawDegrees)) return false;
             Log();
             return true;
@@ -122,6 +380,7 @@ namespace RoomOrchestra
 
         void GoHomeNow()
         {
+            LetGoOfHandPlace();
             m_Follow.Reset();
             m_Position = Vector3.zero;
             m_Velocity = Vector3.zero;
@@ -133,8 +392,10 @@ namespace RoomOrchestra
         void Apply()
         {
             var turn = Quaternion.Euler(0f, m_Yaw, 0f);
+            var desk = new Vector3(m_Desk.x, m_Desk.y, -m_Desk.z); // fitted to the player: across, up, in toward them (pad frame)
+            var standOffset = new Vector3(m_Stand.x, m_Stand.y, -m_Stand.z);
             // The pad sits in the Controls holder, which only lifts it (Height); x/z/yaw are ours.
-            transform.localPosition = new Vector3(m_Position.x, 0f, m_Position.z);
+            transform.localPosition = new Vector3(m_Position.x, 0f, m_Position.z) + turn * desk + m_Grab;
             transform.localRotation = turn;
 
             Pose still = keepStill != null ? new Pose(keepStill.position, keepStill.rotation) : default;
@@ -143,7 +404,7 @@ namespace RoomOrchestra
                 {
                     if (carried[i] == null) continue;
                     carried[i].SetPositionAndRotation(
-                        frame.TransformPoint(turn * carriedHomePositions[i] + m_Position),
+                        frame.TransformPoint(turn * (carriedHomePositions[i] + standOffset) + m_Position + m_Grab),
                         frame.rotation * turn * carriedHomeRotations[i]);
                 }
             if (keepStill != null) keepStill.SetPositionAndRotation(still.position, still.rotation);

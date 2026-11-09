@@ -10,7 +10,7 @@ namespace RoomOrchestra
     /// The hidden icon is parked inside the slab rather than deactivated: PICO Spatial still draws
     /// inactive objects.
     /// </summary>
-    [RequireComponent(typeof(Collider))]
+    // Its tap collider sits on its visible slab, where PICO's hover highlight can show.
     public class MusicControlButton : MonoBehaviour
     {
         public enum Kind

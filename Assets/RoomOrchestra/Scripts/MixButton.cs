@@ -30,8 +30,19 @@ namespace RoomOrchestra
         public static string TextFor(InstrumentType instrument, int level, UiLanguage language) =>
             $"{UiText.Name(instrument, language)}\n{UiText.Volume(level, language)}";
 
-        void OnEnable() => Localization.Changed += Refresh;
-        void OnDisable() => Localization.Changed -= Refresh;
+        void OnEnable()
+        {
+            Localization.Changed += Refresh;
+            InstrumentPacks.Changed += Refresh;
+        }
+
+        void OnDisable()
+        {
+            Localization.Changed -= Refresh;
+            InstrumentPacks.Changed -= Refresh;
+        }
+
+        void Refresh() => Refresh(Localization.Current);
 
         void Refresh(UiLanguage language)
         {

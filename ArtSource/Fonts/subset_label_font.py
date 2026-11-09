@@ -1,6 +1,6 @@
 """
 Builds the label font (Assets/RoomOrchestra/Fonts/LittleEchoesLabels.ttf): Noto Sans SC (SIL Open
-Font License 1.1) cut down to the characters the controls use, at weight 500, renamed as the OFL asks
+Font License 1.1) cut down to the characters the controls use, at weight 700 (bold enough to read against a real room), renamed as the OFL asks
 of modified versions. Run again whenever Core/UiText.cs gains a new Chinese character.
 
   python3 -m pip install fonttools
@@ -29,7 +29,7 @@ def characters():
 
 def main(source):
     font = TTFont(source)
-    font = instancer.instantiateVariableFont(font, {"wght": 500})
+    font = instancer.instantiateVariableFont(font, {"wght": 700})
     options = subset.Options()
     options.layout_features = ["*"]
     options.name_IDs = ["*"]

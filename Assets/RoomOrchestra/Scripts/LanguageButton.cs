@@ -7,7 +7,7 @@ namespace RoomOrchestra
     /// language a tap switches to, written in that language, so a player who reads only one of them can
     /// still find it. The choice is remembered on this headset.
     /// </summary>
-    [RequireComponent(typeof(Collider))]
+    // Its tap collider sits on its visible slab, where PICO's hover highlight can show.
     public class LanguageButton : MonoBehaviour
     {
         public void Press() => Localization.Toggle();

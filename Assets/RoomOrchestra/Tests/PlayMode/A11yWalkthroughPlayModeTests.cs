@@ -43,6 +43,7 @@ namespace RoomOrchestra.Tests
             LogAssert.ignoreFailingMessages = false;
             m_Conductor = EchoConductor.Instance;
             Assert.IsNotNull(m_Conductor, "real scene loaded");
+            Object.FindFirstObjectByType<IntroSequence>()?.Finish(); // skip the opening: the walkthrough is about play
             m_Fake = new FakeControllerSource();
             Object.FindFirstObjectByType<ControllerButtonInput>().Source = m_Fake;
             yield return null;
@@ -159,7 +160,9 @@ namespace RoomOrchestra.Tests
             Assert.IsFalse(m_Conductor.EditMode);
 
             // Clear with the same controller's pointer (trigger tap), then Undo brings the loop back
-            Tap(SeatedHand(hand), Music(MusicControlButton.Kind.Clear));
+            Tap(SeatedHand(hand), Music(MusicControlButton.Kind.Clear)); // asks "Sure?" (George, 2026-11-03)...
+            Assert.AreEqual(4, m_Conductor.Sequencer.Echoes.Count, "the first tap only asks");
+            Tap(SeatedHand(hand), Music(MusicControlButton.Kind.Clear)); // ...the same button again clears
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count, "clear empties every orbit");
             Tap(SeatedHand(hand), Find<UndoButton>());
             Assert.AreEqual(4, m_Conductor.Sequencer.Echoes.Count, "undo after clear restores the loop");
@@ -171,7 +174,15 @@ namespace RoomOrchestra.Tests
         {
             const int hand = 1;
             var origin = posture == PlayPosture.Seated ? SeatedHand(hand) : StandingHand(hand);
-            if (posture == PlayPosture.Standing) Tap(SeatedHand(hand), Find<HeightButton>()); // reached while still seated
+            if (posture == PlayPosture.Standing)
+            {
+                // Height waits on the leaf's menu (owner, 2026-11-08): open it, press Height, close it
+                Tap(SeatedHand(hand), Find<MenuButton>(b => b.name == "MenuButton"));
+                yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
+                Tap(SeatedHand(hand), Find<HeightButton>()); // reached while still seated
+                Tap(SeatedHand(hand), Find<MenuButton>(b => b.name == "MenuCloseButton")); // Close, where Menu was
+                yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.05f);
+            }
             Assert.AreEqual(posture, ComfortSettings.Posture);
 
             PitchTile Tile(InstrumentType type, int petal) => Find<PitchTile>(t => t.Target.Instrument == type && t.Petal == petal);
@@ -193,6 +204,7 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(1, Count(InstrumentType.Udu, OrbType.Boom));
             var lamp = m_Conductor.Sequencer.Echoes.Where(e => e.Target == InstrumentType.Erhu).Select(e => e.NoteIndex).OrderBy(n => n);
             CollectionAssert.AreEqual(new[] { 1, 3 }, lamp, "the tapped tile sets the pitch");
+            Tap(origin, Music(MusicControlButton.Kind.Clear)); // asks "Sure?" first (George, 2026-11-03)
             Tap(origin, Music(MusicControlButton.Kind.Clear));
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count);
         }

@@ -125,6 +125,38 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
+        public IEnumerator AFlowerGrowsAsABudThenBloomsAndFallsIntoStep()
+        {
+            var conductorGo = new GameObject("Conductor");
+            conductorGo.transform.SetParent(m_Root.transform, false);
+            conductorGo.AddComponent<EchoConductor>();
+            var root = new GameObject("Flower").transform;
+            root.SetParent(m_Root.transform, false);
+            root.localScale = Vector3.one * SproutSync.HiddenScale;
+            var look = Child("Visual", root);
+            var bloom = Child("Bloom", look);
+            bloom.localScale = Vector3.one * FloorFlower.ClosedScale;
+            var bud = Child("Bud", look);
+            var flower = root.gameObject.AddComponent<FloorFlower>();
+            flower.Configure(look, 1f);
+            flower.ConfigureBloom(bloom, bud);
+            while (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) yield return null;
+
+            flower.Sprout(0f, 0f, 1f); // no delay, quickest pace, half a beat late
+            yield return new WaitForSeconds(SproutSync.MinGrowSeconds * 0.6f);
+            Assert.Greater(root.localScale.x, 0.3f, "growing out of the ground");
+            Assert.AreEqual(FloorFlower.ClosedScale, bloom.localScale.x, 1e-3f, "still a closed bud while it grows");
+            Assert.AreEqual(1f, bud.localScale.x, 1e-3f, "the bud is showing");
+            Assert.Greater(System.Math.Abs(flower.OffsetBeats), 0.4f, "starts off the beat");
+
+            yield return new WaitForSeconds(SproutSync.MinGrowSeconds * 0.4f + FloorFlower.BloomSeconds + 0.1f);
+            Assert.AreEqual(1f, bloom.localScale.x, 1e-3f, "in full bloom");
+            Assert.AreEqual(FloorFlower.ClosedScale, bud.localScale.x, 1e-3f, "the bud has tucked away");
+            yield return new WaitForSeconds(SproutSync.SettleSeconds);
+            Assert.Less(System.Math.Abs(flower.OffsetBeats), 0.03f, "in step with the rest after a few seconds");
+        }
+
+        [UnityTest]
         public IEnumerator ToadstoolsSproutAndDanceOnTheBeat()
         {
             var conductorGo = new GameObject("Conductor");
@@ -132,17 +164,17 @@ namespace RoomOrchestra.Tests
             conductorGo.AddComponent<EchoConductor>();
             var shroom = new GameObject("Toadstool").transform;
             shroom.SetParent(m_Root.transform, false);
-            shroom.localScale = Vector3.one * Toadstool.BudScale;
+            shroom.localScale = Vector3.one * SproutSync.HiddenScale;
             var look = Child("Visual", shroom);
             look.localScale = Vector3.one;
             var toadstool = shroom.gameObject.AddComponent<Toadstool>();
             toadstool.Configure(look, 1.2f);
             for (int i = 0; i < 10; i++) yield return null;
-            Assert.AreEqual(Toadstool.BudScale, shroom.localScale.x, 1e-6f, "a bud until the music grows it");
-            Assert.AreEqual(Quaternion.identity, look.localRotation, "buds do not dance");
+            Assert.AreEqual(SproutSync.HiddenScale, shroom.localScale.x, 1e-6f, "out of sight until the music grows it");
+            Assert.AreEqual(Quaternion.identity, look.localRotation, "a hidden sprout does not dance");
 
-            toadstool.Sprout();
-            yield return new WaitForSeconds(Toadstool.SproutSeconds + 0.1f);
+            toadstool.Sprout(0f, 0f, 0.5f); // no delay, the quickest pace, on the beat
+            yield return new WaitForSeconds(SproutSync.MinGrowSeconds + 0.1f);
             Assert.AreEqual(1.2f, shroom.localScale.x, 1e-3f, "full grown");
             float minSway = 999f, maxSway = -999f, minY = 9f, maxY = 0f;
             for (float end = Time.time + 2.8f; Time.time < end;) // about one bar at 88 BPM
@@ -233,7 +265,7 @@ namespace RoomOrchestra.Tests
             var vine = MakeVine(8, out var pieces, out var bloom);
             var shroomGo = new GameObject("Toadstool").transform;
             shroomGo.SetParent(m_Root.transform, false);
-            shroomGo.localScale = Vector3.one * Toadstool.BudScale;
+            shroomGo.localScale = Vector3.one * SproutSync.HiddenScale;
             var shroom = shroomGo.gameObject.AddComponent<Toadstool>();
             shroom.Configure(Child("Visual", shroomGo), 1f);
             var flier = MakeButterfly();
@@ -264,7 +296,7 @@ namespace RoomOrchestra.Tests
             foreach (var p in pieces) Assert.AreEqual(VineGrowth.HiddenScale, p.localScale.x, 1e-6f, p.name);
             Assert.AreEqual(VineGrowth.HiddenScale, bloom.localScale.x, 1e-6f, "flowers gone too");
             Assert.IsFalse(shroom.Sprouted);
-            Assert.AreEqual(Toadstool.BudScale, shroomGo.localScale.x, 1e-6f, "back to a bud");
+            Assert.AreEqual(SproutSync.HiddenScale, shroomGo.localScale.x, 1e-6f, "back out of sight");
             yield return null;
             Assert.IsTrue(flier.AtHome);
             Assert.Less((flier.transform.position - Home).magnitude, 1e-4f, "butterfly vanished home into the lamp");
@@ -297,9 +329,15 @@ namespace RoomOrchestra.Tests
             Assert.IsFalse(sparkle.Flaring, "another instrument's note");
             MusicalHitPipeline.Submit(MusicalHitPipeline.BeginAction(), chair, OrbType.Bop, IntensityTier.Medium, PitchInput.FromPetal(1), InputPath.Place);
             Assert.IsTrue(sparkle.Flaring, "its own instrument played");
+            // The largest size during the flare (one sampled frame can land just off the peak on a slow frame).
+            float peak = 0f;
+            for (float end = Time.time + SparkleTwinkle.FlareSeconds; Time.time < end;)
+            {
+                yield return null;
+                peak = Mathf.Max(peak, sparkle.transform.localScale.x);
+            }
+            Assert.Greater(peak, 0.02f * 1.5f, "visibly bigger at the peak");
             yield return new WaitForSeconds(SparkleTwinkle.FlareSeconds * 0.5f);
-            Assert.Greater(sparkle.transform.localScale.x, 0.02f * 1.5f, "visibly bigger at the peak");
-            yield return new WaitForSeconds(SparkleTwinkle.FlareSeconds);
             Assert.Less(sparkle.transform.localScale.x, 0.02f * 1.05f, "back to a gentle twinkle");
         }
 

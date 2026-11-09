@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Echo Battle (easter egg): two headsets on the same Wi-Fi find each other by UDP broadcast. Android only delivers
+     broadcast packets to an app holding a Wi-Fi multicast lock, which needs these permissions. Local network only. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.roomorchestra.network">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+</manifest>

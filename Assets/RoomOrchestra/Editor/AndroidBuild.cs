@@ -6,8 +6,7 @@ using UnityEngine;
 namespace RoomOrchestra.EditorTools
 {
     /// <summary>
-    /// Builds the Android APK from the enabled Build Settings scenes (the SpatialAdapter exporter
-    /// only packages scene GLBs when every enabled scene is built).
+    /// Builds the Android APK from the enabled Build Settings scenes, in PICO XR mode.
     /// Batch: Unity -batchmode -quit -executeMethod RoomOrchestra.EditorTools.AndroidBuild.Build -apkPath Builds/x.apk
     /// </summary>
     public static class AndroidBuild
@@ -20,9 +19,9 @@ namespace RoomOrchestra.EditorTools
                 if (args[i] == "-apkPath") path = args[i + 1];
 
             string defines = PlayerSettings.GetScriptingDefineSymbols(UnityEditor.Build.NamedBuildTarget.Android);
-            if (!defines.Contains("PICO_MS_SDK"))
+            if (!defines.Contains("ENABLE_PICO_XR_SDK") || defines.Contains("PICO_MS_SDK"))
             {
-                Debug.LogError($"[RoomOrchestra] PICO_MS_SDK missing from Android defines ({defines}); APK would launch black");
+                Debug.LogError($"[RoomOrchestra] Android defines are not PICO XR mode ({defines}): run PicoXrMode.Apply");
                 if (Application.isBatchMode) EditorApplication.Exit(1);
                 return;
             }

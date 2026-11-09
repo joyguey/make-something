@@ -13,6 +13,13 @@ namespace RoomOrchestra
                 if (StageAnchor.Instance != null) StageAnchor.Instance.RecenterToHead();
                 return;
             }
+            // The title card: the select button starts the game; nothing else acts until then.
+            var title = TitleScreen.Instance;
+            if (title != null && title.Showing)
+            {
+                if (command == ControllerCommand.Place) title.Begin();
+                return;
+            }
             var conductor = EchoConductor.Instance;
             if (command == ControllerCommand.ToggleEchoEdit)
             {

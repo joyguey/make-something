@@ -30,6 +30,24 @@ namespace RoomOrchestra
         [Tooltip("Character rim and face parts, recoloured for whichever orb this ball is.")]
         [SerializeField] Renderer rim;
         [SerializeField] Renderer[] faceParts;
+        [Tooltip("Ready-made body, rim and face materials per character, in OrbType order (Flutter, Bop, Boom). " +
+                 "PICO Spatial draws a material made at runtime white (headset 2026-11-08: Boom on the cloud), " +
+                 "so the ball swaps to the project's own materials; recolouring is only the fallback.")]
+        [SerializeField] Material[] bodySkins, rimSkins, faceSkins;
+        [Tooltip("Plays this character's bounce when it bounces off a wall (BounceSurface).")]
+        [SerializeField] AudioSource bounceVoice;
+        [Tooltip("Each character's bounce, in OrbType order: Flutter, Bop, Boom.")]
+        [SerializeField] AudioClip[] bounceClips;
+        float m_LastBounce = -10f;
+
+        public void ConfigureBounce(AudioSource voice, AudioClip[] clips)
+        {
+            bounceVoice = voice;
+            bounceClips = clips;
+        }
+
+        /// <summary>The bounce sound last played, or null.</summary>
+        public AudioClip LastBounce { get; private set; }
         Material m_RimMaterial, m_FaceMaterial;
         Rigidbody m_Body;
         Renderer m_Renderer;
@@ -82,6 +100,16 @@ namespace RoomOrchestra
             if (physics != null && !Mathf.Approximately(physics.bounciness, profile.Bounciness))
                 GetComponent<Collider>().material.bounciness = profile.Bounciness; // per-ball instance
 
+            if (Skin(bodySkins, type, out var bodySkin))
+            {
+                if (m_Renderer != null && m_Renderer.sharedMaterial != bodySkin) m_Renderer.sharedMaterial = bodySkin;
+                if (rim != null && Skin(rimSkins, type, out var rimSkin) && rim.sharedMaterial != rimSkin) rim.sharedMaterial = rimSkin;
+                if (faceParts != null && Skin(faceSkins, type, out var faceSkin))
+                    foreach (var part in faceParts)
+                        if (part != null && part.sharedMaterial != faceSkin) part.sharedMaterial = faceSkin;
+                return;
+            }
+
             var color = new Color(profile.R, profile.G, profile.B);
             var current = m_Material != null ? m_Material : m_Renderer != null ? m_Renderer.sharedMaterial : null;
             if (current != null && current.HasProperty(BaseColorId) && current.GetColor(BaseColorId) != color)
@@ -93,6 +121,22 @@ namespace RoomOrchestra
             if (rim != null) Recolor(new[] { rim }, ref m_RimMaterial, profile.Rim);
             if (faceParts != null && faceParts.Length > 0) Recolor(faceParts, ref m_FaceMaterial, profile.Face);
         }
+
+        static bool Skin(Material[] skins, OrbType type, out Material skin)
+        {
+            skin = skins != null && (int)type < skins.Length ? skins[(int)type] : null;
+            return skin != null;
+        }
+
+        /// <summary>The project materials each character wears (scene setup), in OrbType order.</summary>
+        public void ConfigureSkins(Material[] bodies, Material[] rims, Material[] faces)
+        {
+            bodySkins = bodies;
+            rimSkins = rims;
+            faceSkins = faces;
+        }
+
+        public Material BodyMaterial => m_Renderer != null ? m_Renderer.sharedMaterial : null;
 
         /// <summary>Wires the character parts (scene setup tool and tests).</summary>
         public void ConfigureCharacter(Renderer rimRenderer, Renderer[] face, Renderer bodyRenderer = null)
@@ -120,9 +164,59 @@ namespace RoomOrchestra
         }
 
         /// <summary>Holds the ball still (in the dispenser or while being dragged).</summary>
+        // A throw made by tapping a note (owner, 2026-11-07: tapping a note shouldn't skip the throw): the ball
+        // carries that note to its instrument and plays it there; if anything stops it on the way, the note still
+        // plays when it should have landed (one action, one musical event).
+        InstrumentTarget m_TapTarget;
+        PitchInput m_TapPitch;
+        IntensityTier m_TapTier;
+        double m_TapDsp;
+        float m_TapDeadline = -1f;
+
+        RigidbodyInterpolation m_Interpolation;
+        bool m_InterpolationKept;
+
+        /// <summary>No physics smoothing while it is held still (moved by hand or with its cloud).</summary>
+        public void StopSmoothing()
+        {
+            if (m_Body == null) m_Body = GetComponent<Rigidbody>();
+            if (!m_InterpolationKept) { m_Interpolation = m_Body.interpolation; m_InterpolationKept = true; }
+            if (m_Body.interpolation != RigidbodyInterpolation.None) m_Body.interpolation = RigidbodyInterpolation.None;
+        }
+
+        /// <summary>A tapped note this ball is carrying, if any.</summary>
+        public InstrumentTarget CarryingTo => m_TapTarget;
+
+        public void CarryTapNote(InstrumentTarget target, PitchInput pitch, IntensityTier tier, double tapDsp, float flightSeconds)
+        {
+            m_TapTarget = target;
+            m_TapPitch = pitch;
+            m_TapTier = tier;
+            m_TapDsp = tapDsp;
+            m_TapDeadline = Time.time + flightSeconds + TapGraceSeconds;
+        }
+
+        /// <summary>A carried note plays this long after the planned landing at the latest.</summary>
+        public const float TapGraceSeconds = 0.25f;
+
+        bool DeliverTapNote(InstrumentTarget target)
+        {
+            if (m_TapTarget == null) return false;
+            var to = target != null ? target : m_TapTarget;
+            m_TapTarget = null;
+            m_TapDeadline = -1f;
+            if (MusicalHitPipeline.HasFired(m_ActionId)) return true;
+            if (MusicalHitPipeline.Submit(m_ActionId, to, orb, m_TapTier, m_TapPitch, InputPath.Place, m_TapDsp) != null) Hits++;
+            return true;
+        }
+
         public void Hold()
         {
             if (m_Body == null) m_Body = GetComponent<Rigidbody>();
+            // Held still (on the cloud, in the hand): no physics smoothing, or every move of the cloud drags the ball
+            // back toward where it was for a few frames (owner, headset 2026-11-08: the ball not seated on the cloud).
+            StopSmoothing();
+            if (m_TapTarget != null) DeliverTapNote(null); // recycled or parked before it landed: its note still plays
             InFlight = false;
             m_PoofAt = -1f;
             m_Body.isKinematic = true;
@@ -131,11 +225,13 @@ namespace RoomOrchestra
         public void Launch(Vector3 velocity)
         {
             if (m_Body == null) m_Body = GetComponent<Rigidbody>();
+            if (m_InterpolationKept) m_Body.interpolation = m_Interpolation; // smooth in flight
             m_Body.isKinematic = false;
             m_Body.linearVelocity = Vector3.ClampMagnitude(velocity, OrbCatalog.Get(orb).MaxLaunchSpeed);
             m_Body.angularVelocity = Vector3.zero;
             InFlight = true;
             Hits = 0;
+            BouncesThisThrow = 0;
             m_ActionId = MusicalHitPipeline.BeginAction();
             m_LaunchTime = Time.time;
         }
@@ -146,7 +242,7 @@ namespace RoomOrchestra
             if (m_Body == null || m_Body.isKinematic) return false;
             var velocity = m_Body.linearVelocity;
             if (velocity.y <= -ScaredFallSpeed)
-                return Physics.Raycast(transform.position, velocity.normalized, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)
+                return Physics.Raycast(transform.position, velocity.normalized, out var hit, ScaredLookAhead, ~(1 << RealWalls.SurfaceLayer), QueryTriggerInteraction.Ignore)
                     && IsGround(hit.collider);
             return IsRollingTowardAnEdge(velocity);
         }
@@ -163,7 +259,7 @@ namespace RoomOrchestra
             foreach (float seconds in EdgeLookAheadSeconds)
             {
                 var ahead = transform.position + flat * seconds;
-                if (!Physics.Raycast(ahead + Vector3.up * radius, Vector3.down, out var hit, ScaredLookAhead, ~0, QueryTriggerInteraction.Ignore)) continue;
+                if (!Physics.Raycast(ahead + Vector3.up * radius, Vector3.down, out var hit, ScaredLookAhead, ~(1 << RealWalls.SurfaceLayer), QueryTriggerInteraction.Ignore)) continue;
                 if (hit.collider.attachedRigidbody == m_Body) continue;
                 if (IsGround(hit.collider) && transform.position.y - hit.point.y > radius + EdgeMinDrop) return true;
             }
@@ -194,6 +290,11 @@ namespace RoomOrchestra
         {
             if (TryGetComponent<JellyBody>(out var jelly)) jelly.Kick(collision.relativeVelocity.magnitude / 5f); // splat
             if (!IsGround(collision.collider)) m_LastSurfaceContact = Time.time;
+            if (m_TapTarget != null)
+            {
+                var hitTarget = InstrumentTarget.Of(collision.collider);
+                if (hitTarget == m_TapTarget) DeliverTapNote(hitTarget);
+            }
             if (InFlight && IsGround(collision.collider))
             {
                 // Down on the floor: a squashed, startled moment where it landed, then a poof and it is
@@ -206,17 +307,72 @@ namespace RoomOrchestra
                 if (jelly != null) jelly.Kick(1f);
                 return;
             }
+            if (InFlight && collision.collider.GetComponentInParent<BounceSurface>() != null)
+            {
+                Bounce(collision.relativeVelocity.magnitude);
+                return;
+            }
+            if (m_TapTarget != null) return; // carrying a tapped note for its own instrument
             if (!InFlight || MusicalHitPipeline.HasFired(m_ActionId)) return;
-            var target = collision.collider.GetComponentInParent<InstrumentTarget>();
+            var target = InstrumentTarget.Of(collision.collider);
             if (target == null) return;
 
             float speed = collision.relativeVelocity.magnitude;
             if (speed < minHitSpeed) return;
 
-            float contactY = collision.contactCount > 0 ? collision.GetContact(0).point.y : transform.position.y;
+            var contact = collision.contactCount > 0 ? collision.GetContact(0).point : transform.position;
             var tier = MusicalHitPipeline.Intensity.FromImpactSpeed(speed);
-            if (MusicalHitPipeline.Submit(m_ActionId, target, orb, tier, target.PitchAtHeight(contactY), InputPath.Toss) != null)
+            if (MusicalHitPipeline.Submit(m_ActionId, target, orb, tier, target.PitchAt(contact), InputPath.Toss) != null)
                 Hits++;
+        }
+
+        // Its own sound off a wall: this character's voice, louder and a touch brighter the harder it hits.
+        void Bounce(float speed)
+        {
+            float volume = BounceSound.Volume(speed);
+            if (volume <= 0f || Time.time - m_LastBounce < BounceSound.GapSeconds) return;
+            if (bounceVoice == null || bounceClips == null || (int)orb >= bounceClips.Length || bounceClips[(int)orb] == null) return;
+            m_LastBounce = Time.time;
+            LastBounce = bounceClips[(int)orb];
+            bounceVoice.pitch = BounceSound.Pitch(speed);
+            bounceVoice.PlayOneShot(LastBounce, volume);
+            int step = BouncesThisThrow++;
+            Chime(step, volume);
+            Debug.Log($"[RoomOrchestra] {orb} bounces off a wall ({speed:0.0} m/s, volume {volume:0.00}, chime {step % BounceSound.ChimeSemitones.Length})");
+        }
+
+        /// <summary>Wall bounces since this ball was thrown (its chimes climb the chord).</summary>
+        public int BouncesThisThrow { get; private set; }
+        /// <summary>The chime last played, or null.</summary>
+        public AudioClip LastChime { get; private set; }
+        AudioSource m_ChimeVoice;
+        static readonly System.Collections.Generic.Dictionary<(OrbType, int), AudioClip> s_Chimes = new();
+
+        // A bell note from the song's chord on top of the bounce, on its own voice so the bounce's brightness never
+        // detunes it.
+        void Chime(int bounce, float volume)
+        {
+            if (m_ChimeVoice == null)
+            {
+                m_ChimeVoice = gameObject.AddComponent<AudioSource>();
+                m_ChimeVoice.playOnAwake = false;
+                m_ChimeVoice.spatialBlend = bounceVoice.spatialBlend;
+                m_ChimeVoice.outputAudioMixerGroup = bounceVoice.outputAudioMixerGroup;
+                m_ChimeVoice.rolloffMode = bounceVoice.rolloffMode;
+                m_ChimeVoice.minDistance = bounceVoice.minDistance;
+                m_ChimeVoice.maxDistance = bounceVoice.maxDistance;
+            }
+            int step = bounce % BounceSound.ChimeSemitones.Length;
+            if (!s_Chimes.TryGetValue((orb, step), out var clip) || clip == null)
+            {
+                int rate = AudioSettings.outputSampleRate > 0 ? AudioSettings.outputSampleRate : 48000;
+                var data = BounceSound.RenderChime(BounceSound.ChimeHz(orb, step), rate);
+                clip = AudioClip.Create($"Chime_{orb}_{step}", data.Length, 1, rate, false);
+                clip.SetData(data, 0);
+                s_Chimes[(orb, step)] = clip;
+            }
+            LastChime = clip;
+            m_ChimeVoice.PlayOneShot(clip, volume * BounceSound.ChimeLevel);
         }
 
         /// <summary>
@@ -235,6 +391,7 @@ namespace RoomOrchestra
 
         void Update()
         {
+            if (m_TapTarget != null && Time.time >= m_TapDeadline) DeliverTapNote(null);
             if (m_PoofAt > 0f && Time.time >= m_PoofAt)
             {
                 m_PoofAt = -1f;

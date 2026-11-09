@@ -12,9 +12,10 @@ Every part is a separate mesh so Unity colours it with project materials:
       (The ball-stand vine was retired 2026-10-28: the stand is a floating cloud now.)
   Toadstool_Cap / _CapRim / _Spots / _Stem / _StemRim / _Face
       a cute spotted toadstool with a sleepy face that grows from a bud and sways to the beat
-  Flower_Stem / _Leaves / _LeafRims / _Petals / _PetalRims / _Heart
+  Flower_Stem / _Leaves / _LeafRims / _Petals / _PetalRims / _Heart / _Bud
       a little floor flower (about 20 cm) that pops up around the room as the song grows; Unity
-      colours the petals per flower. Origin at the foot of the stem.
+      colours the petals per flower. Origin at the foot of the stem. It grows as a closed green bud,
+      then the petals bloom open around the heart (Unity scales them about the heart's centre).
   Butterfly_Body, Butterfly_WingL/R, Butterfly_WingRimL/R, Butterfly_SpotsL/R
       wings pivot on the body axis (Unity flaps them by rotation)
   Sparkle, Sparkle_Rim
@@ -38,10 +39,15 @@ EXPORT = os.path.join(ROOT, "Assets", "RoomOrchestra", "Art", "Rainforest", "Rai
 RIM = 0.004  # outline thickness (m) on leaves, wings and sparkles
 
 # Vines that climb a pole: (name, pole radius, bottom, top, turns, leaves per turn, flowers)
+# Furniture at standard real-world sizes (2026-10-29, Version 1 feedback "the furniture felt large"):
+# the table legs stop under a 0.75 m top, the chair back's top is at 0.90 m.
+TABLE_LEG_TOP = 0.66
+CHAIR_BACK_TOP = 0.90
+
 SPIRALS = [
     ("Lamp", 0.045, 0.08, 1.04, 3.0, 6, 3),
-    ("TableL", 0.055, 0.02, 0.72, 1.75, 6, 1),
-    ("TableR", 0.055, 0.02, 0.72, 1.75, 6, 1),
+    ("TableL", 0.055, 0.02, TABLE_LEG_TOP - 0.02, 1.75, 6, 1),
+    ("TableR", 0.055, 0.02, TABLE_LEG_TOP - 0.02, 1.75, 6, 1),
 ]
 
 
@@ -219,18 +225,20 @@ def chair_vine():
     """Climbs the chair's back-left leg and the back's left edge, then runs along the top of the back
     (local origin = the chair's centre line at floor level, on the back's mid-plane)."""
     axis = Vector((-0.22, 0, 0))
-    path = spiral_path(0.03, 0.02, 1.0, 4.0, axis)
+    climb = CHAIR_BACK_TOP - 0.08          # spiral up the leg and the back's edge to here
+    edge = CHAIR_BACK_TOP + 0.02           # then along just above the top of the back
+    path = spiral_path(0.03, 0.02, climb, 4.0 * climb / 1.0, axis)
     top = path[-1]
     for k in range(1, 8):  # up and over the corner
-        path.append(top.lerp(Vector((-0.2, -0.04, 1.1)), k / 7.0))
+        path.append(top.lerp(Vector((-0.2, -0.04, edge)), k / 7.0))
     for k in range(1, 22):  # along the top edge with a gentle sag
         u = k / 21.0
-        path.append(Vector((-0.2 + 0.46 * u, -0.04 - 0.008 * math.sin(math.pi * u), 1.1 - 0.02 * math.sin(math.pi * u))))
+        path.append(Vector((-0.2 + 0.46 * u, -0.04 - 0.008 * math.sin(math.pi * u), edge - 0.02 * math.sin(math.pi * u))))
     path = curl(path)
     spiral_side = radial(axis)
-    side = lambda p: spiral_side(p) if p.z < 1.0 else Vector((0, -1, 0.3)).normalized()
-    # Hide inside the leg (below the seat) or the back slab (above it): the slab top is at 1.08.
-    core = lambda p: Vector((axis.x, 0, max(p.z, 0.02))) if p.z < 1.0 else Vector((min(max(p.x, -0.24), 0.24), 0, 1.02))
+    side = lambda p: spiral_side(p) if p.z < climb else Vector((0, -1, 0.3)).normalized()
+    # Hide inside the leg (below the seat) or the back slab (above it).
+    core = lambda p: Vector((axis.x, 0, max(p.z, 0.02))) if p.z < climb else Vector((min(max(p.x, -0.24), 0.24), 0, CHAIR_BACK_TOP - 0.06))
     build_vine("Chair", path, side, core, 3, [0.3, 0.62, 0.9])
 
 
@@ -314,12 +322,21 @@ def floor_flower():
     bmesh.ops.reverse_faces(petal_rims, faces=petal_rims.faces)
     g = bmesh.ops.create_uvsphere(heart, u_segments=6, v_segments=4, radius=1.0)
     bmesh.ops.transform(heart, matrix=Matrix.Translation(at + normal * 0.004) @ face @ Matrix.Diagonal((0.013, 0.013, 0.008, 1)), verts=g["verts"])
+    # The closed bud the flower grows as: a green teardrop over the heart, pointing out along the face.
+    bud = bmesh.new()
+    g = bmesh.ops.create_uvsphere(bud, u_segments=6, v_segments=5, radius=1.0)
+    for v in g["verts"]:
+        if v.co.z > 0:
+            v.co.x *= 1.0 - 0.55 * v.co.z  # taper to a point
+            v.co.y *= 1.0 - 0.55 * v.co.z
+    bmesh.ops.transform(bud, matrix=Matrix.Translation(at + normal * 0.008) @ face @ Matrix.Diagonal((0.011, 0.011, 0.019, 1)), verts=g["verts"])
     obj_from(stem, "Flower_Stem")
     obj_from(leaves, "Flower_Leaves", smooth=False)
     obj_from(leaf_rims, "Flower_LeafRims", smooth=False)
     obj_from(petals, "Flower_Petals", smooth=False)
     obj_from(petal_rims, "Flower_PetalRims", smooth=False)
     obj_from(heart, "Flower_Heart")
+    obj_from(bud, "Flower_Bud")
 
 
 def butterfly():

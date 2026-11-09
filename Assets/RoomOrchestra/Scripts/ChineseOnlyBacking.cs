@@ -11,6 +11,10 @@ namespace RoomOrchestra
     {
         [SerializeField] Transform plate;
         [SerializeField] Vector3 shownLocalPosition, parkedLocalPosition;
+        [Tooltip("Shown only while this furniture plays a melodic instrument (no key on a drum).")]
+        [SerializeField] InstrumentTarget owner;
+
+        public void ConfigureOwner(InstrumentTarget furniture) => owner = furniture;
 
         public Transform Plate => plate;
         public bool Shown => plate != null && (plate.localPosition - shownLocalPosition).sqrMagnitude < 1e-8f;
@@ -25,15 +29,23 @@ namespace RoomOrchestra
         void OnEnable()
         {
             Localization.Changed += Apply;
+            InstrumentPacks.Changed += Refresh;
             Apply(Localization.Current);
         }
 
-        void OnDisable() => Localization.Changed -= Apply;
+        void OnDisable()
+        {
+            Localization.Changed -= Apply;
+            InstrumentPacks.Changed -= Refresh;
+        }
+
+        void Refresh() => Apply(Localization.Current);
 
         void Apply(UiLanguage language)
         {
             if (plate == null) return;
-            var target = language == UiLanguage.Chinese ? shownLocalPosition : parkedLocalPosition;
+            bool melodic = owner == null || !new MusicalNote(owner.Instrument, 0).IsPercussion;
+            var target = language == UiLanguage.Chinese && melodic ? shownLocalPosition : parkedLocalPosition;
             if (plate.localPosition != target) plate.localPosition = target;
         }
     }

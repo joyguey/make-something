@@ -4,9 +4,9 @@ namespace RoomOrchestra
 {
     /// <summary>
     /// Tappable orb in the tray. Selecting it chooses the orb for placing and for the next throw.
-    /// The selected token is shown larger (a size cue, not only a color cue).
+    /// The selected token is shown larger (a size cue, not only a color cue). Its tap collider sits on
+    /// the character's body mesh, where PICO's hover highlight can show.
     /// </summary>
-    [RequireComponent(typeof(Collider))]
     public class OrbToken : MonoBehaviour
     {
         [SerializeField] OrbType orb;

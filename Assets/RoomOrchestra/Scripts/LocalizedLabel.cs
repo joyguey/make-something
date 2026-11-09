@@ -12,14 +12,41 @@ namespace RoomOrchestra
         [SerializeField] bool isTile;
         [SerializeField] InstrumentType instrument;
         [SerializeField] int noteIndex;
+        [Tooltip("The furniture whose instrument this tile (or 1=D) belongs to: it follows when the instrument changes.")]
+        [SerializeField] InstrumentTarget owner;
+        [Tooltip("Shown only while the owner plays a melodic instrument (the key, 1=D, means nothing on a drum).")]
+        [SerializeField] bool melodicOnly;
+
+        bool m_Asking;
 
         public TMP_Text Text => text;
+
+        /// <summary>While true the label reads "Sure?" (its button waits for a second tap: <see cref="ConfirmGate"/>).</summary>
+        public bool Asking
+        {
+            get => m_Asking;
+            set
+            {
+                if (m_Asking == value) return;
+                m_Asking = value;
+                Apply(Localization.Current);
+            }
+        }
 
         public void Configure(TMP_Text label, UiTerm word)
         {
             text = label;
             term = word;
             isTile = false;
+        }
+
+        /// <summary>Shows another term from now on (a button whose name changes, such as Menu / Close).</summary>
+        public void SetTerm(UiTerm word)
+        {
+            if (term == word && !isTile) return;
+            term = word;
+            isTile = false;
+            Apply(Localization.Current);
         }
 
         public void ConfigureTile(TMP_Text label, InstrumentType tileInstrument, int index)
@@ -30,17 +57,43 @@ namespace RoomOrchestra
             noteIndex = index;
         }
 
-        public string TextFor(UiLanguage language) => isTile
-            ? UiText.Tile(new MusicalNote(instrument, noteIndex), language)
-            : UiText.Get(term, language);
+        /// <summary>A pitch tile that follows its furniture's instrument.</summary>
+        public void ConfigureTile(TMP_Text label, InstrumentTarget furniture, int index)
+        {
+            ConfigureTile(label, furniture.Instrument, index);
+            owner = furniture;
+        }
+
+        /// <summary>A term shown only while <paramref name="furniture"/> plays a melodic instrument.</summary>
+        public void ConfigureMelodicOnly(InstrumentTarget furniture)
+        {
+            owner = furniture;
+            melodicOnly = true;
+        }
+
+        InstrumentType Instrument => owner != null ? owner.Instrument : instrument;
+
+        public string TextFor(UiLanguage language)
+        {
+            if (m_Asking) return UiText.Get(UiTerm.ConfirmAgain, language);
+            if (melodicOnly && owner != null && new MusicalNote(owner.Instrument, 0).IsPercussion) return "";
+            return isTile ? UiText.Tile(new MusicalNote(Instrument, noteIndex), language) : UiText.Get(term, language);
+        }
 
         void OnEnable()
         {
             Localization.Changed += Apply;
+            InstrumentPacks.Changed += Refresh;
             if (text != null && text.text != TextFor(Localization.Current)) Apply(Localization.Current);
         }
 
-        void OnDisable() => Localization.Changed -= Apply;
+        void OnDisable()
+        {
+            Localization.Changed -= Apply;
+            InstrumentPacks.Changed -= Refresh;
+        }
+
+        void Refresh() => Apply(Localization.Current);
 
         void Apply(UiLanguage language)
         {

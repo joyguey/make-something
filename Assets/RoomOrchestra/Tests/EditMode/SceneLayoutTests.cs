@@ -15,7 +15,58 @@ namespace RoomOrchestra.Tests
         const string ScenePath = "Assets/RoomOrchestra/Scenes/RoomOrchestra.unity";
 
         [OneTimeSetUp]
-        public void OpenScene() => EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+        public void OpenScene()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            // The scene is saved in the opening's first frame; layout checks are about the finished layout.
+            UnityEngine.Object.FindFirstObjectByType<IntroSequence>()?.Finish();
+            FoldMenu(true); // as in play: the menu opens only when asked (TheOpenMenu... checks it open)
+        }
+
+        [SetUp]
+        public void FoldMenuForEachTest() =>
+            FoldMenu(TestContext.CurrentContext.Test.Name != nameof(NothingAuthoredAtNearZeroScale)); // that one checks sizes as saved
+
+        // The leaf's menu tray (owner, 2026-11-08), folded away as it is in play, or open.
+        static void FoldMenu(bool folded)
+        {
+            var tray = UnityEngine.Object.FindFirstObjectByType<MenuTray>();
+            if (tray == null) return;
+            tray.transform.localScale = Vector3.one * (folded ? MenuTray.ClosedScale : 1f);
+            foreach (var c in tray.GetComponentsInChildren<Collider>(true)) c.enabled = !folded;
+            Physics.SyncTransforms();
+        }
+
+        // Open, every button on the menu is the first thing a pointer ray from either seated hand meets.
+        [Test]
+        public void TheOpenMenusButtonsAreTheFirstThingAPointerRayHits()
+        {
+            FoldMenu(false);
+            try
+            {
+                var tray = Object.FindFirstObjectByType<MenuTray>();
+                Assert.IsNotNull(tray, "the leaf has a menu");
+                var onTray = tray.GetComponentsInChildren<Collider>().Where(c => InstrumentInputRouter.PressableOwner(c.gameObject) != null).ToArray();
+                Assert.GreaterOrEqual(onTray.Select(c => InstrumentInputRouter.PressableOwner(c.gameObject)).Distinct().Count(), 10, "every extra is on it");
+                var failures = new System.Collections.Generic.List<string>();
+                foreach (var c in onTray)
+                {
+                    var owner = InstrumentInputRouter.PressableOwner(c.gameObject);
+                    foreach (var (name, origin) in PointerOrigins.Where(o => o.name.StartsWith("seated")))
+                    {
+                        var to = c.bounds.center - origin;
+                        var hits = Physics.RaycastAll(origin, to.normalized, to.magnitude + 0.1f).OrderBy(h => h.distance).ToArray();
+                        if (hits.Length == 0 || InstrumentInputRouter.PressableOwner(hits[0].collider.gameObject) != owner)
+                            failures.Add($"{owner.name} from {name}: hits {(hits.Length > 0 ? hits[0].collider.name : "nothing")} first");
+                    }
+                }
+                Assert.IsEmpty(failures, string.Join("\n", failures));
+            }
+            finally
+            {
+                FoldMenu(true);
+            }
+        }
 
         static void AssertSeated(string label, Vector3 p)
         {
@@ -41,7 +92,7 @@ namespace RoomOrchestra.Tests
             foreach (var t in tokens)
             {
                 AssertSeated(t.name, t.transform.position);
-                Assert.IsNotNull(t.GetComponent<Collider>(), $"{t.name} must be tappable");
+                Assert.IsNotNull(t.GetComponentInChildren<Collider>(), $"{t.name} must be tappable");
             }
         }
 
@@ -82,7 +133,7 @@ namespace RoomOrchestra.Tests
                     AssertSeated(tile.name + " of " + column.name, tile.transform.position);
                     if (i > 0) Assert.Greater(tile.transform.position.y, column.Tiles[i - 1].transform.position.y, "higher tile = higher note");
                     var note = new MusicalNote(column.Target.Instrument, i);
-                    string expected = note.IsPercussion ? note.Articulation.ToString() : NoteMapping.NoteName(i);
+                    string expected = UiText.Tile(note, UiLanguage.English); // the udu's sounds in plain words (Deep, Soft, Slap, Wobble, Tap)
                     var label = column.transform.Find($"TileLabel{i}")?.GetComponentInChildren<TMP_Text>();
                     Assert.IsNotNull(label, $"{column.name} tile {i} has a label");
                     Assert.AreEqual(expected, label.text);
@@ -97,7 +148,7 @@ namespace RoomOrchestra.Tests
             string[] Texts(Component c) => c.GetComponentsInChildren<TMP_Text>().Select(t => t.text).ToArray();
             var tray = Object.FindFirstObjectByType<OrbToken>().transform.parent;
             CollectionAssert.IsSupersetOf(Texts(tray), new[] { "Flutter", "Bop", "Boom" });
-            CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<TierButton>()), "Loudness");
+            Assert.IsNull(Object.FindFirstObjectByType<TierButton>(FindObjectsInactive.Include), "Loudness is gone (owner, 2026-11-08)");
             CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<UndoButton>()), "Undo");
             foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
                 Assert.IsTrue(Texts(column).Any(t => new[] { "udu", "mbira", "erhu" }.Contains(t.Split('\n')[0])), $"{column.name} names its instrument");
@@ -109,15 +160,18 @@ namespace RoomOrchestra.Tests
                 var localized = text.GetComponentInParent<LocalizedLabel>();
                 string authored = text.text;
                 if (string.IsNullOrEmpty(authored) && localized != null) text.text = localized.TextFor(UiLanguage.Chinese);
+                bool blankInBoth = string.IsNullOrEmpty(text.text); // 1=D over a drum: nothing to read
                 text.ForceMeshUpdate(true, true);
                 float height = text.textBounds.size.y;
                 text.text = authored;
                 text.ForceMeshUpdate(true, true);
-                Assert.Greater(height, 0.015f, $"{text.transform.parent.name} is readable size");
+                if (!blankInBoth) Assert.Greater(height, 0.015f, $"{text.transform.parent.name} is readable size");
                 Assert.Less(text.transform.localPosition.sqrMagnitude, 1e-8f, "text sits at its holder's origin");
                 Assert.IsFalse(string.IsNullOrWhiteSpace(text.text) && localized == null, $"{text.name} has text (blank only for a Chinese-only label)");
                 var toLabel = text.transform.position - new Vector3(0f, 1.15f, 0f);
-                Assert.Greater(Vector3.Dot(text.transform.forward, toLabel.normalized), 0.5f, $"{text.name} faces the player");
+                // Words parked inside the ball stand's cloud (Flutter's bubble between lessons) are out of sight.
+                if (text.transform.lossyScale.x > 0.2f)
+                    Assert.Greater(Vector3.Dot(text.transform.forward, toLabel.normalized), 0.5f, $"{text.transform.parent.name} faces the player");
             }
         }
 
@@ -134,11 +188,8 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
-        public void TierButtonAndBallSpawnReachableSeated()
+        public void BallSpawnReachableSeated()
         {
-            var tier = Object.FindFirstObjectByType<TierButton>();
-            Assert.IsNotNull(tier);
-            AssertSeated("TierButton", tier.transform.position);
             var launcher = Object.FindFirstObjectByType<BallLauncher>();
             Assert.IsNotNull(launcher);
             var spawn = launcher.transform.Find("SpawnPoint");
@@ -185,6 +236,7 @@ namespace RoomOrchestra.Tests
             if (owner == null) owner = c.GetComponentInParent<HeightButton>();
             if (owner == null) owner = c.GetComponentInParent<LanguageButton>();
             if (owner == null) owner = c.GetComponentInParent<TrayCallButton>();
+            if (owner == null) owner = c.GetComponentInParent<TitleStartButton>();
             if (owner == null) owner = c.GetComponentInParent<InstrumentTarget>();
             return owner;
         }
@@ -246,7 +298,7 @@ namespace RoomOrchestra.Tests
             var height = Object.FindFirstObjectByType<HeightButton>();
             Assert.IsNotNull(height);
             AssertSeated(height.name, height.transform.position);
-            Assert.IsNotNull(height.GetComponent<Collider>(), "tappable");
+            Assert.IsNotNull(height.GetComponentInChildren<Collider>(), "tappable");
             Assert.AreEqual("Height\nSeated", height.Label.text, "starts seated: nothing moves at startup");
             Assert.Less(Rig().transform.localPosition.sqrMagnitude, 1e-8f, "controls authored at the seated height");
         }
@@ -258,7 +310,7 @@ namespace RoomOrchestra.Tests
             foreach (var c in Object.FindObjectsByType<Collider>(FindObjectsSortMode.None))
             {
                 var owner = TapOwner(c);
-                if (owner == null || owner is InstrumentTarget) continue;
+                if (owner == null || owner is InstrumentTarget || !c.enabled) continue; // off: not tappable (the parked title's Start)
                 Assert.IsTrue(c.transform.IsChildOf(rig.transform), $"{owner.name} must lift with the other controls");
             }
         }
@@ -324,8 +376,8 @@ namespace RoomOrchestra.Tests
         [Test]
         public void NoEditorOnlyObjectsInSpatialExportedScene()
         {
-            // EditorOnly objects are stripped from the player but still exported by SpatialAdapter, which
-            // shifted every later object by one on the emulator (wrong meshes, colours and positions).
+            // Kept from PICO Spatial mode (its exporter shifted every later object by one): the preview camera uses
+            // EditorPreviewOnly rather than the EditorOnly tag.
             foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 Assert.IsFalse(t.CompareTag("EditorOnly"), $"{t.name} is EditorOnly; use EditorPreviewOnly instead");
         }
@@ -353,7 +405,7 @@ namespace RoomOrchestra.Tests
                 Assert.AreEqual(1, children.Count(c => c.name == "PlayMarker"), orbit.name);
                 var minis = orbit.GetComponentsInChildren<EchoMini>();
                 Assert.AreEqual(OrbCatalog.Count * EchoSequencer.MaxPerTarget, minis.Length, orbit.name);
-                Assert.IsTrue(minis.All(m => m.Orbit == orbit && m.GetComponent<Collider>() != null), "minis are tappable and wired");
+                Assert.IsTrue(minis.All(m => m.Orbit == orbit && m.GetComponentInChildren<Collider>() != null), "minis are tappable and wired");
                 var park = minis[0].transform.position;
                 Assert.IsTrue(minis.All(m => (m.transform.position - park).sqrMagnitude < 1e-8f), "all minis authored parked");
             }
@@ -381,7 +433,7 @@ namespace RoomOrchestra.Tests
             foreach (var b in buttons)
             {
                 AssertSeated(b.name, b.transform.position);
-                Assert.IsNotNull(b.GetComponent<Collider>(), "tappable");
+                Assert.IsNotNull(b.GetComponentInChildren<Collider>(), "tappable");
                 Assert.IsNotNull(b.Label, "has a label");
                 Assert.AreEqual(b.ButtonKind == MusicControlButton.Kind.Pause ? "Pause" : "Clear", b.Label.text);
             }
@@ -440,7 +492,7 @@ namespace RoomOrchestra.Tests
             var button = Object.FindFirstObjectByType<RecenterButton>();
             Assert.IsNotNull(button, "Recenter button in the scene");
             AssertSeated(button.name, button.transform.position);
-            Assert.IsNotNull(button.GetComponent<Collider>(), "tappable");
+            Assert.IsNotNull(button.GetComponentInChildren<Collider>(), "tappable");
             Assert.AreEqual("Recenter", button.GetComponentInChildren<TMP_Text>().text);
 
             var anchor = Object.FindFirstObjectByType<StageAnchor>();
@@ -621,6 +673,117 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(1, ready, "one ball ready on the cloud");
         }
 
+        // ---- The opening: the scene is saved in its first frame (PICO Spatial keeps startup poses) ----
+        [Test]
+        public void TheSceneOpensWithTheLeafOutOfViewAndTheCharactersOnTheFloor()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single); // as saved, without Finish()
+            var intro = Object.FindFirstObjectByType<IntroSequence>();
+            Assert.IsNotNull(intro, "the opening is wired");
+            Assert.IsFalse(intro.Done);
+            var pad = Object.FindFirstObjectByType<RoamingTray>().transform;
+            Assert.AreEqual(pad, intro.Leaf.parent, "the swoop moves the leaf within the pad, which follows the player");
+            var leafBody = intro.Leaf.Find("Leaf");
+            var eye = new Vector3(0f, 1.15f, 0f);
+            var toLeaf = leafBody.position - eye;
+            Assert.Greater(Vector3.Angle(Vector3.forward, new Vector3(toLeaf.x, 0f, toLeaf.z)), 55f, "the leaf waits out of view");
+            var stem = pad.GetComponentInChildren<LeafStalk>();
+            Assert.IsNotNull(stem, "a stalk for the leaf to land on");
+            Assert.LessOrEqual(stem.Stalk.lossyScale.y, LeafStalk.Stub + 1e-6f, "the stalk has not grown yet");
+            var cloud = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/Pedestal").GetComponent<Collider>();
+            Assert.IsTrue(stem.Hole.GetComponentsInChildren<Renderer>().All(r => cloud.bounds.Contains(r.bounds.min) && cloud.bounds.Contains(r.bounds.max)), "the closed hole waits inside the ball stand's cloud");
+            var furniture = GameObject.Find("RoomOrchestra").transform.Find("Furniture").GetComponentsInChildren<Collider>();
+            foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
+            {
+                var p = token.transform.position;
+                Assert.Less(p.y, 0.12f, $"{token.name} sits on the floor");
+                Assert.IsTrue(token.transform.IsChildOf(intro.Leaf), $"{token.name} belongs on the leaf");
+                var flat = new Vector3(p.x, 0f, p.z);
+                Assert.Less(Vector3.Angle(Vector3.forward, flat), 35f, $"{token.name} is in front of the player");
+                Assert.IsFalse(furniture.Any(c => c.bounds.Contains(p)), $"{token.name} is not inside furniture");
+            }
+
+            intro.Finish();
+            Assert.AreEqual(Vector3.zero, intro.Leaf.localPosition, "finished: the leaf is home");
+            Assert.AreEqual(0.475f, stem.Stalk.lossyScale.y, 0.005f, "the stalk reaches the leaf's underside");
+            Assert.AreEqual(0f, stem.Stalk.position.y - stem.Stalk.lossyScale.y / 2f, 1e-4f, "standing on the floor");
+            Assert.Greater(stem.Hole.position.y, 0.5f, "the hole has closed and gone back inside the cloud: just the stalk on the floor");
+            Assert.IsTrue(stem.Hole.GetComponentsInChildren<Renderer>().All(r => r.sharedMaterial.color.maxColorComponent < 0.05f), "a black hole and black cracks");
+            Assert.GreaterOrEqual(stem.Hole.GetComponentsInChildren<Renderer>().Count(r => r.name.StartsWith("Crack")), 7, "cracks run out from it");
+            var rig = Object.FindFirstObjectByType<ControlsRig>();
+            rig.Apply(PlayPosture.Standing);
+            stem.Apply();
+            Assert.AreEqual(0f, stem.Stalk.position.y - stem.Stalk.lossyScale.y / 2f, 1e-4f, "standing: the stalk still reaches the floor");
+            Assert.AreEqual(0.475f + PostureLayout.StandingLift, stem.Stalk.lossyScale.y, 0.005f, "and the lifted leaf");
+            rig.Apply(PlayPosture.Seated);
+            stem.Apply();
+            Assert.AreEqual(Quaternion.identity, intro.Leaf.localRotation);
+            foreach (var token in Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None))
+                Assert.Greater(token.transform.position.y, 0.5f, $"{token.name} is on the leaf");
+        }
+
+        static readonly Vector3 DispenserHome = new Vector3(0.62f, 0f, 1.15f); // the stand's place beside the leaf
+
+        // ---- The title card (Version 1 feedback: "boot into a proper title screen") ----
+        [Test]
+        public void TheGameOpensOnATitleCardInFrontWithAStartButton()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single); // as saved, without Finish()
+            var title = Object.FindFirstObjectByType<TitleScreen>();
+            Assert.IsNotNull(title, "a title card");
+            Assert.IsTrue(title.Showing, "showing at launch");
+            var p = title.Card.position;
+            Assert.GreaterOrEqual(new Vector2(p.x, p.z).magnitude, 1f, "at least 1 m out (PICO Spatial draws nearer props wrongly)");
+            Assert.Less(Vector3.Angle(Vector3.forward, new Vector3(p.x, 0f, p.z)), 10f, "straight in front");
+            Assert.That(p.y, Is.InRange(1.15f, 1.45f), "at or just above seated eye height (the ball stand sits below it)");
+            // Focused start (Version 1 feedback): the ball stand with its ball is the first thing in front of the player,
+            // at least 1 m out, and the title card does not cover it.
+            var stand = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser");
+            var s = stand.position;
+            Assert.Less(Mathf.Abs(s.x), 0.05f, "the ball stand is directly in front");
+            Assert.GreaterOrEqual(new Vector2(s.x, s.z).magnitude, 1f, "at least 1 m out");
+            Assert.Less(s.z, p.z, "in front of the title card");
+            var ball = stand.Find("SpawnPoint").position;
+            var eye = new Vector3(0f, 1.15f, 0f);
+            var onCard = eye + (ball - eye) * ((p.z - eye.z) / (ball.z - eye.z)); // where the ball appears on the card's plane
+            Assert.Less(onCard.y, p.y - 0.29f, "the ball shows below the card, not hidden behind it");
+            var arc = GameObject.Find("RoomOrchestra").transform.Find("AimArc");
+            Assert.Less(Vector3.Distance(arc.localPosition, stand.position - DispenserHome), 1e-3f, "the aim arc starts with the stand, offset once (never more)");
+            var start = title.Card.GetComponentInChildren<TitleStartButton>();
+            Assert.IsNotNull(start, "a Start button");
+            Assert.Greater(Mathf.Abs(title.Card.InverseTransformPoint(start.transform.position).x), 0.15f, "off the centre line, clear of PICO's window handle");
+            var hit = start.GetComponentInChildren<Collider>();
+            Assert.IsNotNull(hit, "Start is tappable");
+            Assert.IsTrue(InstrumentInputRouter.PressableOwner(hit.gameObject) is TitleStartButton, "and the pointer knows it can tap it (its ray turns gold)");
+            var texts = title.Card.GetComponentsInChildren<LocalizedLabel>().Select(l => l.TextFor(UiLanguage.English)).ToArray();
+            CollectionAssert.Contains(texts, "Start");
+            CollectionAssert.Contains(texts, "A mixed-reality musical playground");
+            var letters = title.Card.Find("TitleLettering").GetComponentsInChildren<MeshFilter>();
+            Assert.AreEqual(2, letters.Length, "the key-art lettering: cream letters on a plum outline");
+            Assert.IsTrue(letters.All(f => f.sharedMesh.triangles.Length / 3 > 100), "traced shapes, not a textured quad (PICO Spatial did not draw that)");
+
+            Object.FindFirstObjectByType<IntroSequence>().Finish();
+            var cloud = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/Pedestal").GetComponent<Collider>();
+            Assert.IsTrue(title.Parked);
+            Assert.IsTrue(title.Card.GetComponentsInChildren<Renderer>().All(r => cloud.bounds.Contains(r.bounds.center)), "parked inside the ball stand's cloud");
+            Assert.IsFalse(hit.enabled, "and its button no longer catches taps");
+        }
+
+        // Version 1 feedback: nothing showed what the eye or pointer was on. In PICO XR mode the controller's ray turns
+        // gold over anything it can tap; each of those colliders sits on a visible mesh.
+        [Test]
+        public void EverythingTappableIsSomethingYouCanSee()
+        {
+            // TapOwner leaves out the echoes on the rings (the pointer tests skip them); they are tappable too.
+            Component Owner(Collider c) => TapOwner(c) ?? c.GetComponentInParent<EchoMini>();
+            var tappable = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None).Where(c => c.enabled && Owner(c) != null).ToArray();
+            Assert.Greater(tappable.Length, 90, "controls, tiles, characters, the 54 echoes and furniture");
+            var missing = tappable
+                .Where(c => !c.TryGetComponent<MeshRenderer>(out _))
+                .Select(c => $"{Owner(c).name} ({c.name})").ToArray();
+            Assert.IsEmpty(missing, "nothing visible under: " + string.Join(", ", missing));
+        }
+
         [Test]
         public void ClearsSmokeHasAGentleSoundAndLandingsAreSilent()
         {
@@ -664,7 +827,6 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(Vector3.zero, pad.transform.localPosition, "authored at home");
             Assert.AreEqual(Quaternion.identity, pad.transform.localRotation);
             Assert.IsTrue(Object.FindFirstObjectByType<OrbToken>().transform.IsChildOf(pad.transform), "the ball tray");
-            Assert.IsTrue(Object.FindFirstObjectByType<TierButton>().transform.IsChildOf(pad.transform));
             Assert.IsTrue(Object.FindFirstObjectByType<UndoButton>().transform.IsChildOf(pad.transform));
             foreach (var b in Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None)) Assert.IsTrue(b.transform.IsChildOf(pad.transform), b.name);
             Assert.IsTrue(Object.FindFirstObjectByType<RecenterButton>().transform.IsChildOf(pad.transform));
@@ -683,19 +845,45 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(so.FindProperty("launcher").objectReferenceValue);
         }
 
+        // Owner, headset 2026-11-08: Start over (scan included), a clearer name than "Places", and no Loudness or Loop.
+        [Test]
+        public void TheMenuHasStartOverAndChooseFurniture()
+        {
+            var tray = Object.FindFirstObjectByType<MenuTray>(FindObjectsInactive.Include);
+            Assert.IsNull(Object.FindFirstObjectByType<TierButton>(FindObjectsInactive.Include), "no Loudness (owner, 2026-11-08)");
+            Assert.IsTrue(Object.FindFirstObjectByType<StartOverButton>(FindObjectsInactive.Include).transform.IsChildOf(tray.transform), "Start over on the menu");
+            var placesButton = Object.FindFirstObjectByType<PlacesButton>(FindObjectsInactive.Include);
+            var places = placesButton.GetComponentInChildren<LocalizedLabel>(true);
+            Assert.AreEqual("Choose\nfurniture", places.TextFor(UiLanguage.English));
+            // owner, headset 2026-11-08: on the leaf itself, next to Boom
+            Assert.IsFalse(placesButton.transform.IsChildOf(tray.transform), "Choose furniture is on the leaf, not the menu");
+            var boom = Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None).First(t => t.Orb == OrbType.Boom);
+            Assert.Greater(placesButton.transform.position.x, boom.transform.position.x, "right of Boom");
+            Assert.Less(Vector3.Distance(placesButton.transform.position, boom.transform.position), 0.3f, "beside Boom");
+            Assert.AreEqual((UiTerm.ConfirmStartOver, UiTerm.ConfirmRestart), ConfirmCard.TermsFor(Object.FindFirstObjectByType<StartOverButton>(FindObjectsInactive.Include)), "Start over asks first");
+        }
+
         [Test]
         public void CallLeafIsLabeledAndTappable()
         {
             var call = Object.FindFirstObjectByType<TrayCallButton>();
             Assert.IsNotNull(call);
-            Assert.IsNotNull(call.GetComponent<Collider>());
+            Assert.IsNotNull(call.GetComponentInChildren<Collider>());
             var label = call.GetComponentInChildren<LocalizedLabel>();
             Assert.IsNotNull(label, "labeled, and the label follows the language");
             Assert.AreEqual("Come here", label.Text.text);
             Assert.AreEqual("过来", label.TextFor(UiLanguage.Chinese));
+            // owner, headset 2026-11-08: "the 'come here' should be on the first leaf, not buried in the menu"
+            Assert.IsNull(call.GetComponentInParent<MenuTray>(true), "on the leaf itself, not on the menu tray");
+            var menu = Object.FindObjectsByType<MenuButton>(FindObjectsSortMode.None).First(m => m.name == "MenuButton"); // not the tray's Close
+            Assert.Less(call.transform.position.x, menu.transform.position.x, "first on the leaf's row, before Menu");
+            Assert.AreEqual(menu.transform.position.y, call.transform.position.y, 0.01f, "in the same row");
         }
 
         // ---- Rainforest that grows with the music (vines, butterflies, toadstools, sparkles) ----
+        // The largest world size of anything a sprout draws.
+        static float Seen(Component sprout) => sprout.GetComponentsInChildren<Renderer>().Max(r => r.bounds.size.magnitude);
+
         static bool InsideAny(Collider[] solids, Vector3 p) => solids.Any(c => (c.ClosestPoint(p) - p).sqrMagnitude < 1e-8f);
 
         [Test]
@@ -747,23 +935,28 @@ namespace RoomOrchestra.Tests
                     }
             }
 
-            // Toadstools wait as buds, faces toward the seat.
+            // Toadstools and flowers wait out of sight (owner: their waiting state should not be seen).
             var toadstools = rainforest.GetComponentsInChildren<Toadstool>();
             Assert.AreEqual(JungleGrowth.MushroomAt.Length, toadstools.Length);
             foreach (var t in toadstools)
             {
-                Assert.AreEqual(Toadstool.BudScale, t.transform.localScale.x, 1e-6f, $"{t.name} is a bud at startup");
+                Assert.AreEqual(SproutSync.HiddenScale, t.transform.localScale.x, 1e-6f, $"{t.name} hidden at startup");
+                Assert.Less(Seen(t), 0.005f, $"{t.name} too small to see");
                 Assert.Less(t.transform.position.y, 0.01f, $"{t.name} on the floor");
             }
 
-            // Flowers wait as buds on the floor around the room, clear of the furniture, the seat and each other.
+            // Flowers wait on the floor around the room, clear of the furniture, the seat and each other.
             var flowers = rainforest.GetComponentsInChildren<FloorFlower>();
             Assert.AreEqual(20, flowers.Length, "a meadow's worth (RainforestArt.FloorFlowers)");
             var furniture = stage.Find("Furniture").GetComponentsInChildren<Collider>().Select(c => c.bounds).ToArray();
             foreach (var f in flowers)
             {
                 var p = f.transform.position;
-                Assert.AreEqual(Toadstool.BudScale, f.transform.localScale.x, 1e-6f, $"{f.name} is a bud at startup");
+                Assert.AreEqual(SproutSync.HiddenScale, f.transform.localScale.x, 1e-6f, $"{f.name} hidden at startup");
+                Assert.Less(Seen(f), 0.005f, $"{f.name} too small to see");
+                Assert.IsNotNull(f.Bloom, $"{f.name} has petals to open");
+                Assert.IsNotNull(f.Bud, $"{f.name} grows as a bud");
+                Assert.AreEqual(FloorFlower.ClosedScale, f.Bloom.localScale.x, 1e-6f, $"{f.name}'s petals start closed");
                 Assert.Less(Mathf.Abs(p.y), 0.01f, $"{f.name} on the floor");
                 Assert.Greater(new Vector2(p.x, p.z).magnitude, 0.7f, $"{f.name} clear of the player's feet");
                 Assert.IsFalse(furniture.Any(b => p.x > b.min.x && p.x < b.max.x && p.z > b.min.z && p.z < b.max.z), $"{f.name} not under furniture");

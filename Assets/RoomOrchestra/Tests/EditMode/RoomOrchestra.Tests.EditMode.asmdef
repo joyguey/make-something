@@ -6,7 +6,8 @@
         "RoomOrchestra.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "ByteDance.PICO.XR"
     ],
     "includePlatforms": [
         "Editor"

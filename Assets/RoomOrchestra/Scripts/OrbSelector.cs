@@ -68,7 +68,16 @@ namespace RoomOrchestra
 
         public void Select(OrbType orb) => Model.SelectOrb(orb);
         public void CycleOrb(int direction) => Model.CycleOrb(direction);
-        public void CycleTarget(int direction) => Model.CycleTarget(direction);
+        /// <summary>Moves the focus to the next target, passing over any the guided song still keeps hidden.</summary>
+        public void CycleTarget(int direction)
+        {
+            int count = targets != null ? targets.Length : 1;
+            for (int i = 0; i < count; i++)
+            {
+                Model.CycleTarget(direction);
+                if (FocusedTarget == null || !StationReveal.IsHidden(FocusedTarget.Instrument)) return;
+            }
+        }
         public void CycleTier() => Model.CycleTier();
         public void SetTier(IntensityTier tier) => Model.SetTier(tier);
         public void CyclePetal() => Model.CyclePetal();
@@ -94,10 +103,24 @@ namespace RoomOrchestra
         /// <summary>Places the selected orb on <paramref name="target"/> at the selected petal.</summary>
         public MusicalHitEvent PlaceOn(InstrumentTarget target) => PlaceOn(target, PitchInput.FromPetal(Model.Petal));
 
+        static bool? s_ThrowOnTap;
+        /// <summary>
+        /// A tapped note flies there as a ball (owner, 2026-11-07: "tapping the note seems to defeat the purpose of
+        /// throwing the ball"); still one tap, no aim or strength needed. On by default in the app; the Editor's
+        /// older tests set it off to check the direct path.
+        /// </summary>
+        public static bool ThrowOnTap
+        {
+            get => s_ThrowOnTap ?? !Application.isEditor;
+            set => s_ThrowOnTap = value;
+        }
+
         public MusicalHitEvent PlaceOn(InstrumentTarget target, PitchInput pitch)
         {
             if (target == null) return null;
             Focus(target);
+            if (ThrowOnTap && launcher != null && launcher.TryThrowAt(target, Model.SelectedOrb, pitch, Model.Tier))
+                return null; // the note plays when the ball lands
             long action = MusicalHitPipeline.BeginAction();
             return MusicalHitPipeline.Submit(action, target, Model.SelectedOrb, Model.Tier, pitch, InputPath.Place);
         }
@@ -114,6 +137,26 @@ namespace RoomOrchestra
                 case ControllerCommand.CycleIntensity: CycleTier(); break;
                 case ControllerCommand.CyclePetal: CyclePetal(); break;
             }
+        }
+
+        // The focus marker (a yellow disc over the focused instrument) shows only in play, over an instrument that is
+        // out (owner, headset 2026-11-08: "a yellow disk behind the menu" at the start).
+        Renderer[] m_MarkerLooks;
+
+        void LateUpdate()
+        {
+            if (focusMarker == null) return;
+            m_MarkerLooks ??= focusMarker.GetComponentsInChildren<Renderer>(true);
+            var title = TitleScreen.Instance;
+            var intro = IntroSequence.Instance;
+            var target = FocusedTarget;
+            // Owner, headset 2026-11-08: "a weird yellow disk on top of the floating ball on the cloud". Over a real
+            // object the disc floated wherever that object's scanned box ended (a chair scanned with the player in it
+            // reached past the cloud). On real objects the glow and the note labels show the target; the disc is only
+            // drawn over the lesson's virtual furniture.
+            bool on = (title == null || !title.Showing) && (intro == null || intro.Done) && target != null
+                      && !StationReveal.IsHidden(target.Instrument) && target.Home == null;
+            foreach (var r in m_MarkerLooks) if (r != null && r.enabled != on) r.enabled = on;
         }
 
         // Visuals only change after a real selection change, never at startup.

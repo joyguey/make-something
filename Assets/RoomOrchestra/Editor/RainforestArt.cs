@@ -17,14 +17,14 @@ namespace RoomOrchestra.EditorTools
         const string FbxPath = "Assets/RoomOrchestra/Art/Rainforest/Rainforest.fbx";
         const string MaterialDir = "Assets/RoomOrchestra/Materials";
 
-        // Where each vine grows (stage space, floor level): pole and leg axes; the chair's centre line on its
-        // back's mid-plane (its vine climbs the back-left leg). Both table legs feed on udu together.
-        static readonly (string name, Vector3 at)[] Vines =
+        // Where each vine grows, from its piece of furniture's floor position: pole and leg axes; the chair's
+        // centre line on its back's mid-plane (its vine climbs the back-left leg). Both table legs feed on udu.
+        static readonly (string name, string furniture, Vector3 offset)[] Vines =
         {
-            ("Lamp", new Vector3(1.10f, 0f, 2.30f)),
-            ("TableL", new Vector3(-1.615f, 0f, 2.005f)),
-            ("TableR", new Vector3(-0.595f, 0f, 2.005f)),
-            ("Chair", new Vector3(0f, 0f, 2.235f)),
+            ("Lamp", "Lamp", Vector3.zero),
+            ("TableL", "Table", new Vector3(-0.515f, 0f, -0.295f)),
+            ("TableR", "Table", new Vector3(0.505f, 0f, -0.295f)),
+            ("Chair", "Chair", new Vector3(0f, 0f, 0.235f)),
         };
 
         // Toadstools around the edge of the stage, in the order they sprout: (position, grown size, cap colour).
@@ -76,8 +76,11 @@ namespace RoomOrchestra.EditorTools
             var heart = Material("Rainforest_FlowerHeart", new Color(1.00f, 0.85f, 0.29f), glow: 0.4f);
             var fbx = (GameObject)AssetDatabase.LoadMainAssetAtPath(FbxPath);
             var grown = new System.Collections.Generic.Dictionary<string, VineGrowth>();
-            foreach (var (name, at) in Vines)
+            var furnitureRoot = root.parent != null && root.parent.parent != null ? root.parent.parent.Find("Furniture") : null;
+            foreach (var (name, furnitureName, offset) in Vines)
             {
+                var host = furnitureRoot != null ? furnitureRoot.Find(furnitureName) : null;
+                var at = (host != null ? new Vector3(host.position.x, 0f, host.position.z) : Vector3.zero) + offset;
                 var vine = new GameObject($"Vine_{name}").transform;
                 vine.SetParent(root, false);
                 vine.localPosition = at;
@@ -106,12 +109,16 @@ namespace RoomOrchestra.EditorTools
             var shade = targets.First(t => t.Instrument == InstrumentType.Erhu).GetComponentsInChildren<Renderer>()
                 .First(r => r.name == "Shade").bounds.center; // butterflies wait inside the lamp shade
             var flock = new Butterfly[Butterflies.Length];
+            // The butterflies and their trails under one holder (their stage), so the guided song can keep the
+            // lamp's flock out of sight with the lamp (StationReveal).
+            var flockRoot = new GameObject("Flock").transform;
+            flockRoot.SetParent(root, false);
             for (int b = 0; b < Butterflies.Length; b++)
             {
                 var (wingColor, centre, size, lap, phase) = Butterflies[b];
                 var wing = Material($"Rainforest_Wing{b}", wingColor, glow: 0.25f);
                 var bf = new GameObject($"Butterfly{b}").transform;
-                bf.SetParent(root, false);
+                bf.SetParent(flockRoot, false);
                 var flier = bf.gameObject.AddComponent<Butterfly>();
                 bf.localScale = Vector3.one * 2.2f; // ~22 cm wingspan: readable from the seat
                 Part(bf, "Butterfly_Body", body);
@@ -128,11 +135,11 @@ namespace RoomOrchestra.EditorTools
                 var dots = new Transform[TrailDots];
                 for (int i = 0; i < TrailDots; i++)
                 {
-                    dots[i] = Part(root, "Sparkle", trail);
+                    dots[i] = Part(flockRoot, "Sparkle", trail);
                     dots[i].name = $"Butterfly{b}_Trail{i}";
                     dots[i].localScale = Vector3.one * 0.45f;
                 }
-                var home = root.InverseTransformPoint(shade);
+                var home = flockRoot.InverseTransformPoint(shade);
                 flier.Configure(wings[0], wings[1], dots, centre, size, lap, phase, home);
                 flier.SetWings(Butterfly.RestAngle); // authored resting in a V
                 // Authored at home inside the lamp shade, trail tucked in with it: hidden until the song calls.
@@ -147,13 +154,16 @@ namespace RoomOrchestra.EditorTools
             int seed = 0;
             foreach (var target in targets)
             {
+                // Each instrument's sparkles under one holder, to hide and show with it (StationReveal).
+                var sparkles = new GameObject($"Sparkles_{target.Instrument}").transform;
+                sparkles.SetParent(root, false);
                 for (int i = 0; i < SparklesPerInstrument; i++, seed++)
                 {
                     // A loose ring around the instrument, behind and above it, facing the player.
                     float a = Mathf.Lerp(-150f, 150f, i / (SparklesPerInstrument - 1f)) * Mathf.Deg2Rad;
                     var at = target.AimPosition + new Vector3(Mathf.Sin(a) * 0.5f, 0.25f + 0.2f * ((seed * 7) % 3), 0.25f + Mathf.Cos(a) * 0.1f);
                     var sparkle = new GameObject($"Sparkle_{target.Instrument}_{i}").transform;
-                    sparkle.SetParent(root, false);
+                    sparkle.SetParent(sparkles, false);
                     sparkle.position = at;
                     sparkle.rotation = Quaternion.LookRotation(sparkle.position - Viewer.SeatedEye, Vector3.up);
                     sparkle.localScale = Vector3.one * (0.8f + 0.15f * (seed % 3));
@@ -179,7 +189,7 @@ namespace RoomOrchestra.EditorTools
                 var away = at - Viewer.SeatedEye;
                 away.y = 0f;
                 shroom.localRotation = Quaternion.LookRotation(away, Vector3.up); // its sleepy face toward the seat
-                shroom.localScale = Vector3.one * Toadstool.BudScale;              // a little bud until the music grows it
+                shroom.localScale = Vector3.one * SproutSync.HiddenScale;          // out of sight until the music grows it
                 var look = new GameObject("Visual").transform;
                 look.SetParent(shroom, false);
                 Part(look, "Toadstool_Cap", Material($"Rainforest_Cap{cap}", CapColours[cap]));
@@ -252,17 +262,28 @@ namespace RoomOrchestra.EditorTools
                 var away = at - Viewer.SeatedEye;
                 away.y = 0f;
                 flower.localRotation = Quaternion.LookRotation(away, Vector3.up) * Quaternion.Euler(0f, (float)(random.NextDouble() * 50.0 - 25.0), 0f);
-                flower.localScale = Vector3.one * Toadstool.BudScale; // a little bud until the music grows it
+                flower.localScale = Vector3.one * SproutSync.HiddenScale; // out of sight until the music grows it
                 var look = new GameObject("Visual").transform;
                 look.SetParent(flower, false);
                 Part(look, "Flower_Stem", stem);
                 Part(look, "Flower_Leaves", leaf);
                 Part(look, "Flower_LeafRims", leafRim);
-                Part(look, "Flower_Petals", petals[i % petals.Length]);
-                Part(look, "Flower_PetalRims", petalRim);
-                Part(look, "Flower_Heart", heart);
+                // Petals and bud open and close about the heart's centre: grown as a bud, then in bloom.
+                var head = Mesh("Flower_Heart").bounds.center;
+                var bloom = new GameObject("Bloom").transform;
+                bloom.SetParent(look, false);
+                bloom.localPosition = head;
+                bloom.localScale = Vector3.one * FloorFlower.ClosedScale;
+                Part(bloom, "Flower_Petals", petals[i % petals.Length]).localPosition = -head;
+                Part(bloom, "Flower_PetalRims", petalRim).localPosition = -head;
+                Part(bloom, "Flower_Heart", heart).localPosition = -head;
+                var bud = new GameObject("Bud").transform;
+                bud.SetParent(look, false);
+                bud.localPosition = head;
+                Part(bud, "Flower_Bud", stem).localPosition = -head;
                 flowers[i] = flower.gameObject.AddComponent<FloorFlower>();
                 flowers[i].Configure(look, 1.2f + 0.6f * (float)random.NextDouble()); // 24-36 cm: readable from the seat
+                flowers[i].ConfigureBloom(bloom, bud);
                 EditorUtility.SetDirty(flowers[i]);
             }
             return flowers.Where(f => f != null).ToArray();

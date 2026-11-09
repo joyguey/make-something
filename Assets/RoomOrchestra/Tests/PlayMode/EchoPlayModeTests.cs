@@ -190,6 +190,8 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(MusicControlButton.DefaultIconParked, triangle.localPosition);
 
             Assert.IsTrue(InstrumentInputRouter.Activate(clearGo), "tap on Clear handled");
+            Assert.AreEqual(2, m_Conductor.Sequencer.Echoes.Count, "the first tap asks \"Sure?\" (George, 2026-11-03)");
+            Assert.IsTrue(InstrumentInputRouter.Activate(clearGo), "the second tap clears");
             Assert.AreEqual(0, m_Conductor.Sequencer.Echoes.Count);
             Assert.IsTrue(m_Conductor.Undo());
             Assert.AreEqual(2, m_Conductor.Sequencer.Echoes.Count, "undo brings cleared echoes back");
@@ -238,8 +240,10 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
-        public IEnumerator GoingToTheBackgroundPausesAndComingBackStaysPaused()
+        public IEnumerator GoingToTheBackgroundPausesAndComingBackResumesUnlessThePlayerPaused()
         {
+            // Headset, 2026-11-07: launched while the headset lay on a desk, the app started paused and the whole
+            // lesson ran silent. A pause the system causes now ends on return; the player's own Pause stays.
             var chair = MakeTarget(InstrumentType.Mbira, Vector3.zero);
             var selector = MakeRig(chair);
             yield return null;
@@ -247,10 +251,15 @@ namespace RoomOrchestra.Tests
             m_Conductor.SendMessage("OnApplicationPause", true);
             Assert.IsTrue(m_Conductor.IsPaused, "paused when the app leaves the foreground");
             Assert.IsFalse(chair.IsSounding);
-            m_Conductor.SendMessage("OnApplicationPause", false);
-            Assert.IsTrue(m_Conductor.IsPaused, "still paused on return: the player taps Play");
             m_Conductor.SendMessage("OnApplicationPause", true);
-            Assert.IsTrue(m_Conductor.IsPaused, "a second background trip does not toggle it back on");
+            Assert.IsTrue(m_Conductor.IsPaused, "a second background notice does not toggle it back on");
+            m_Conductor.SendMessage("OnApplicationPause", false);
+            Assert.IsFalse(m_Conductor.IsPaused, "back in the app: the music carries on");
+
+            m_Conductor.TogglePause(); // the player presses Pause
+            m_Conductor.SendMessage("OnApplicationPause", true);
+            m_Conductor.SendMessage("OnApplicationPause", false);
+            Assert.IsTrue(m_Conductor.IsPaused, "the player's own pause stays until they press Play");
         }
 
         [UnityTest]

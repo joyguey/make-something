@@ -52,6 +52,8 @@ namespace RoomOrchestra
         OrbType m_Orb = OrbType.Flutter;
 
         public Ball ReadyBall => m_Ready;
+        /// <summary>Where the ready ball sits on its cloud (scene space), if the stand has a spawn point.</summary>
+        public Vector3? SpawnPosition => spawnPoint != null ? spawnPoint.position : (Vector3?)null;
         public OrbType CurrentOrb => m_Orb;
 
         /// <summary>Chooses which orb the ready ball (and every later ball) is.</summary>
@@ -104,6 +106,7 @@ namespace RoomOrchestra
         static void Teleport(Ball ball, Vector3 position, Quaternion rotation)
         {
             var body = ball.GetComponent<Rigidbody>();
+            if (body.isKinematic) ball.StopSmoothing(); // held still: it goes exactly where it is put
             body.position = position;
             body.rotation = rotation;
             ball.transform.SetPositionAndRotation(position, rotation);
@@ -119,15 +122,46 @@ namespace RoomOrchestra
 
         void Update()
         {
+            FaceThePlayer();
             if (arc == null || m_Ready == null || m_ArcHeld) return;
+            if (!Playing())
+            {
+                if (arc.IsVisible) arc.Hide(); // a clean start: no trajectory over the title or the opening
+                return;
+            }
 
             if (m_GrabId >= 0)
             {
                 Vector3 drag = DragVelocity();
-                Vector3 dir = Flat(drag).sqrMagnitude > 0.64f ? drag : m_Facing; // > 0.8 m/s sideways = intentional swing
+                Vector3 dir = PulledBack(drag, m_Facing) ? m_Facing // a slingshot pull aims ahead
+                    : Flat(drag).sqrMagnitude > 0.64f ? drag : m_Facing; // > 0.8 m/s sideways = intentional swing
                 if (Flat(dir).sqrMagnitude > 1e-4f) m_AimDirection = Flat(dir).normalized;
             }
             Preview(m_Ready.transform.position, m_AimDirection);
+        }
+
+        static bool Playing()
+        {
+            var title = TitleScreen.Instance;
+            var intro = IntroSequence.Instance;
+            return (title == null || !title.Showing) && (intro == null || intro.Done);
+        }
+
+        // Owner, headset 2026-11-08: "The floating ball on cloud is ... not facing towards the player". The ready ball
+        // turns (about the vertical only) so its face looks at the player's head, wherever the stand has gone.
+        void FaceThePlayer()
+        {
+            if (m_Ready == null || m_GrabId >= 0 || StageAnchor.Instance == null || !StageAnchor.Instance.TryGetHeadPose(out var head)) return;
+            if (!m_Ready.TryGetComponent<CharacterFace>(out var face)) return;
+            var toHead = head.position - m_Ready.transform.position;
+            toHead.y = 0f;
+            if (toHead.sqrMagnitude < 1e-4f) return;
+            var facing = face.FacingIn(m_Ready.transform);
+            var want = Quaternion.LookRotation(toHead.normalized) * Quaternion.Inverse(Quaternion.LookRotation(facing));
+            var now = m_Ready.transform.rotation;
+            var turned = Quaternion.RotateTowards(now, want, 240f * Time.deltaTime);
+            if (Quaternion.Angle(now, turned) < 0.05f) return;
+            Teleport(m_Ready, m_Ready.transform.position, turned);
         }
 
         /// <summary>True while the arc still shows the last throw (until the next aim or until that ball is gone).</summary>
@@ -162,7 +196,15 @@ namespace RoomOrchestra
 
             Vector3 velocity = DragVelocity();
             Vector3 dir = Flat(velocity).sqrMagnitude > 0.64f ? velocity : m_Facing;
-            if (velocity.magnitude < minThrowSpeed)
+            if (PulledBack(velocity, m_Facing))
+            {
+                // Pulled toward the player, like drawing a slingshot: it flies away from them, never behind
+                // (owner, headset 2026-11-08: "pinch and pull back on the floating ball... it would toss it behind me").
+                Debug.Log("[RoomOrchestra] Slingshot release: thrown ahead");
+                dir = m_Facing;
+                velocity = Flat(m_Facing).normalized * Mathf.Max(tossSpeed, Flat(velocity).magnitude) + Vector3.up * tossLift;
+            }
+            else if (velocity.magnitude < minThrowSpeed)
                 velocity = m_Facing.normalized * tossSpeed + Vector3.up * tossLift;
             ThrowAssisted(m_Ready.transform.position, dir, Vector3.ClampMagnitude(velocity, maxThrowSpeed));
         }
@@ -252,6 +294,44 @@ namespace RoomOrchestra
             }
         }
 
+        /// <summary>
+        /// A tapped note (a pitch tile, the controller's Place, a tap on an instrument): the ready ball is thrown at
+        /// <paramref name="target"/> and plays that note when it lands. False when no ball is ready (being held, or the
+        /// tap came in a quick run): the caller plays the note directly so a tap is never lost.
+        /// </summary>
+        public bool TryThrowAt(InstrumentTarget target, OrbType orb, PitchInput pitch, IntensityTier tier)
+        {
+            if (m_Ready == null || m_GrabId >= 0 || target == null || spawnPoint == null) return false;
+            if (m_Orb != orb) SetOrb(orb);
+            var from = m_Ready.transform.position;
+            var delta = target.AimPosition - from;
+            float max = OrbCatalog.Get(orb).MaxLaunchSpeed;
+            Vector3 velocity = Vector3.zero;
+            float duration = 0f;
+            for (duration = TapFlightSeconds(Flat(delta).magnitude); duration <= maxFlightTime + 1e-3f; duration += 0.1f)
+            {
+                velocity = delta / duration - 0.5f * duration * Physics.gravity;
+                if (velocity.magnitude <= max) break;
+            }
+            if (velocity.magnitude > max) return false;
+            double tapDsp = AudioSettings.dspTime;
+            AimedTarget = target;
+            if (arc != null)
+            {
+                arc.Show(from, velocity, duration, true);
+                m_ArcHeld = true;
+            }
+            var ball = Throw(velocity);
+            if (ball == null) return false;
+            m_ArcBall = ball;
+            ball.CarryTapNote(target, pitch, tier, tapDsp, duration);
+            Debug.Log($"[RoomOrchestra] Tap: {orb} flies to the {target.Instrument} carrying its note ({duration:F2} s)");
+            return true;
+        }
+
+        /// <summary>A tap's throw is quick (the note follows the tap closely) but never a straight line.</summary>
+        public static float TapFlightSeconds(float distance) => Mathf.Clamp(distance / 6f, 0.3f, 0.6f);
+
         Ball Throw(Vector3 velocity)
         {
             var ball = m_Ready;
@@ -320,5 +400,14 @@ namespace RoomOrchestra
         }
 
         static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+        /// <summary>Was the hand moving back toward the player (against where they face) when they let go?</summary>
+        public static bool PulledBack(Vector3 dragVelocity, Vector3 facing)
+        {
+            var drag = Flat(dragVelocity);
+            var ahead = Flat(facing);
+            if (drag.sqrMagnitude < 0.04f || ahead.sqrMagnitude < 1e-4f) return false; // under 0.2 m/s: a tap
+            return Vector3.Dot(drag.normalized, ahead.normalized) < -0.2f;
+        }
     }
 }
