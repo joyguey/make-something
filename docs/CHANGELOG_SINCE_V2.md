@@ -1,6 +1,6 @@
 # Little Echoes: what changed since v2.1
 
-v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 22), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
+v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 23), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
 
 ## Platform
 - **Moved from PICO Spatial to PICO XR mode** (2026-11-08). This gives the game the room mesh and spatial anchors. v3.5 is the last PICO Spatial build and stays as a fallback.
@@ -22,7 +22,8 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
   - The instrument uses the scanned shape of the real object.
   - The rainforest vines grow around it.
 - **Notes along the object:** five note bands run along the object's longest side.
-  - Pointing at the object labels every band with its note, and the band under the pointer gets the largest label.
+  - Pointing at the object labels every band with its note (D E F# A B, or the udu's Deep, Soft, Slap, Wobble, Tap). The band under the pointer gets the largest label, in yellow.
+  - Playing a note, by tap or by ball, shows the names for a moment with the note just played in yellow.
   - Tapping a band plays it. Throwing a ball at a band also plays it.
 - **Places remembered between sessions:** each chosen object gets a PICO spatial anchor, saved on the headset only. "Choose furniture" on the leaf re-chooses them, and Undo takes back the last furniture chosen while choosing.
 - **Occlusion:** real walls and furniture hide game objects behind them, using the scanned room mesh (the same shapes the game picks furniture from). Nothing within 0.6 m of the player hides anything, and things sitting on a real object stay visible. It can be switched off with Hiding in the menu.

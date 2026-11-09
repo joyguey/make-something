@@ -347,7 +347,7 @@ namespace RoomOrchestra
             {
                 voice.Play();
                 if (flash) m_Flash.Flash();
-                if (flash && Home != null) Home.Pulse();
+                if (flash && Home != null) Home.Pulse(index); // its band and note name light up
             }
             else
             {

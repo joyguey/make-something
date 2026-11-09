@@ -218,7 +218,53 @@ namespace RoomOrchestra.Tests
                 Assert.AreEqual(UiText.Tile(new MusicalNote(home.Target.Instrument, i), Localization.Current), label.text);
             }
             Assert.Greater(home.LabelOf(rightBand).transform.lossyScale.x, home.LabelOf(leftBand).transform.lossyScale.x * 1.5f, "the pointed band's label is the biggest");
-            Assert.IsNotNull(home.LabelOf(rightBand).transform.Find("NoteLabelBacking"), "on a dark backing that reads against the room");
+            var backing = home.LabelOf(rightBand).transform.Find("NoteLabelBacking");
+            Assert.IsNotNull(backing, "on a dark backing that reads against the room");
+            // owner, headset 2026-11-08: the names didn't show; the backing was drawn over the letters
+            var letters = home.LabelOf(rightBand).GetComponent<MeshRenderer>();
+            Assert.Less(backing.GetComponent<MeshRenderer>().sharedMaterial.renderQueue, letters.sharedMaterial.renderQueue, "the backing is drawn before the letters");
+            Assert.Greater(letters.sortingOrder, backing.GetComponent<MeshRenderer>().sortingOrder);
+            Assert.AreEqual(RealHome.SelectedLabel, home.LabelOf(rightBand).color, "the pointed note's name is yellow");
+            Assert.AreEqual(RealHome.OtherLabel, home.LabelOf(leftBand).color, "the others white");
+
+            // and they really draw: a camera at the player's eye sees the yellow name (it was hidden on the headset)
+            {
+                var label = home.LabelOf(rightBand).transform;
+                var eyeGo = new GameObject("LabelCheckEye");
+                var eye = eyeGo.AddComponent<Camera>();
+                eye.transform.position = new Vector3(0f, 1.2f, 0f);
+                eye.transform.LookAt(label.position);
+                eye.fieldOfView = 20f;
+                eye.clearFlags = CameraClearFlags.SolidColor;
+                eye.backgroundColor = Color.black;
+                var rt = new RenderTexture(256, 256, 24);
+                eye.targetTexture = rt;
+                eye.Render();
+                RenderTexture.active = rt;
+                var shot = new Texture2D(256, 256, TextureFormat.RGB24, false);
+                shot.ReadPixels(new Rect(0, 0, 256, 256), 0, 0);
+                shot.Apply();
+                RenderTexture.active = null;
+                int yellow = 0;
+                foreach (var px in shot.GetPixels()) if (px.r > 0.7f && px.g > 0.55f && px.b < 0.45f) yellow++;
+                var dump = System.Environment.GetEnvironmentVariable("LE_LABEL_SHOT");
+                if (!string.IsNullOrEmpty(dump)) System.IO.File.WriteAllBytes(dump, shot.EncodeToPNG());
+                eye.targetTexture = null;
+                Object.Destroy(rt);
+                Object.Destroy(eyeGo);
+                Assert.Greater(yellow, 20, "the pointed note's yellow name is drawn, not hidden behind its backing");
+            }
+
+            // a note played on it (a tap or a ball) shows its name, in yellow over its band, for a moment
+            Point(hand, hand + Vector3.up * 3f, false); // pointing away
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsFalse(home.BandsShown, "nothing shown once the pointer has gone");
+            home.Target.PlayNote(1);
+            yield return null;
+            Assert.IsTrue(home.BandsShown, "playing a note shows the bands");
+            Assert.AreEqual(1, home.Hover, "the band played");
+            Assert.AreEqual(RealHome.SelectedLabel, home.LabelOf(1).color, "its name in yellow");
+            Assert.AreEqual(UiText.Tile(new MusicalNote(home.Target.Instrument, 1), Localization.Current), home.LabelOf(1).text);
             int before = EchoConductor.Instance.Echoes.Count;
             OrbSelector.ThrowOnTap = false;
             yield return Press(hand, right);

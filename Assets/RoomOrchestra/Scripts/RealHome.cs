@@ -41,6 +41,12 @@ namespace RoomOrchestra
         readonly Transform[] m_Backs = new Transform[Bands];
         /// <summary>Label sizes: every band's, and the pointed band's (times the label style's own size).</summary>
         public const float LabelScale = 1.2f, PointedLabelScale = 2.2f;
+        /// <summary>The label backing's render queue: before the letters (transparent text draws at 3000).</summary>
+        public const int BackingQueue = 2990;
+        /// <summary>A note played on it (tap or ball) shows its name, and the others', this long (s).</summary>
+        public const float PlayedShowSeconds = 1.5f;
+        /// <summary>The selected (pointed or played) note's name is the high-contrast yellow; the others are white.</summary>
+        public static readonly Color SelectedLabel = new(1f, 0.86f, 0.2f), OtherLabel = Color.white;
         float m_ShowUntil = -1f;
         int m_Hover = -1;
 
@@ -120,9 +126,11 @@ namespace RoomOrchestra
                     label.name = $"NoteLabel{i}";
                     foreach (var extra in label.GetComponentsInChildren<MonoBehaviour>(true))
                         if (!(extra is TMP_Text)) Destroy(extra); // its own text only, no localizing
-                    foreach (Transform child in label.transform) Destroy(child.gameObject);
+                    // (its child objects are kept: TextMeshPro draws letters through them; removing them hid every name)
                     m_Labels[i] = label.GetComponent<TMP_Text>();
                     m_Labels[i].alignment = TextAlignmentOptions.Center;
+                    var letters = label.GetComponent<MeshRenderer>();
+                    if (letters != null) letters.sortingOrder = 10;
                     if (look != null)
                     {
                         var back = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -135,6 +143,11 @@ namespace RoomOrchestra
                         br.receiveShadows = false;
                         br.sharedMaterial = new Material(look) { name = "NoteLabelBacking" };
                         SetColor(br.sharedMaterial, new Color(0.12f, 0.06f, 0.18f, 0.85f));
+                        // Owner, headset 2026-11-08: the note names didn't show. The backing and the letters are both
+                        // see-through at the same distance, so the backing could be drawn over the letters. It is
+                        // drawn first now, and the letters after it.
+                        br.sharedMaterial.renderQueue = BackingQueue;
+                        br.sortingOrder = 0;
                         m_Backs[i] = back.transform;
                     }
                     label.SetActive(false);
@@ -266,7 +279,7 @@ namespace RoomOrchestra
                 if (label == null) continue;
                 bool pointed = i == m_Hover;
                 string text = UiText.Tile(new MusicalNote(m_Target.Instrument, i), language);
-                if (label.text != text) label.text = text;
+                if (label.text != text) { label.text = text; label.ForceMeshUpdate(); } // its letters right away
                 float along = -length / 2f + length / Bands * (i + 0.5f);
                 var at = axis * along;
                 at.y = upright ? at.y : m_Size.y / 2f;
@@ -280,9 +293,7 @@ namespace RoomOrchestra
                 var parent = transform.lossyScale;
                 float size = pointed ? PointedLabelScale : LabelScale;
                 label.transform.localScale = new Vector3(size / Mathf.Max(1e-3f, parent.x), size / Mathf.Max(1e-3f, parent.y), size / Mathf.Max(1e-3f, parent.z));
-                var c = label.color;
-                c.a = pointed ? 1f : 0.8f;
-                label.color = c;
+                label.color = pointed ? SelectedLabel : OtherLabel;
                 if (m_Backs[i] != null)
                 {
                     var want = label.GetPreferredValues(text);
@@ -292,11 +303,19 @@ namespace RoomOrchestra
             }
         }
 
-        /// <summary>A note played on it: a soft glow of its shape, for a moment.</summary>
-        public void Pulse()
+        /// <summary>
+        /// A note played on it: a soft glow of its shape, and (owner, headset 2026-11-08: "it does not show me what notes
+        /// are actually selected when I hit a note") the five note names for a moment, the one played in yellow, biggest,
+        /// over its band lit brighter. <paramref name="band"/> is the note's band (0 = lowest), or -1 for the glow only.
+        /// </summary>
+        public void Pulse(int band = -1)
         {
-            m_ShowUntil = Mathf.Max(m_ShowUntil, Time.time + GlowHoldSeconds * 2f);
+            m_ShowUntil = Mathf.Max(m_ShowUntil, Time.time + (band >= 0 ? PlayedShowSeconds : GlowHoldSeconds * 2f));
             if (m_Glow != null) m_Glow.enabled = HasShape;
+            if (band < 0 || band >= Bands) return;
+            m_Hover = band;
+            ShowBands(true);
+            ShowLabels();
         }
 
         /// <summary>Shows its whole shape glowing (while it is being chosen).</summary>
