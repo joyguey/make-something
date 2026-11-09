@@ -561,6 +561,8 @@ namespace RoomOrchestra
         }
 
         static TMPro.TMP_Text s_LabelStyle;
+        /// <summary>The text style the note names on real objects are made from (testing).</summary>
+        public static TMPro.TMP_Text NoteLabelStyle() => LabelStyle();
         static TMPro.TMP_Text LabelStyle()
         {
             if (s_LabelStyle != null) return s_LabelStyle;

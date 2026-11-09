@@ -122,13 +122,20 @@ namespace RoomOrchestra
             if (labelStyle != null)
                 for (int i = 0; i < Bands; i++)
                 {
-                    var label = Instantiate(labelStyle.gameObject, transform, false);
-                    label.name = $"NoteLabel{i}";
-                    foreach (var extra in label.GetComponentsInChildren<MonoBehaviour>(true))
-                        if (!(extra is TMP_Text)) Destroy(extra); // its own text only, no localizing
-                    // (its child objects are kept: TextMeshPro draws letters through them; removing them hid every name)
-                    m_Labels[i] = label.GetComponent<TMP_Text>();
-                    m_Labels[i].alignment = TextAlignmentOptions.Center;
+                    // Built fresh, in the label style's font (owner, headset 2026-11-08: copies of the room-spot
+                    // label showed no letters on the device, only their backings; reproduced on the emulator)
+                    var label = new GameObject($"NoteLabel{i}");
+                    label.transform.SetParent(transform, false);
+                    var tmp = label.AddComponent<TextMeshPro>();
+                    tmp.font = labelStyle.font;
+                    tmp.fontSharedMaterial = labelStyle.fontSharedMaterial;
+                    tmp.fontSize = labelStyle.fontSize;
+                    tmp.alignment = TextAlignmentOptions.Center;
+                    tmp.textWrappingMode = TextWrappingModes.NoWrap;
+                    tmp.rectTransform.sizeDelta = new Vector2(1f, 0.25f);
+                    tmp.color = OtherLabel;
+                    tmp.text = "";
+                    m_Labels[i] = tmp;
                     var letters = label.GetComponent<MeshRenderer>();
                     if (letters != null) letters.sortingOrder = 10;
                     if (look != null)
@@ -279,6 +286,7 @@ namespace RoomOrchestra
                 if (label == null) continue;
                 bool pointed = i == m_Hover;
                 string text = UiText.Tile(new MusicalNote(m_Target.Instrument, i), language);
+                if (!label.gameObject.activeSelf) label.gameObject.SetActive(true); // first: text on an inactive label isn't built
                 if (label.text != text) { label.text = text; label.ForceMeshUpdate(); } // its letters right away
                 float along = -length / 2f + length / Bands * (i + 0.5f);
                 var at = axis * along;
@@ -301,7 +309,16 @@ namespace RoomOrchestra
                 }
                 if (!label.gameObject.activeSelf) label.gameObject.SetActive(true);
             }
+            if (!m_LoggedLabels)
+            {
+                m_LoggedLabels = true;
+                var l = m_Labels[Mathf.Clamp(m_Hover, 0, Bands - 1)];
+                var mf = l != null ? l.GetComponent<MeshFilter>() : null;
+                Debug.Log($"[RoomOrchestra] Note names on the {Furniture}: '{l?.text}' active {l != null && l.gameObject.activeInHierarchy}, letters {(mf != null && mf.sharedMesh != null ? mf.sharedMesh.vertexCount : -1)} vertices, font {l?.font?.name}, at {l?.transform.position:F2}");
+            }
         }
+
+        bool m_LoggedLabels;
 
         /// <summary>
         /// A note played on it: a soft glow of its shape, and (owner, headset 2026-11-08: "it does not show me what notes

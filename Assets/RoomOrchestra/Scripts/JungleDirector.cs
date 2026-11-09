@@ -115,9 +115,19 @@ namespace RoomOrchestra
                 if (vine != null && vine.SetProgress(m_Growth.VineProgress(type)))
                     Debug.Log($"[RoomOrchestra] Jungle: {type} vine {vine.Shown}/{vine.SegmentCount}{(vine.Bloomed ? ", in bloom" : "")}");
             }
+            // Owner, headset 2026-11-08: "I haven't seen any mushrooms in my room anymore, just the flowers". In the
+            // real room the toadstools stayed on the lesson's floor plan, often inside real furniture or under the
+            // scanned floor, which now hides what is behind it. Like the flowers, they grow on a flat, clear real
+            // surface the player can see (the lesson's room keeps them on its own floor).
+            var room = VirtualRoom.Instance;
+            bool realRoom = room == null || room.Gone;
             if (toadstools != null)
                 for (int i = 0; i < m_Growth.MushroomsSprouted && i < toadstools.Length; i++)
-                    if (toadstools[i] != null) toadstools[i].Sprout();
+                    if (toadstools[i] != null && !toadstools[i].Sprouted)
+                    {
+                        if (realRoom) PlaceOnRealSurface(toadstools[i]);
+                        toadstools[i].Sprout();
+                    }
             if (flowers != null)
                 for (int i = 0; i < m_Growth.FlowersSprouted(flowers.Length); i++)
                     if (flowers[i] != null && !flowers[i].Sprouted)
@@ -129,7 +139,7 @@ namespace RoomOrchestra
 
         // With a room scan, a flower grows on a flat, clear real surface near its own place (George, 2026-11-03),
         // moved while it is still an unseen speck; without one it keeps the place it was given.
-        static void PlaceOnRealSurface(FloorFlower flower)
+        static void PlaceOnRealSurface(FloorSprout flower)
         {
             var walls = RealWalls.Instance;
             if (walls == null || !walls.TryTakeFlowerSpot(flower.transform.position, out var spot)) return;
@@ -290,11 +300,22 @@ namespace RoomOrchestra
                 offset.y *= up;
                 f.At = realFloor + stage.rotation * offset;
                 f.Scale = up;
+                if (f.Part.name == "Flock")
+                {
+                    // Owner, headset 2026-11-08: the butterflies weren't seen. Around a real lamp across the room (or on
+                    // their lesson loops 2.4-2.9 m out) they flew behind real walls, which hide them. In the real room
+                    // they loop in front of the player instead, at an easy height.
+                    f.At = home + stage.rotation * FlockInRealRoom;
+                    f.Scale = 1f;
+                }
                 f.Following = true;
             }
             FollowRealHomes();
             Debug.Log($"[RoomOrchestra] Jungle: the {furniture}'s vines and sparkles grow around the real object at {realFloor:F2} (x{up:F2} tall)");
         }
+
+        /// <summary>How far the butterflies' loops move from the lesson's (stage axes, m): nearer and a little lower.</summary>
+        public static readonly Vector3 FlockInRealRoom = new(0f, -0.25f, -1.3f);
 
         /// <summary>Back on the virtual furniture (the lesson again).</summary>
         public void GrowAtHome(string furniture)

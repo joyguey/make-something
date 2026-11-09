@@ -1,6 +1,6 @@
 # Little Echoes: what changed since v2.1
 
-v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 23), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
+v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 24), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
 
 ## Platform
 - **Moved from PICO Spatial to PICO XR mode** (2026-11-08). This gives the game the room mesh and spatial anchors. v3.5 is the last PICO Spatial build and stays as a fallback.
@@ -22,10 +22,9 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
   - The instrument uses the scanned shape of the real object.
   - The rainforest vines grow around it.
 - **Notes along the object:** five note bands run along the object's longest side.
-  - Pointing at the object labels every band with its note (D E F# A B, or the udu's Deep, Soft, Slap, Wobble, Tap). The band under the pointer gets the largest label, in yellow.
-  - Playing a note, by tap or by ball, shows the names for a moment with the note just played in yellow.
+  - Pointing at the object labels every band with its note, and the band under the pointer gets the largest label.
   - Tapping a band plays it. Throwing a ball at a band also plays it.
-- **Places remembered between sessions:** each chosen object gets a PICO spatial anchor, saved on the headset only. "Choose furniture" on the leaf re-chooses them, and Undo takes back the last furniture chosen while choosing.
+- **Places remembered between sessions:** each chosen object gets a PICO spatial anchor, saved on the headset only. "Choose furniture" in the menu re-chooses them.
 - **Occlusion:** real walls and furniture hide game objects behind them, using the scanned room mesh (the same shapes the game picks furniture from). Nothing within 0.6 m of the player hides anything, and things sitting on a real object stay visible. It can be switched off with Hiding in the menu.
 - **Real walls:**
   - Balls bounce off the real room, but only after the lesson, so the lesson's throws reach the virtual furniture.
@@ -34,16 +33,15 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
 
 ## Reach and comfort
 - **The leaf and the cloud fit the player:** both are placed from the player's head height at each start.
-  - They refit when the player stands up, sits down or walks away and stays there for 3 seconds. Bending down never refits them.
+  - They refit when the player stands up, sits down or walks away and stays there for 3 seconds. Bending down never refits them. The player can also grab the side of the leaf to readjust the placement & the cloud will realign to match the leaf.
   - When standing, the leaf sits lower and further out, near elbow height.
   - Over a desk, the leaf sits just above the desktop, not above the monitor.
 - **The cloud follows the leaf:** it travels with the leaf but sits beside it, slightly higher.
 - **Come here** (first button on the leaf) calls the leaf and the cloud to the player.
-- **Grab the leaf:** a controller's grip button, or a bare hand closed into a fist, at the leaf's edge picks it up. The cloud moves with it and keeps its place beside it. The leaf stays where it's put until Come here or Recenter.
 
 ## Controls
-- **Leaf:** Come here, Menu, Undo, Pause, Clear, and Choose furniture beside Boom.
-- **Menu (flat, two steps):** Sounds, Text size, 中文, Height, Hiding. Then Close, Recenter, Lesson, Start over, Quit.
+- **Leaf:** Choose furniture, Come here, Menu, Undo, Pause, Clear.
+- **Menu (flat, two steps):** Sounds, Text size, 中文, Height. Then Close, Recenter, Lesson, Start over, Quit.
 - **Start over (new in v3.14):** wipes the saved furniture, its anchors, the settings and the lesson, then begins again from the title, room scan included.
 - **Focus disc:** the yellow focus disc shows only over the lesson's virtual furniture. On real objects, the glow and the note labels show the target.
 - **Confirm card:** Clear, Lesson, Start over, Quit and Leave (in Echo Battle) ask first.
@@ -67,10 +65,10 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
 - **Rainforest:** it grows with the music.
 
 ## Echo Battle (hidden)
-- **A two-headset, turn-based mode** over local Wi-Fi, opened by a secret.
+- **A two-headset, turn-based mode** over local Wi-Fi, opened by a secret. Tap blue -> purple -> yellow, blue -> purple -> yellow.
 - **Card restyle:** the card has a street and graffiti look.
 
 ## Known limits (honest status)
 - **Object recognition:** finding the real object only partly works. Sometimes the scan's box is bigger or smaller than the object.
-- **Instrument sounds:** these are synthesised prototypes, not recordings of the traditional instruments.
-- **Sound mix:** I haven't listened to the mix myself.
+- **Occlusion:** sometimes things get in the way of each other and it's hard to position the palette so that it's not in the way of the furniture
+- **Labels:** I can't seem to get the labels to appear by the instruments themselves after the tutorial to show the different notes and style of drum taps
