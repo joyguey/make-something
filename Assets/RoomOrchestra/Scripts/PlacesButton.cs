@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace RoomOrchestra
 {
-    /// <summary>Menu: choose again where each instrument lives (the saved places are forgotten).</summary>
+    /// <summary>On the leaf, right of Boom: choose again where each instrument lives (the saved places are forgotten).</summary>
     public class PlacesButton : MonoBehaviour, IPressable
     {
         public void Press()

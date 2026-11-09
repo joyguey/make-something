@@ -66,10 +66,69 @@ namespace RoomOrchestra
         void Update()
         {
             if (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            if (m_HandPlaced) return; // where the player put it, until Come here (or Recenter)
             if (TryGetHead(out var head) && m_Follow.Update(head.X, head.Z, head.YawDegrees, Time.deltaTime))
                 Log();
             Glide(Time.deltaTime);
             UpdateDesk(Time.deltaTime);
+        }
+
+        // ---- Moved by hand (owner, headset 2026-11-08: "make the leaf grabbable from the side so if I try and grab it
+        // with my full hand or controller, I can adjust it to where the location makes sense and the cloud will keep its
+        // position relative to the leaf") ----
+        // A grab (controller grip, or a fist) at the leaf's edge moves the leaf and everything it carries (the cloud
+        // too, so it keeps its place beside the leaf); it stays upright and keeps facing the way it faced. It then stays
+        // where it was put: no following and no refitting until Come here or Recenter.
+        Vector3 m_Grab, m_GrabStart, m_HandStart; // frame space
+        bool m_HandPlaced, m_Grabbing;
+
+        /// <summary>The leaf was put somewhere by hand (it stays there until Come here or Recenter).</summary>
+        public bool HandPlaced => m_HandPlaced;
+        public bool Grabbing => m_Grabbing;
+        /// <summary>The lowest the leaf's top may be put (m above the frame's floor).</summary>
+        public const float LowestByHand = 0.3f, HighestByHand = 1.8f;
+
+        /// <summary>A hand at <paramref name="handWorld"/> takes hold of the leaf.</summary>
+        public void BeginGrab(Vector3 handWorld)
+        {
+            if (frame == null) return;
+            m_Grabbing = true;
+            m_HandPlaced = true;
+            m_GrabStart = m_Grab;
+            m_HandStart = frame.InverseTransformPoint(handWorld);
+            // finish any glide where it is now, so the leaf doesn't run off under the hand
+            m_Follow.Reset(); // its target is then the frame's home; ignored while placed by hand
+            m_Velocity = Vector3.zero;
+            m_YawVelocity = 0f;
+            m_Desk = m_DeskTarget;
+            m_Stand = m_StandTarget;
+            Debug.Log("[RoomOrchestra] Leaf pad: taken by hand");
+        }
+
+        /// <summary>The hand moved to <paramref name="handWorld"/>: the leaf (and the cloud with it) follow it.</summary>
+        public void MoveGrab(Vector3 handWorld)
+        {
+            if (!m_Grabbing || frame == null) return;
+            var want = m_GrabStart + (frame.InverseTransformPoint(handWorld) - m_HandStart);
+            // keep its top between knee and head height
+            float top = LeafHomeTop + m_Desk.y + (transform.parent != null ? transform.parent.localPosition.y : 0f);
+            want.y = Mathf.Clamp(want.y, LowestByHand - top, HighestByHand - top);
+            m_Grab = want;
+            Apply();
+        }
+
+        public void EndGrab()
+        {
+            if (!m_Grabbing) return;
+            m_Grabbing = false;
+            Debug.Log($"[RoomOrchestra] Leaf pad: put down by hand, moved {m_Grab:F2} m; it stays there until Come here");
+        }
+
+        void LetGoOfHandPlace()
+        {
+            m_Grabbing = false;
+            m_HandPlaced = false;
+            m_Grab = Vector3.zero;
         }
 
         // ---- Above the player's desk ----
@@ -260,6 +319,15 @@ namespace RoomOrchestra
         /// <summary>Option C: come to the player now (or home, if they are at the seat).</summary>
         public bool Call()
         {
+            if (m_HandPlaced)
+            {
+                // from where the hand put it: the pad's real place now, then the call glides it to the player
+                m_Position += m_Grab;
+                m_Position.y = 0f;
+                LetGoOfHandPlace();
+                m_Fitted = false; // fitted to the player again
+                Apply();
+            }
             if (!TryGetHead(out var head) || !m_Follow.Call(head.X, head.Z, head.YawDegrees)) return false;
             Log();
             return true;
@@ -312,6 +380,7 @@ namespace RoomOrchestra
 
         void GoHomeNow()
         {
+            LetGoOfHandPlace();
             m_Follow.Reset();
             m_Position = Vector3.zero;
             m_Velocity = Vector3.zero;
@@ -326,7 +395,7 @@ namespace RoomOrchestra
             var desk = new Vector3(m_Desk.x, m_Desk.y, -m_Desk.z); // fitted to the player: across, up, in toward them (pad frame)
             var standOffset = new Vector3(m_Stand.x, m_Stand.y, -m_Stand.z);
             // The pad sits in the Controls holder, which only lifts it (Height); x/z/yaw are ours.
-            transform.localPosition = new Vector3(m_Position.x, 0f, m_Position.z) + turn * desk;
+            transform.localPosition = new Vector3(m_Position.x, 0f, m_Position.z) + turn * desk + m_Grab;
             transform.localRotation = turn;
 
             Pose still = keepStill != null ? new Pose(keepStill.position, keepStill.rotation) : default;
@@ -335,7 +404,7 @@ namespace RoomOrchestra
                 {
                     if (carried[i] == null) continue;
                     carried[i].SetPositionAndRotation(
-                        frame.TransformPoint(turn * (carriedHomePositions[i] + standOffset) + m_Position),
+                        frame.TransformPoint(turn * (carriedHomePositions[i] + standOffset) + m_Position + m_Grab),
                         frame.rotation * turn * carriedHomeRotations[i]);
                 }
             if (keepStill != null) keepStill.SetPositionAndRotation(still.position, still.rotation);

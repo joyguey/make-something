@@ -1,6 +1,6 @@
 # Little Echoes: what changed since v2.1
 
-v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 21), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
+v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 22), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
 
 ## Platform
 - **Moved from PICO Spatial to PICO XR mode** (2026-11-08). This gives the game the room mesh and spatial anchors. v3.5 is the last PICO Spatial build and stays as a fallback.
@@ -24,7 +24,7 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
 - **Notes along the object:** five note bands run along the object's longest side.
   - Pointing at the object labels every band with its note, and the band under the pointer gets the largest label.
   - Tapping a band plays it. Throwing a ball at a band also plays it.
-- **Places remembered between sessions:** each chosen object gets a PICO spatial anchor, saved on the headset only. "Choose furniture" in the menu re-chooses them.
+- **Places remembered between sessions:** each chosen object gets a PICO spatial anchor, saved on the headset only. "Choose furniture" on the leaf re-chooses them, and Undo takes back the last furniture chosen while choosing.
 - **Occlusion:** real walls and furniture hide game objects behind them, using the scanned room mesh (the same shapes the game picks furniture from). Nothing within 0.6 m of the player hides anything, and things sitting on a real object stay visible. It can be switched off with Hiding in the menu.
 - **Real walls:**
   - Balls bounce off the real room, but only after the lesson, so the lesson's throws reach the virtual furniture.
@@ -38,10 +38,11 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
   - Over a desk, the leaf sits just above the desktop, not above the monitor.
 - **The cloud follows the leaf:** it travels with the leaf but sits beside it, slightly higher.
 - **Come here** (first button on the leaf) calls the leaf and the cloud to the player.
+- **Grab the leaf:** a controller's grip button, or a bare hand closed into a fist, at the leaf's edge picks it up. The cloud moves with it and keeps its place beside it. The leaf stays where it's put until Come here or Recenter.
 
 ## Controls
-- **Leaf:** Come here, Menu, Undo, Pause, Clear.
-- **Menu (flat, two steps):** Sounds, Text size, 中文, Height, Hiding. Then Close, Recenter, Choose furniture, Lesson, Start over, Quit.
+- **Leaf:** Come here, Menu, Undo, Pause, Clear, and Choose furniture beside Boom.
+- **Menu (flat, two steps):** Sounds, Text size, 中文, Height, Hiding. Then Close, Recenter, Lesson, Start over, Quit.
 - **Start over (new in v3.14):** wipes the saved furniture, its anchors, the settings and the lesson, then begins again from the title, room scan included.
 - **Focus disc:** the yellow focus disc shows only over the lesson's virtual furniture. On real objects, the glow and the note labels show the target.
 - **Confirm card:** Clear, Lesson, Start over, Quit and Leave (in Echo Battle) ask first.

@@ -581,7 +581,7 @@ namespace RoomOrchestra
                 if (conductor != null)
                 {
                     if (keyboard.cKey.wasPressedThisFrame) conductor.Clear();
-                    if (keyboard.zKey.wasPressedThisFrame) conductor.Undo();
+                    if (keyboard.zKey.wasPressedThisFrame && (RealFurniture.Instance == null || !RealFurniture.Instance.UndoChoice())) conductor.Undo();
                     if (keyboard.kKey.wasPressedThisFrame) conductor.TogglePause();
                 }
                 if (keyboard.hKey.wasPressedThisFrame)

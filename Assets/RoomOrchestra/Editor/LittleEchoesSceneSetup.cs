@@ -151,7 +151,8 @@ namespace RoomOrchestra.EditorTools
             CreateLanguageButton(FrontRow(6), swoop, slabMaterial);
             CreateLessonButton(FrontRow(7), swoop, slabMaterial, motifMaterial);
             CreateQuitButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
-            CreatePlacesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
+            // Choose furniture on the leaf itself, right of Boom where Loudness was (owner, headset 2026-11-08)
+            CreatePlacesButton(TrayCenter + new Vector3(0.4f, 0f, 0f), swoop, slabMaterial, motifMaterial);
             CreateRealHidesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
@@ -174,6 +175,7 @@ namespace RoomOrchestra.EditorTools
             if (dispenser != null) carried.Insert(0, dispenser);
             pad.gameObject.AddComponent<RoamingTray>().Configure(root.transform, carried.ToArray(),
                 dispenser != null ? dispenser.Find("BallPool") : null, launcher);
+            pad.gameObject.AddComponent<LeafGrab>(); // grip or fist at its edge moves it, the cloud along (owner, 2026-11-08)
             // Focused start (Version 1 feedback): the stand and what travels with it begin directly in front of the
             // player; the opening glides them home (IntroSequence). Moved before anything parks in the cloud.
             // The aim arc's dots rest in the stand's cloud too, so they start in front with it. The arc is not rebuilt,
@@ -1506,7 +1508,7 @@ namespace RoomOrchestra.EditorTools
         static readonly string[][] MenuRows =
         {
             new[] { "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton" },
-            new[] { "MenuCloseButton", "RecenterButton", "PlacesButton", "LessonButton", "StartOverButton", "QuitButton" },
+            new[] { "MenuCloseButton", "RecenterButton", "LessonButton", "StartOverButton", "QuitButton" },
         };
         // Flat over the leaf, like the leaf's own buttons (owner, headset 2026-11-08: the tilted tray was hard to read and
         // covered the Menu button): its own Close sits where Menu is.

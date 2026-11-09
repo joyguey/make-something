@@ -47,7 +47,7 @@ namespace RoomOrchestra.Tests
                 var tray = Object.FindFirstObjectByType<MenuTray>();
                 Assert.IsNotNull(tray, "the leaf has a menu");
                 var onTray = tray.GetComponentsInChildren<Collider>().Where(c => InstrumentInputRouter.PressableOwner(c.gameObject) != null).ToArray();
-                Assert.GreaterOrEqual(onTray.Select(c => InstrumentInputRouter.PressableOwner(c.gameObject)).Distinct().Count(), 11, "every extra is on it");
+                Assert.GreaterOrEqual(onTray.Select(c => InstrumentInputRouter.PressableOwner(c.gameObject)).Distinct().Count(), 10, "every extra is on it");
                 var failures = new System.Collections.Generic.List<string>();
                 foreach (var c in onTray)
                 {
@@ -852,8 +852,14 @@ namespace RoomOrchestra.Tests
             var tray = Object.FindFirstObjectByType<MenuTray>(FindObjectsInactive.Include);
             Assert.IsNull(Object.FindFirstObjectByType<TierButton>(FindObjectsInactive.Include), "no Loudness (owner, 2026-11-08)");
             Assert.IsTrue(Object.FindFirstObjectByType<StartOverButton>(FindObjectsInactive.Include).transform.IsChildOf(tray.transform), "Start over on the menu");
-            var places = Object.FindFirstObjectByType<PlacesButton>(FindObjectsInactive.Include).GetComponentInChildren<LocalizedLabel>(true);
+            var placesButton = Object.FindFirstObjectByType<PlacesButton>(FindObjectsInactive.Include);
+            var places = placesButton.GetComponentInChildren<LocalizedLabel>(true);
             Assert.AreEqual("Choose\nfurniture", places.TextFor(UiLanguage.English));
+            // owner, headset 2026-11-08: on the leaf itself, next to Boom
+            Assert.IsFalse(placesButton.transform.IsChildOf(tray.transform), "Choose furniture is on the leaf, not the menu");
+            var boom = Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None).First(t => t.Orb == OrbType.Boom);
+            Assert.Greater(placesButton.transform.position.x, boom.transform.position.x, "right of Boom");
+            Assert.Less(Vector3.Distance(placesButton.transform.position, boom.transform.position), 0.3f, "beside Boom");
             Assert.AreEqual((UiTerm.ConfirmStartOver, UiTerm.ConfirmRestart), ConfirmCard.TermsFor(Object.FindFirstObjectByType<StartOverButton>(FindObjectsInactive.Include)), "Start over asks first");
         }
 

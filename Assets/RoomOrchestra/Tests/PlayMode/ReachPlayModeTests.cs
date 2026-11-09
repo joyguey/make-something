@@ -104,6 +104,60 @@ namespace RoomOrchestra.Tests
             Assert.Greater(cloudLeft, leaf.max.x - 0.08f, $"the cloud ({cloudLeft:F2}) is beside the leaf (right edge {leaf.max.x:F2}), not over it");
         }
 
+        sealed class FakePointers : IPointerSource
+        {
+            public readonly PointerFrame[] Frames = new PointerFrame[2];
+            public PointerFrame Read(int hand) => Frames[hand];
+        }
+
+        // Owner, headset 2026-11-08: "make the leaf grabbable from the side so if I try and grab it with my full hand or
+        // controller, I can adjust it to where the location makes sense and the cloud will keep its position relative to
+        // the leaf".
+        [UnityTest]
+        public IEnumerator AGripAtTheLeafsEdgeMovesItAndTheCloudKeepsItsPlaceBesideIt()
+        {
+            var tray = Object.FindFirstObjectByType<RoamingTray>();
+            tray.FitForTest(Head);
+            yield return null;
+            var pointers = new FakePointers();
+            Object.FindFirstObjectByType<InstrumentInputRouter>().Pointers = pointers;
+            var rig = XrRig.Instance != null ? XrRig.Instance.transform : null;
+            Vector3 Local(Vector3 world) => rig != null ? rig.InverseTransformPoint(world) : world;
+            var cloud = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser");
+            var leaf = LeafBody();
+            var cloudFromLeaf = cloud.position - leaf.center;
+            var edge = new Vector3(leaf.min.x - 0.05f, leaf.center.y, leaf.center.z); // just off its left side
+
+            // a grip far from the leaf does nothing
+            pointers.Frames[0] = new PointerFrame { Grip = true, GripPosition = Local(edge + new Vector3(-0.6f, 0f, 0f)) };
+            yield return null;
+            Assert.IsFalse(tray.Grabbing, "a grip away from the leaf doesn't take it");
+            pointers.Frames[0] = default;
+            yield return null;
+
+            pointers.Frames[0] = new PointerFrame { Grip = true, GripPosition = Local(edge) };
+            yield return null;
+            Assert.IsTrue(tray.Grabbing, "a grip at its edge takes hold");
+            var move = new Vector3(-0.2f, 0.1f, 0.15f);
+            pointers.Frames[0] = new PointerFrame { Grip = true, GripPosition = Local(edge + move) };
+            yield return null;
+            var moved = LeafBody();
+            Assert.Less(Vector3.Distance(moved.center, leaf.center + move), 0.02f, "the leaf follows the hand");
+            Assert.Less(Vector3.Distance(cloud.position - moved.center, cloudFromLeaf), 0.02f, "the cloud keeps its place beside the leaf");
+            var ball = Object.FindFirstObjectByType<BallLauncher>();
+            Assert.Less(Vector3.Distance(ball.ReadyBall.transform.position, ball.SpawnPosition.Value), 0.02f, "the ball rides on its cloud");
+
+            pointers.Frames[0] = default; // let go
+            yield return null;
+            Assert.IsFalse(tray.Grabbing);
+            Assert.IsTrue(tray.HandPlaced, "it stays where it was put");
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(Vector3.Distance(LeafBody().center, leaf.center + move), 0.02f, "and doesn't drift back");
+
+            tray.Call(); // Come here: back to following and fitting the player
+            Assert.IsFalse(tray.HandPlaced, "Come here brings it back to the player");
+        }
+
         [UnityTest]
         public IEnumerator OverTheOwnersDeskBothSitJustAboveItNotOnTheMonitor()
         {

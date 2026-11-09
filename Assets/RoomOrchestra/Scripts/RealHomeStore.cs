@@ -116,12 +116,13 @@ namespace RoomOrchestra
         {
             if (home == null) return;
             var size = home.Size;
-            _ = RememberAsync(furniture, new Pose(home.transform.position, home.transform.rotation), size);
+            _ = RememberAsync(furniture, new Pose(home.transform.position, home.transform.rotation), size, home);
         }
 
-        static async Task RememberAsync(string furniture, Pose pose, Vector3 size)
+        static async Task RememberAsync(string furniture, Pose pose, Vector3 size, RealHome home)
         {
             string id = await MakeAnchor(pose);
+            if (home == null) return; // taken back (Undo, Choose furniture) while the anchor was being made
             var homes = Load();
             homes.RemoveAll(e => e.furniture == furniture);
             if (string.IsNullOrEmpty(id))

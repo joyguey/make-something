@@ -581,6 +581,49 @@ namespace RoomOrchestra
             FinishChoosing();
         }
 
+        /// <summary>
+        /// Undo while choosing (owner, headset 2026-11-08: "while selecting furniture, if the player hits the undo
+        /// button, it should undo the last furniture that was assigned"): the last instrument placed goes back onto its
+        /// virtual furniture and Flutter asks for it again. Also right after the last choice, until a note is played.
+        /// False when there is no choice to take back (Undo then works on the song as usual).
+        /// </summary>
+        public bool UndoChoice()
+        {
+            bool choosing = m_Phase == Phase.Choosing;
+            bool justChosen = m_Phase == Phase.Placed && m_Order.Count > 0 && m_Choosing >= m_Order.Count
+                              && (EchoConductor.Instance == null || EchoConductor.Instance.Echoes.Count == 0);
+            if ((!choosing && !justChosen) || m_Choosing <= 0) return false;
+            m_Choosing = Mathf.Min(m_Choosing, m_Order.Count) - 1;
+            var s = m_Stations[m_Order[m_Choosing]];
+            var where = s.Home != null ? s.Home.Top : s.Root.position;
+            bool wasMatched = s.Matched;
+            DropHome(s);
+            if (s.Removed)
+            {
+                SetVirtualShown(s, true);
+                JungleDirector.Instance?.GrowAtHome(s.Name);
+            }
+            s.Matched = false;
+            s.GoingHome = false;
+            s.MoveStart = -1f;
+            s.Root.localPosition = s.HomeLocalPosition;
+            s.Root.localRotation = s.HomeLocalRotation;
+            s.Root.localScale = s.HomeLocalScale;
+            if (s.HitBox != null) s.HitBox.enabled = false;
+            if (s.Aim != null) s.Aim.localPosition = s.AimHome;
+            if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
+            if (wasMatched) MatchedCount = Mathf.Max(0, MatchedCount - 1);
+            RealHomeStore.Forget(s.Name);
+            PoofCloud.PoofAt(where, 0.5f);
+            HidePreview();
+            m_Phase = Phase.Choosing;
+            RealWalls.ShowScan = true;
+            Physics.SyncTransforms();
+            Debug.Log($"[RoomOrchestra] Real furniture: undo; the {s.Target.Instrument} is back on its virtual {s.Name}, choose again");
+            AskWhere();
+            return true;
+        }
+
         void FinishChoosing()
         {
             m_Phase = Phase.Placed;

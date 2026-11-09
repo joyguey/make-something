@@ -244,6 +244,18 @@ namespace RoomOrchestra.Tests
             yield return Press(new Vector3(0.3f, 1.2f, 0.2f), DeskTop);
             Assert.IsNotNull(first.Home);
             Assert.IsFalse(Drawn(first));
+            // owner, headset 2026-11-08: "while selecting furniture, if the player hits the undo button, it should undo
+            // the last furniture that was assigned"
+            Assert.AreNotEqual(first, placer.ChoosingTarget, "the next instrument is asked for");
+            Object.FindFirstObjectByType<UndoButton>().Press();
+            yield return null;
+            Assert.AreEqual(first, placer.ChoosingTarget, "Undo: the last one chosen is asked for again");
+            Assert.IsNull(first.Home, "its real home is gone");
+            Assert.IsTrue(Drawn(first), "its virtual furniture is back");
+            Assert.AreEqual(0, placer.MatchedCount);
+            yield return Press(new Vector3(0.3f, 1.2f, 0.2f), DeskTop);
+            Assert.IsNotNull(first.Home, "chosen again");
+
             Object.FindFirstObjectByType<PlacesButton>().Press();
             yield return null;
             Assert.IsTrue(placer.Choosing, "choosing again");

@@ -185,7 +185,7 @@ namespace RoomOrchestra
             { UiTerm.ScanFound, ("Tap a glowing spot to choose which instrument lives there. Then throw us at it!", "点一下发光的圆点，选一个乐器放在那里。然后把我们扔过去！") },
             { UiTerm.ScanNone, ("I couldn't find your furniture, so the instruments stay right here.", "没找到你的家具，乐器就留在这里。") },
             { UiTerm.PlaceUdu, ("Last, the udu drum: point at a real table and press. Or press the table to keep it here.", "最后是乌杜鼓：指向一张真的桌子，按一下。或者按桌子，让它留在这里。") },
-            { UiTerm.PlaceMbira, ("The glow is your room. Where should the mbira live? Point at a real chair, table or shelf and press. Or press the chair to keep it here.", "发光的就是你的房间。拇指琴要住在哪里？指向一把真的椅子、桌子或架子，按一下。或者按椅子，让它留在这里。") },
+            { UiTerm.PlaceMbira, ("The glow is your room. Where should the mbira live? Point at a real chair or sofa and press. Or press the chair to keep it here.", "发光的就是你的房间。拇指琴要住在哪里？指向一把真的椅子或沙发，按一下。或者按椅子，让它留在这里。") },
             { UiTerm.PlaceErhu, ("Now the erhu: point at a real lamp, shelf or table and press. Or press the lamp to keep it here.", "现在是二胡：指向一盏真的台灯、架子或桌子，按一下。或者按台灯，让它留在这里。") },
             { UiTerm.PlaceDone, ("All set! Point at your furniture to see its five notes, then press to play, or throw us at it!", "好啦！指向你的家具，看看它的五个音，然后按一下来弹，或者把我们扔过去！") },
             { UiTerm.PlaceWelcomeBack, ("Welcome back! Your instruments are where you left them.", "欢迎回来！乐器都还在你上次放的地方。") },
