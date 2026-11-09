@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 namespace RoomOrchestra.Tests
 {
     /// <summary>
-    /// Owner, headset 2026-11-08: "I CAN'T REACH ANYTHING, PLEASE REDO THE HEIGHT". Her log: eyes 1.22 m up, a desk
+    /// Owner, headset 2026-11-08: "I CAN'T REACH ANYTHING, PLEASE REDO THE HEIGHT". The owner's log: eyes 1.22 m up, a desk
     /// 0.79 m high starting 0.24 m out, a monitor and things on it at about 1.0 m. The leaf and the ball on its cloud are
     /// placed from the head, within a forearm's reach, just above the desk itself (not the things on it).
     /// </summary>
@@ -69,9 +69,39 @@ namespace RoomOrchestra.Tests
             var launcher = Object.FindFirstObjectByType<BallLauncher>();
             var ball = launcher.ReadyBall.transform.position;
             var stage = GameObject.Find("RoomOrchestra").transform;
-            Assert.AreEqual(Head.y - RoamingTray.BallBelowEyes, ball.y, 0.06f, $"the ball 30 cm below the eyes (spawn {launcher.SpawnPosition:F2}, ball {ball:F2}, stage {stage.position:F2} {stage.eulerAngles:F0}, cloud {stage.Find("BallDispenser").position:F2})");
+            Assert.AreEqual(leaf.max.y + RoamingTray.BallAboveLeaf, ball.y, 0.06f, $"the ball a little above the leaf (spawn {launcher.SpawnPosition:F2}, ball {ball:F2}, stage {stage.position:F2} {stage.eulerAngles:F0}, cloud {stage.Find("BallDispenser").position:F2})");
             AssertReachable("the ball", ball);
+            AssertCloudApart(leaf);
             foreach (var b in Object.FindObjectsByType<UndoButton>(FindObjectsSortMode.None)) AssertReachable("Undo", b.transform.position);
+        }
+
+        // Owner, headset 2026-11-08, standing (eyes 1.52 m): the leaf sat right under the face; "the cloud needs to move
+        // with the leaf, but should be separate, maybe slightly higher than the height of the leaf".
+        [UnityTest]
+        public IEnumerator StandingTheLeafIsLowerAndFurtherAndTheCloudSitsApartJustAboveIt()
+        {
+            var head = new Vector3(0f, 1.52f, 0f);
+            Object.FindFirstObjectByType<RoamingTray>().FitForTest(head);
+            yield return null;
+            var leaf = LeafBody();
+            Assert.AreEqual(1.52f - RoamingTray.StandingLeafBelowEyes, leaf.max.y, 0.05f, "near elbow height, not under the chin");
+            Assert.AreEqual(RoamingTray.StandingReachOut, leaf.center.z, 0.08f, "a little further out");
+            var ball = Object.FindFirstObjectByType<BallLauncher>().ReadyBall.transform.position;
+            Assert.Greater(ball.y, leaf.max.y + 0.08f, "the ball a little above the leaf");
+            Assert.Less(ball.y, leaf.max.y + 0.25f, "only a little");
+            AssertCloudApart(leaf);
+            var shoulder = head + new Vector3(0.18f, -0.25f, 0f);
+            Assert.Less(Vector3.Distance(ball, shoulder), 0.75f, "the ball within reach of the right shoulder");
+            Assert.Less(Vector3.Distance(leaf.center, head + new Vector3(0f, -0.25f, 0f)), 0.8f, "the leaf within reach");
+        }
+
+        static void AssertCloudApart(Bounds leaf)
+        {
+            var cloud = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/CloudPuffs");
+            var puffs = cloud.GetComponentsInChildren<Renderer>();
+            float cloudLeft = float.MaxValue;
+            foreach (var r in puffs) cloudLeft = Mathf.Min(cloudLeft, r.bounds.min.x);
+            Assert.Greater(cloudLeft, leaf.max.x - 0.08f, $"the cloud ({cloudLeft:F2}) is beside the leaf (right edge {leaf.max.x:F2}), not over it");
         }
 
         [UnityTest]

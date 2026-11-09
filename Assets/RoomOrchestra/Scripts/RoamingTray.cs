@@ -103,10 +103,16 @@ namespace RoomOrchestra
         // cloud just right of it, 30 cm below the eyes. Over a desk both stay just above the desk's own top (the most
         // common flat height there: the monitor and things on the desk no longer count as the desk).
 
-        /// <summary>The leaf's middle in front of the eyes (m), and its top below them (m).</summary>
-        public const float ReachOut = 0.45f, LeafBelowEyes = 0.40f, LeafAside = -0.1f;
-        /// <summary>The ball on the cloud below the eyes (m), at least this far above a desk (m), and the cloud's place from the leaf (m).</summary>
-        public const float BallBelowEyes = 0.30f, BallAboveDesk = 0.25f, StandInward = 0.2f;
+        /// <summary>Seated: the leaf's middle in front of the eyes (m), and its top below them (m).</summary>
+        public const float ReachOut = 0.45f, LeafBelowEyes = 0.40f, LeafAside = -0.18f;
+        // Owner, headset 2026-11-08 (standing, eyes 1.52 m): the leaf sat right under the face, "the height needs to be
+        // adjusted". Standing, the leaf goes lower and a little further out, near elbow height; between the two it blends.
+        /// <summary>Standing: the leaf's middle in front of the eyes (m) and its top below them (m); eyes from seated to standing (m).</summary>
+        public const float StandingReachOut = 0.55f, StandingLeafBelowEyes = 0.55f, SeatedEyes = 1.25f, StandingEyes = 1.5f;
+        // Owner, headset 2026-11-08: "the cloud needs to move with the leaf, but should be separate, maybe slightly higher
+        // than the height of the leaf". The cloud rides beside the leaf's right edge with a gap, its ball a little above the leaf.
+        /// <summary>The ball on the cloud above the leaf's top (m), at least this far above a desk (m), and the cloud's place from the leaf (m).</summary>
+        public const float BallAboveLeaf = 0.15f, BallAboveDesk = 0.25f, StandInward = 0.2f;
         /// <summary>Authored (home) heights: the leaf's top and underside, and the ball on the cloud (m above the floor).</summary>
         public const float LeafHomeTop = 0.505f, LeafHomeX = -0.2f, BallHome = 1.06f;
 
@@ -121,8 +127,15 @@ namespace RoomOrchestra
         // player stands up, sits down or walks off (a change held for a moment, so leaning never moves it).
         /// <summary>A head this much higher or lower (m), or this far away across the floor (m), held this long (s), refits.</summary>
         public const float RefitRise = 0.15f, RefitWalk = 0.6f, RefitHold = 3f, LowestEyes = 0.95f;
-        /// <summary>The ball on its cloud: this far right of the eyes and out in front (m).</summary>
-        public const float BallAside = 0.3f, BallOut = 0.4f;
+        /// <summary>The ball on its cloud: this far right of the eyes (clear of the leaf's right edge) and out in front (m).</summary>
+        public const float BallAside = 0.58f, BallOut = 0.45f;
+
+        /// <summary>How far out the leaf's middle sits and how far below the eyes its top is, for eyes this high (m).</summary>
+        public static (float out_, float below) LeafFor(float eyes)
+        {
+            float t = Mathf.InverseLerp(SeatedEyes, StandingEyes, eyes);
+            return (Mathf.Lerp(ReachOut, StandingReachOut, t), Mathf.Lerp(LeafBelowEyes, StandingLeafBelowEyes, t));
+        }
         Vector3 m_FittedHead;
         float m_ChangedSince = -1f;
 
@@ -165,16 +178,14 @@ namespace RoomOrchestra
             float rig = PostureLayout.ControlsLift(ComfortSettings.Posture); // the Controls holder lifts the leaf already
             var turn = Quaternion.Euler(0f, m_Follow.Target.YawDegrees, 0f);
             var origin = TargetPosition;
-            var leafMiddle = head + turn * new Vector3(LeafAside, 0f, ReachOut);
+            var (reachOut, below) = LeafFor(head.y);
+            var leafMiddle = head + turn * new Vector3(LeafAside, 0f, reachOut);
             var ballAt = head + turn * new Vector3(BallAside, 0f, BallOut);
-            float leafTop = head.y - LeafBelowEyes;
-            float ball = head.y - BallBelowEyes;
+            float leafTop = head.y - below;
             bool desk = TryFindDeskUnder(leafMiddle, head.y, out float deskTop);
-            if (desk)
-            {
-                leafTop = Mathf.Max(leafTop, deskTop + AboveDesk + (LeafHomeTop - LeafUnderside));
-                ball = Mathf.Max(ball, deskTop + BallAboveDesk);
-            }
+            if (desk) leafTop = Mathf.Max(leafTop, deskTop + AboveDesk + (LeafHomeTop - LeafUnderside));
+            float ball = leafTop + BallAboveLeaf;
+            if (desk) ball = Mathf.Max(ball, deskTop + BallAboveDesk);
             // the leaf: offsets from its authored place, in the pad's frame (across, up, toward the player)
             var leafLocal = Quaternion.Inverse(turn) * (leafMiddle - origin);
             var leaf = new Vector3(leafLocal.x - LeafHomeX, leafTop - LeafHomeTop - rig, LeafHomeZ - leafLocal.z);
@@ -192,7 +203,7 @@ namespace RoomOrchestra
             m_DeskTarget = leaf;
             m_StandTarget = stand;
             if (log)
-                Debug.Log($"[RoomOrchestra] Leaf pad: fitted to the player (eyes {head.y:F2} m up{(desk ? $", desk top {deskTop:F2} m" : ", no desk under the leaf")}): leaf top {leafTop:F2} m, {ReachOut:F2} m out; ball {ball:F2} m");
+                Debug.Log($"[RoomOrchestra] Leaf pad: fitted to the player (eyes {head.y:F2} m up{(desk ? $", desk top {deskTop:F2} m" : ", no desk under the leaf")}): leaf top {leafTop:F2} m, {reachOut:F2} m out; ball {ball:F2} m, beside it");
             m_Fitted = true;
         }
 
