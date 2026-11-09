@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace RoomOrchestra
 {
-    /// <summary>The leaf's View button: Standard, Large text, High contrast, Large + contrast; its label names the setting.</summary>
+    /// <summary>The menu's Text size button: standard or large labels (high contrast is always on); its label names the size.</summary>
     public class ViewButton : MonoBehaviour
     {
         [SerializeField] TMP_Text label;

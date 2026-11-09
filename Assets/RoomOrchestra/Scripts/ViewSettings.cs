@@ -73,13 +73,17 @@ namespace RoomOrchestra
             for (int i = 0; i < icons.Length; i++) m_IconMaterials[i] = icons[i] != null ? icons[i].sharedMaterial : null;
             m_TextColours = new Color[texts.Length];
             for (int i = 0; i < texts.Length; i++) m_TextColours[i] = texts[i] != null ? texts[i].color : Color.white;
-            if (Application.isPlaying) m_Mode = (ViewMode)Mathf.Clamp(PlayerPrefs.GetInt(PrefKey, 0), 0, ViewModes.Count - 1);
+            if (Application.isPlaying)
+            {
+                int saved = PlayerPrefs.GetInt(PrefKey, -1);
+                m_Mode = saved < 0 ? ViewModes.Default : ViewModes.WithContrast((ViewMode)Mathf.Clamp(saved, 0, ViewModes.Count - 1));
+            }
         }
 
         void Update()
         {
-            // The remembered setting, once the renderer is ready (nothing visible changes at startup).
-            if (m_Applied || Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds) return;
+            // High contrast (and the remembered text size) from the first frame: PICO XR mode draws at once.
+            if (m_Applied) return;
             m_Applied = true;
             if (m_Mode != ViewMode.Standard) Apply();
         }

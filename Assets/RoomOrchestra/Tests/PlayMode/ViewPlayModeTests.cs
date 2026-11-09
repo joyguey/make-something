@@ -40,40 +40,33 @@ namespace RoomOrchestra.Tests
         }
 
         [UnityTest]
-        public IEnumerator ViewGrowsLabelsThenSwitchesHighContrastAndIsRemembered()
+        // Owner, headset 2026-11-08: "use the high contrast as the default and leave the button to adjust the size of the
+        // text ... I like the highlighted yellow."
+        public IEnumerator HighContrastFromTheStartAndTheButtonOnlyChangesTextSize()
         {
             var view = ViewSettings.Instance;
             var button = Object.FindFirstObjectByType<ViewButton>();
             var label = view.Labels.First(l => l.text == "Undo");
+            yield return null;
+            Assert.AreEqual(ViewMode.HighContrast, view.Mode, "high contrast for a new player");
+            Assert.Less(Vector4.Distance(ViewSettings.ContrastSlab, view.Slabs[0].sharedMaterial.color), 1e-3f, "near-black slabs from the start");
+            Assert.AreEqual(Color.white, label.color, "pure white text");
+            Assert.Less(Vector4.Distance(ViewSettings.ContrastIcon, view.Icons[0].sharedMaterial.color), 1e-3f, "the bright yellow icons");
+            Assert.AreEqual("Text size\nStandard", button.Label.text);
             float before = label.transform.localScale.x;
-            var slab = view.Slabs[0];
-            var slabMaterial = slab.sharedMaterial;
-            Assert.AreEqual("View\nStandard", button.Label.text);
 
             Assert.IsTrue(InstrumentInputRouter.Activate(button.GetComponentInChildren<Collider>().gameObject));
-            Assert.AreEqual(ViewMode.LargeText, view.Mode);
+            Assert.AreEqual(ViewMode.LargeHighContrast, view.Mode);
             Assert.AreEqual(before * ViewModes.LargeTextScale, label.transform.localScale.x, 1e-4f, "labels grow");
-            Assert.AreEqual("View\nLarge text", button.Label.text);
-
-            view.Next();
-            Assert.AreEqual(ViewMode.HighContrast, view.Mode);
-            Assert.AreEqual(before, label.transform.localScale.x, 1e-4f, "back to normal size");
-            Assert.Less(Vector4.Distance(ViewSettings.ContrastSlab, slab.sharedMaterial.color), 1e-3f, "near-black slabs");
-            Assert.AreEqual(Color.white, label.color, "pure white text");
-            Assert.Less(Vector4.Distance(ViewSettings.ContrastIcon, view.Icons[0].sharedMaterial.color), 1e-3f, "bright icons");
-            Assert.Greater(Vector4.Distance(ViewSettings.ContrastSlab, slabMaterial.color), 0.05f, "the project's own material is untouched (a runtime copy is used)");
+            Assert.AreEqual("Text size\nLarge", button.Label.text);
+            Assert.Less(Vector4.Distance(ViewSettings.ContrastSlab, view.Slabs[0].sharedMaterial.color), 1e-3f, "still high contrast");
 
             yield return Load(); // the next launch
             view = ViewSettings.Instance;
-            Assert.AreEqual(ViewMode.HighContrast, view.Mode, "remembered");
-            while (Time.timeSinceLevelLoad < JellyBody.StartDelaySeconds + 0.1f) yield return null;
-            yield return null;
-            Assert.Less(Vector4.Distance(ViewSettings.ContrastSlab, view.Slabs[0].sharedMaterial.color), 1e-3f, "applied once the renderer is ready");
-
+            Assert.AreEqual(ViewMode.LargeHighContrast, view.Mode, "the size is remembered");
             view.Next();
-            view.Next();
-            Assert.AreEqual(ViewMode.Standard, view.Mode);
-            Assert.AreNotEqual(ViewSettings.ContrastSlab, view.Slabs[0].sharedMaterial.color, "Standard restores the slabs");
+            Assert.AreEqual(ViewMode.HighContrast, view.Mode, "back to standard size, still high contrast");
+            Assert.Less(Vector4.Distance(ViewSettings.ContrastSlab, view.Slabs[0].sharedMaterial.color), 1e-3f);
         }
     }
 }

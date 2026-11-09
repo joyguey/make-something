@@ -13,7 +13,17 @@ namespace RoomOrchestra
         /// <summary>How much bigger large text is.</summary>
         public const float LargeTextScale = 1.3f;
 
-        public static ViewMode Next(ViewMode mode) => (ViewMode)(((int)mode + 1) % Count);
+        // Owner, headset 2026-11-08: "use the high contrast as the default and leave the button to adjust the size of the
+        // text ... I like the highlighted yellow." High contrast is always on; the button (Text size) only switches
+        // between standard and large text.
+        /// <summary>The setting a new player starts with.</summary>
+        public const ViewMode Default = ViewMode.HighContrast;
+
+        /// <summary>Always high contrast: an older saved setting keeps only its text size.</summary>
+        public static ViewMode WithContrast(ViewMode mode) => IsLarge(mode) ? ViewMode.LargeHighContrast : ViewMode.HighContrast;
+
+        /// <summary>The Text size button: standard and large text, in turn (always high contrast).</summary>
+        public static ViewMode Next(ViewMode mode) => IsLarge(mode) ? ViewMode.HighContrast : ViewMode.LargeHighContrast;
         public static bool IsLarge(ViewMode mode) => mode == ViewMode.LargeText || mode == ViewMode.LargeHighContrast;
         public static bool IsHighContrast(ViewMode mode) => mode == ViewMode.HighContrast || mode == ViewMode.LargeHighContrast;
         public static float TextScale(ViewMode mode) => IsLarge(mode) ? LargeTextScale : 1f;
@@ -21,8 +31,7 @@ namespace RoomOrchestra
         public static UiTerm Term(ViewMode mode) => mode switch
         {
             ViewMode.LargeText => UiTerm.ViewLarge,
-            ViewMode.HighContrast => UiTerm.ViewContrast,
-            ViewMode.LargeHighContrast => UiTerm.ViewLargeContrast,
+            ViewMode.LargeHighContrast => UiTerm.ViewLarge,
             _ => UiTerm.ViewStandard,
         };
 

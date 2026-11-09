@@ -9,13 +9,14 @@ namespace RoomOrchestra.Tests
     public class ViewModeTests
     {
         [Test]
-        public void ViewStepsThroughFourSettingsAndBack()
+        public void TextSizeSwitchesSizeAndHighContrastIsAlwaysOn()
         {
-            var seen = new System.Collections.Generic.List<ViewMode>();
-            var mode = ViewMode.Standard;
-            for (int i = 0; i < ViewModes.Count; i++) { seen.Add(mode); mode = ViewModes.Next(mode); }
-            Assert.AreEqual(ViewMode.Standard, mode, "back to Standard");
-            Assert.AreEqual(ViewModes.Count, seen.Distinct().Count());
+            // owner, headset 2026-11-08: high contrast by default; the button only changes the text size
+            Assert.AreEqual(ViewMode.HighContrast, ViewModes.Default);
+            Assert.AreEqual(ViewMode.LargeHighContrast, ViewModes.Next(ViewModes.Default));
+            Assert.AreEqual(ViewMode.HighContrast, ViewModes.Next(ViewMode.LargeHighContrast));
+            Assert.AreEqual(ViewMode.HighContrast, ViewModes.WithContrast(ViewMode.Standard), "an older saved setting gets contrast");
+            Assert.AreEqual(ViewMode.LargeHighContrast, ViewModes.WithContrast(ViewMode.LargeText));
             Assert.IsTrue(ViewModes.IsLarge(ViewMode.LargeHighContrast) && ViewModes.IsHighContrast(ViewMode.LargeHighContrast));
             Assert.AreEqual(1f, ViewModes.TextScale(ViewMode.HighContrast));
             Assert.Greater(ViewModes.TextScale(ViewMode.LargeText), 1.2f);

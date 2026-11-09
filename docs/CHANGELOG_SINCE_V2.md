@@ -1,6 +1,6 @@
 # Little Echoes: what changed since v2.1
 
-v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 19), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
+v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 20), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
 
 ## Platform
 - **Moved from PICO Spatial to PICO XR mode** (2026-11-08). This gives the game the room mesh and spatial anchors. v3.5 is the last PICO Spatial build and stays as a fallback.
@@ -41,7 +41,7 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
 
 ## Controls
 - **Leaf:** Come here, Menu, Undo, Pause, Clear.
-- **Menu (flat, two steps):** Sounds, View, 中文, Height, Hiding. Then Close, Recenter, Choose furniture, Lesson, Start over, Quit.
+- **Menu (flat, two steps):** Sounds, Text size, 中文, Height, Hiding. Then Close, Recenter, Choose furniture, Lesson, Start over, Quit.
 - **Start over (new in v3.14):** wipes the saved furniture, its anchors, the settings and the lesson, then begins again from the title, room scan included.
 - **Focus disc:** the yellow focus disc shows only over the lesson's virtual furniture. On real objects, the glow and the note labels show the target.
 - **Confirm card:** Clear, Lesson, Start over, Quit and Leave (in Echo Battle) ask first.
@@ -54,7 +54,7 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
 - **Fix:** the music no longer stays paused after the system pauses the app.
 
 ## Reading and access
-- **View:** large text and high contrast.
+- **High contrast by default:** near-black buttons, white text and bright yellow icons from the first frame. The Text size button switches between standard and large labels.
 - **Labels:** bold labels on dark plates, plus a dark speech bubble.
 - **Languages:** English and Chinese throughout. Chinese labels use numbered notation (jianpu).
 - **Input:** controller select or tap works everywhere. Pause, Undo and Clear can always be reached on the leaf.

@@ -1263,7 +1263,7 @@ namespace RoomOrchestra.EditorTools
             var pupil = Primitive(PrimitiveType.Sphere, "ViewPupil", go.transform, mark, keepCollider: false);
             pupil.localPosition = new Vector3(0f, 0.032f, -0.006f);
             pupil.localScale = new Vector3(0.018f, 0.018f, 0.006f);
-            var label = Label("ViewLabel", ViewButton.TextFor(ViewMode.Standard, UiLanguage.English), go.transform, new Vector3(0f, 0.004f, -0.075f), 0.034f);
+            var label = Label("ViewLabel", ViewButton.TextFor(ViewModes.Default, UiLanguage.English), go.transform, new Vector3(0f, 0.004f, -0.075f), 0.034f);
             go.AddComponent<ViewButton>().Configure(label.GetComponentInChildren<TMP_Text>());
         }
 
