@@ -42,9 +42,10 @@ namespace RoomOrchestra.EditorTools
 
         // Nine buttons centred on the leaf (Lesson, then Quit, joined the row).
         static Vector3 FrontRow(int slot) => new Vector3(LeafCenter.x + ButtonStep * (slot - 3.8f), ButtonY, ButtonRowZ);
-        // The leaf's own row now (owner, 2026-11-08: too many buttons on the leaf): Menu, Undo, Pause, Clear, spread out.
-        const float LeafRowStep = 0.17f;
-        static Vector3 LeafRow(int slot) => new Vector3(LeafCenter.x + LeafRowStep * (slot - 1.5f), ButtonY, ButtonRowZ);
+        // The leaf's own row now (owner, 2026-11-08: too many buttons on the leaf): Come here, Menu, Undo, Pause, Clear,
+        // spread out (owner, headset 2026-11-08: "Come here" belongs on the leaf, not buried in the menu).
+        const float LeafRowStep = 0.15f;
+        static Vector3 LeafRow(int slot) => new Vector3(LeafCenter.x + LeafRowStep * (slot - 2f), ButtonY, ButtonRowZ);
 
         [MenuItem("RoomOrchestra/Little Echoes/Set Up Select-and-Place")]
         public static void ApplyAndSave()
@@ -109,7 +110,7 @@ namespace RoomOrchestra.EditorTools
             var tierButton = CreateTierButton(swoop, slabMaterial, motifMaterial);
             CreateSoundsButton(swoop, slabMaterial, motifMaterial);
             CreateViewButton(swoop, slabMaterial, motifMaterial);
-            CreateCallButton(FrontRow(0), swoop, slabMaterial, veinMaterial); // moved onto the menu tray below
+            CreateCallButton(LeafRow(0), swoop, slabMaterial, veinMaterial); // first on the leaf's own row
 
             // Targets left to right; one focus marker floats above the focused one
             var targets = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None)
@@ -139,10 +140,10 @@ namespace RoomOrchestra.EditorTools
             director.Configure(conductor, tokens);
             EditorUtility.SetDirty(director);
             // The front row of the leaf, left to right after Come here.
-            CreateMenuButton(LeafRow(0), swoop, slabMaterial, motifMaterial);
-            CreateUndoButton(LeafRow(1), swoop, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Pause, LeafRow(2), swoop, slabMaterial, motifMaterial);
-            CreateMusicButton(MusicControlButton.Kind.Clear, LeafRow(3), swoop, slabMaterial, motifMaterial);
+            CreateMenuButton(LeafRow(1), swoop, slabMaterial, motifMaterial);
+            CreateUndoButton(LeafRow(2), swoop, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Pause, LeafRow(3), swoop, slabMaterial, motifMaterial);
+            CreateMusicButton(MusicControlButton.Kind.Clear, LeafRow(4), swoop, slabMaterial, motifMaterial);
             // the rest go onto the menu tray (CreateMenuTray)
             CreateRecenterButton(FrontRow(4), swoop, slabMaterial, motifMaterial);
             CreateHeightButton(FrontRow(5), swoop, slabMaterial, motifMaterial);
@@ -1504,7 +1505,7 @@ namespace RoomOrchestra.EditorTools
         static readonly string[][] MenuRows =
         {
             new[] { "TierButton", "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton" },
-            new[] { "MenuCloseButton", "CallButton", "RecenterButton", "PlacesButton", "LessonButton", "QuitButton" },
+            new[] { "MenuCloseButton", "RecenterButton", "PlacesButton", "LessonButton", "QuitButton" },
         };
         // Flat over the leaf, like the leaf's own buttons (owner, headset 2026-11-08: the tilted tray was hard to read and
         // covered the Menu button): its own Close sits where Menu is.
@@ -1516,7 +1517,7 @@ namespace RoomOrchestra.EditorTools
             var tray = Holder("MenuTray", leafRoot, Vector3.zero);
             tray.position = new Vector3(LeafCenter.x, ButtonY + MenuLift, LeafCenter.z + 0.04f);
             tray.localRotation = Quaternion.Euler(-MenuTilt, 0f, 0f);
-            CreateMenuButton(LeafRow(0), leafRoot, AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Pedestal.mat"), mark, "MenuCloseButton", UiTerm.MenuClose);
+            CreateMenuButton(LeafRow(1), leafRoot, AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Pedestal.mat"), mark, "MenuCloseButton", UiTerm.MenuClose);
             var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
             // two level steps, the far row higher (like stadium seats) so a pointer from the lap clears the near row
             Box("MenuPlate", tray, new Vector3(0f, -0.016f, -MenuRowGap / 2f + 0.01f), new Vector3(MenuPlate.x, MenuPlate.y, MenuPlate.z / 2f + 0.02f), plum, keepCollider: false);

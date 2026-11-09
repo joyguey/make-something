@@ -859,6 +859,11 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(label, "labeled, and the label follows the language");
             Assert.AreEqual("Come here", label.Text.text);
             Assert.AreEqual("过来", label.TextFor(UiLanguage.Chinese));
+            // owner, headset 2026-11-08: "the 'come here' should be on the first leaf, not buried in the menu"
+            Assert.IsNull(call.GetComponentInParent<MenuTray>(true), "on the leaf itself, not on the menu tray");
+            var menu = Object.FindFirstObjectByType<MenuButton>();
+            Assert.Less(call.transform.position.x, menu.transform.position.x, "first on the leaf's row, before Menu");
+            Assert.AreEqual(menu.transform.position.y, call.transform.position.y, 0.01f, "in the same row");
         }
 
         // ---- Rainforest that grows with the music (vines, butterflies, toadstools, sparkles) ----
