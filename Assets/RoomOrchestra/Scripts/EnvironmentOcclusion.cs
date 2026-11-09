@@ -48,6 +48,9 @@ namespace RoomOrchestra
 
         public void Configure(Material depthOccluder) => occluder = depthOccluder;
 
+        /// <summary>Start over: read the setting again (its saved value was wiped).</summary>
+        public static void ForgetSetting() => s_Wanted = null;
+
         void OnEnable() => Instance = this;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

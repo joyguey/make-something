@@ -87,6 +87,14 @@ namespace RoomOrchestra
         MenuClose,
         /// <summary>Menu: choose again where the instruments live.</summary>
         Places,
+        /// <summary>Menu: the focused instrument keeps what it plays on its echo loop, or plays it once.</summary>
+        LoopOn,
+        LoopOff,
+        /// <summary>Menu: wipe everything saved (song, furniture, settings, lesson) and begin again, room scan included.</summary>
+        StartOver,
+        ConfirmStartOver,
+        /// <summary>After the lesson: look around the whole room so the scan covers it before choosing furniture.</summary>
+        ScanRoom,
         /// <summary>Menu: real things hide the game's things (PICO's depth), on or off.</summary>
         RealHidesOn,
         RealHidesOff,
@@ -199,7 +207,12 @@ namespace RoomOrchestra
             { UiTerm.Lesson, ("Lesson", "教学") },
             { UiTerm.Menu, ("Menu", "菜单") },
             { UiTerm.MenuClose, ("Close", "关闭") },
-            { UiTerm.Places, ("Places", "摆放") },
+            { UiTerm.Places, ("Choose\nfurniture", "选\n家具") },
+            { UiTerm.LoopOn, ("Loops", "循环") },
+            { UiTerm.LoopOff, ("Plays once", "只弹一次") },
+            { UiTerm.StartOver, ("Start\nover", "从头\n开始") },
+            { UiTerm.ConfirmStartOver, ("Start completely over? Your song, chosen furniture and settings are wiped, and you scan your room again.", "完全从头开始吗？你的歌、选好的家具和设置都会清除，然后重新扫描房间。") },
+            { UiTerm.ScanRoom, ("Let's scan your room! Look slowly all around: the walls, the floor and every piece of furniture. Watch the glow fill in.", "我们来扫描房间吧！慢慢看一圈：墙、地板和每件家具。看着光慢慢铺满。") },
             { UiTerm.RealHidesOn, ("Hiding\nOn", "遮挡\n开") },
             { UiTerm.RealHidesOff, ("Hiding\nOff", "遮挡\n关") },
             { UiTerm.ChangeInstrument, ("Change", "换乐器") },

@@ -22,6 +22,6 @@ namespace RoomOrchestra
 
         // Fresh defaults each play session, even with domain reload off (matches the authored scene).
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetToDefaults() => Posture = PlayPosture.Seated;
+        public static void ResetToDefaults() => Posture = PlayPosture.Seated;
     }
 }

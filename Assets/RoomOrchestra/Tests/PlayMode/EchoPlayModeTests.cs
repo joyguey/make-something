@@ -101,6 +101,29 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(88.0, m_Conductor.Clock.Bpm, "tempo unchanged");
         }
 
+        // Owner, headset 2026-11-08: "is there a way to choose when to loop an instrument or not?"
+        [UnityTest]
+        public IEnumerator AnInstrumentSetToPlayOnceSoundsButAddsNothingToItsLoop()
+        {
+            var table = MakeTarget(InstrumentType.Udu, Vector3.zero);
+            var lamp = MakeTarget(InstrumentType.Erhu, Vector3.right);
+            var selector = MakeRig(table, lamp);
+            yield return null;
+            try
+            {
+                EchoConductor.SetLoops(InstrumentType.Udu, false);
+                var hit = selector.PlaceOn(table);
+                Assert.IsNotNull(hit, "it still plays");
+                Assert.AreEqual(0, m_Conductor.Sequencer.CountOn(InstrumentType.Udu), "nothing added to the udu's loop");
+                selector.PlaceOn(lamp);
+                Assert.AreEqual(1, m_Conductor.Sequencer.CountOn(InstrumentType.Erhu), "the other instruments still loop");
+                EchoConductor.SetLoops(InstrumentType.Udu, true);
+                selector.PlaceOn(table);
+                Assert.AreEqual(1, m_Conductor.Sequencer.CountOn(InstrumentType.Udu), "looping again");
+            }
+            finally { EchoConductor.SetLoops(InstrumentType.Udu, true); }
+        }
+
         [UnityTest]
         public IEnumerator SeventhHitOnOneTargetIsRefusedNotOverwritten()
         {

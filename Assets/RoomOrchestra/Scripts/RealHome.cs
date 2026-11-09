@@ -34,7 +34,13 @@ namespace RoomOrchestra
         readonly Transform[] m_Bands = new Transform[Bands];
         readonly MeshRenderer[] m_BandLooks = new MeshRenderer[Bands];
         Material[] m_BandMaterials;
-        TMP_Text m_Label;
+        // Owner, headset 2026-11-08: "I'd like the note change to be clearer on each furniture: when I point at the
+        // partition, can the note be clearly labeled?" Every band says its note while the object is pointed at, on a
+        // dark backing that reads against any room; the band under the pointer says it biggest.
+        readonly TMP_Text[] m_Labels = new TMP_Text[Bands];
+        readonly Transform[] m_Backs = new Transform[Bands];
+        /// <summary>Label sizes: every band's, and the pointed band's (times the label style's own size).</summary>
+        public const float LabelScale = 1.2f, PointedLabelScale = 2.2f;
         float m_ShowUntil = -1f;
         int m_Hover = -1;
 
@@ -108,15 +114,31 @@ namespace RoomOrchestra
             LayOutBands();
 
             if (labelStyle != null)
-            {
-                var label = Instantiate(labelStyle.gameObject, transform, false);
-                label.name = "NoteLabel";
-                foreach (var extra in label.GetComponentsInChildren<MonoBehaviour>(true))
-                    if (!(extra is TMP_Text)) Destroy(extra); // its own text only, no localizing
-                m_Label = label.GetComponent<TMP_Text>();
-                label.transform.localScale = Vector3.one * 1.6f;
-                label.SetActive(false);
-            }
+                for (int i = 0; i < Bands; i++)
+                {
+                    var label = Instantiate(labelStyle.gameObject, transform, false);
+                    label.name = $"NoteLabel{i}";
+                    foreach (var extra in label.GetComponentsInChildren<MonoBehaviour>(true))
+                        if (!(extra is TMP_Text)) Destroy(extra); // its own text only, no localizing
+                    foreach (Transform child in label.transform) Destroy(child.gameObject);
+                    m_Labels[i] = label.GetComponent<TMP_Text>();
+                    m_Labels[i].alignment = TextAlignmentOptions.Center;
+                    if (look != null)
+                    {
+                        var back = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                        back.name = "NoteLabelBacking";
+                        Destroy(back.GetComponent<Collider>());
+                        back.transform.SetParent(label.transform, false);
+                        back.transform.localPosition = new Vector3(0f, 0f, 0.004f); // just behind the letters
+                        var br = back.GetComponent<MeshRenderer>();
+                        br.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                        br.receiveShadows = false;
+                        br.sharedMaterial = new Material(look) { name = "NoteLabelBacking" };
+                        SetColor(br.sharedMaterial, new Color(0.12f, 0.06f, 0.18f, 0.85f));
+                        m_Backs[i] = back.transform;
+                    }
+                    label.SetActive(false);
+                }
             WorldBounds = ComputeWorldBounds();
         }
 
@@ -225,20 +247,48 @@ namespace RoomOrchestra
             m_Hover = BandAt(worldPoint);
             m_ShowUntil = Time.time + GlowHoldSeconds;
             ShowBands(true);
-            if (m_Label != null && m_Target != null)
+            ShowLabels();
+        }
+
+        /// <summary>The note label over band <paramref name="band"/> (for tests).</summary>
+        public TMP_Text LabelOf(int band) => m_Labels[band];
+
+        // Each band's note just above it, facing the player; the pointed one bigger and lifted a little more.
+        void ShowLabels()
+        {
+            if (m_Target == null) return;
+            var viewer = Viewer();
+            var axis = NoteAxisLocal(out float length, out bool upright);
+            var language = Localization.Current;
+            for (int i = 0; i < Bands; i++)
             {
-                m_Label.text = UiText.Tile(new MusicalNote(m_Target.Instrument, m_Hover), Localization.Current);
-                var axis = NoteAxisLocal(out float length, out bool upright);
-                float along = -length / 2f + length / Bands * (m_Hover + 0.5f);
+                var label = m_Labels[i];
+                if (label == null) continue;
+                bool pointed = i == m_Hover;
+                string text = UiText.Tile(new MusicalNote(m_Target.Instrument, i), language);
+                if (label.text != text) label.text = text;
+                float along = -length / 2f + length / Bands * (i + 0.5f);
                 var at = axis * along;
                 at.y = upright ? at.y : m_Size.y / 2f;
-                var world = transform.TransformPoint(at) + Vector3.up * 0.12f;
-                if (upright) world += SideToward(Viewer()) * (Mathf.Max(m_Size.x, m_Size.z) / 2f + 0.1f);
-                m_Label.transform.position = world;
-                var look = world - Viewer();
+                var world = transform.TransformPoint(at) + Vector3.up * (pointed ? 0.14f : 0.08f);
+                if (upright) world += SideToward(viewer) * (Mathf.Max(m_Size.x, m_Size.z) / 2f + 0.12f);
+                label.transform.position = world;
+                var look = world - viewer;
                 look.y = 0f;
-                if (look.sqrMagnitude > 1e-4f) m_Label.transform.rotation = Quaternion.LookRotation(look);
-                if (!m_Label.gameObject.activeSelf) m_Label.gameObject.SetActive(true);
+                if (look.sqrMagnitude > 1e-4f) label.transform.rotation = Quaternion.LookRotation(look);
+                // the label's own parent is this object: undo its scale so every label is the same size in the room
+                var parent = transform.lossyScale;
+                float size = pointed ? PointedLabelScale : LabelScale;
+                label.transform.localScale = new Vector3(size / Mathf.Max(1e-3f, parent.x), size / Mathf.Max(1e-3f, parent.y), size / Mathf.Max(1e-3f, parent.z));
+                var c = label.color;
+                c.a = pointed ? 1f : 0.8f;
+                label.color = c;
+                if (m_Backs[i] != null)
+                {
+                    var want = label.GetPreferredValues(text);
+                    m_Backs[i].localScale = new Vector3(want.x + 0.03f, want.y + 0.012f, 1f);
+                }
+                if (!label.gameObject.activeSelf) label.gameObject.SetActive(true);
             }
         }
 
@@ -284,7 +334,9 @@ namespace RoomOrchestra
                     SetColor(m_BandMaterials[i], c);
                 }
             }
-            if (!on && m_Label != null && m_Label.gameObject.activeSelf) m_Label.gameObject.SetActive(false);
+            if (!on)
+                foreach (var label in m_Labels)
+                    if (label != null && label.gameObject.activeSelf) label.gameObject.SetActive(false);
         }
 
         void Update()

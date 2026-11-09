@@ -35,7 +35,7 @@ namespace RoomOrchestra
         public const float HitMargin = 0.04f;
         const float SayLookSeconds = 7f, SayResultSeconds = 6f;
 
-        public enum Phase { Waiting, Scanning, Choosing, Placed, Restoring }
+        public enum Phase { Waiting, Scanning, Choosing, Placed, Restoring, LookingAround }
 
         /// <summary>Which real furniture each virtual piece prefers, best first.</summary>
         public static FurnitureKind[] Preferences(string virtualPiece) => virtualPiece switch
@@ -212,7 +212,7 @@ namespace RoomOrchestra
                         // nothing to choose from (or to find the saved objects' shapes in) until the room scan is in
                         if (RealWalls.Instance == null || RealWalls.Instance.SurfaceCount == 0) return;
                         if (TryRestore()) break; // the places chosen last time, found again from their saved anchors
-                        StartChoosing();
+                        LookAround();
                         break;
                     }
                     m_Phase = Phase.Scanning;
@@ -222,6 +222,9 @@ namespace RoomOrchestra
                     break;
                 case Phase.Restoring:
                     if (m_RestoreDone) FinishRestore();
+                    break;
+                case Phase.LookingAround:
+                    if (Time.time - m_ScanStart >= LookAroundSeconds) StartChoosing();
                     break;
                 case Phase.Scanning:
                     if (Time.time < m_NextTry) return;
@@ -302,6 +305,21 @@ namespace RoomOrchestra
                 var tris = RoomObjects.ShapeIn(s.Home.WorldBounds, walls.PieceTriangles, SeatFloor().y);
                 if (tris.Count >= 9) s.Home.SetShape(tris);
             }
+        }
+
+        // Owner, headset 2026-11-08: "I still think the room needs to be entirely scanned". Before choosing (first time,
+        // or after Start over), Flutter asks the player to look slowly around the whole room while the scan glows and
+        // fills in. The headset keeps scanning while they choose too. Not in the Editor (its tests have no room to scan).
+        /// <summary>How long the player looks around the room before choosing (s).</summary>
+        public static float LookAroundSeconds => Application.isEditor ? 0f : 20f;
+
+        void LookAround()
+        {
+            m_Phase = Phase.LookingAround;
+            m_ScanStart = Time.time;
+            RealWalls.ShowScan = true;
+            Debug.Log($"[RoomOrchestra] Real furniture: look around the whole room for {LookAroundSeconds:F0} s while the scan fills in");
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.ScanRoom, LookAroundSeconds);
         }
 
         /// <summary>Choose places again (Menu): the saved places are forgotten and Flutter asks again.</summary>

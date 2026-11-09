@@ -152,6 +152,8 @@ namespace RoomOrchestra.EditorTools
             CreateQuitButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreatePlacesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreateRealHidesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
+            CreateLoopButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
+            CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
             // The ball stand sits right of and behind the front row (clear of every pointer line).
@@ -1504,13 +1506,13 @@ namespace RoomOrchestra.EditorTools
         // leaf, tilted toward the player, far row then near row.
         static readonly string[][] MenuRows =
         {
-            new[] { "TierButton", "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton" },
-            new[] { "MenuCloseButton", "RecenterButton", "PlacesButton", "LessonButton", "QuitButton" },
+            new[] { "TierButton", "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton", "LoopButton" },
+            new[] { "MenuCloseButton", "RecenterButton", "PlacesButton", "LessonButton", "StartOverButton", "QuitButton" },
         };
         // Flat over the leaf, like the leaf's own buttons (owner, headset 2026-11-08: the tilted tray was hard to read and
         // covered the Menu button): its own Close sits where Menu is.
         public const float MenuStep = 0.125f, MenuRowGap = 0.2f, MenuLift = 0.13f, MenuTilt = 0f, MenuFarStep = 0.08f;
-        static readonly Vector3 MenuPlate = new(0.8f, 0.02f, 0.44f);
+        static readonly Vector3 MenuPlate = new(0.92f, 0.02f, 0.44f);
 
         static MenuTray CreateMenuTray(Transform leafRoot, Material mark)
         {
@@ -1539,6 +1541,9 @@ namespace RoomOrchestra.EditorTools
                     if (row == 0) // the far step: two-line labels rise clear of its edge
                         foreach (Transform part in button)
                             if (part.name.EndsWith("Label") && part.name != "LanguageLabel") part.localPosition += Vector3.up * 0.03f; // 中文 already sits on top
+                    if (row == 1) // the near row's two-line labels: their second line clear of the plate's front edge
+                        foreach (Transform part in button)
+                            if (part.name == "PlacesLabel" || part.name == "StartOverLabel") part.localPosition += Vector3.up * 0.022f;
                 }
             }
             return tray.gameObject.AddComponent<MenuTray>();
@@ -1560,7 +1565,7 @@ namespace RoomOrchestra.EditorTools
             head.localPosition = new Vector3(0f, 0.05f, 0f);
             head.localScale = Vector3.one * 0.022f;
             Box("PlacesPinStem", go.transform, new Vector3(0f, 0.03f, 0f), new Vector3(0.006f, 0.03f, 0.006f), mark, keepCollider: false);
-            Localize(Label("PlacesLabel", UiText.Get(UiTerm.Places, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight), UiTerm.Places);
+            Localize(Label("PlacesLabel", UiText.Get(UiTerm.Places, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 2f), UiTerm.Places);
             go.AddComponent<PlacesButton>();
         }
 
@@ -1574,6 +1579,36 @@ namespace RoomOrchestra.EditorTools
             var label = Label("RealHidesLabel", UiText.Get(UiTerm.RealHidesOn, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 2f);
             Localize(label, UiTerm.RealHidesOn);
             go.AddComponent<RealHidesButton>();
+        }
+
+        // Menu: the focused instrument loops what it plays, or plays it once (owner, headset 2026-11-08). A loop arrow.
+        static void CreateLoopButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("LoopButton", position, root, slab, "LoopSlab");
+            var ring = Primitive(PrimitiveType.Cylinder, "LoopRing", go.transform, mark, keepCollider: false);
+            ring.localPosition = new Vector3(0f, 0.035f, 0f);
+            ring.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            ring.localScale = new Vector3(0.034f, 0.003f, 0.034f);
+            var hole = Primitive(PrimitiveType.Cylinder, "LoopHole", go.transform, slab, keepCollider: false);
+            hole.localPosition = new Vector3(0f, 0.035f, -0.002f);
+            hole.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            hole.localScale = new Vector3(0.022f, 0.003f, 0.022f);
+            var tip = Box("LoopArrow", go.transform, new Vector3(0.016f, 0.05f, -0.004f), new Vector3(0.012f, 0.012f, 0.004f), mark, keepCollider: false);
+            tip.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Label("LoopLabel", $"{UiText.Name(InstrumentType.Mbira, UiLanguage.English)}\n{UiText.Get(UiTerm.LoopOn, UiLanguage.English)}", go.transform, SmallLabelOffset, SmallLabelHeight * 2f); // the button writes its own text
+            go.AddComponent<LoopButton>();
+        }
+
+        // Menu: start completely over, the room scan included (owner, headset 2026-11-08, for a demo). A curved arrow back.
+        static void CreateStartOverButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("StartOverButton", position, root, slab, "StartOverSlab");
+            Box("StartOverStem", go.transform, new Vector3(0.006f, 0.04f, 0f), new Vector3(0.006f, 0.03f, 0.004f), mark, keepCollider: false);
+            var head = Box("StartOverHead", go.transform, new Vector3(-0.006f, 0.055f, 0f), new Vector3(0.014f, 0.014f, 0.004f), mark, keepCollider: false);
+            head.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Box("StartOverBar", go.transform, new Vector3(0f, 0.055f, 0f), new Vector3(0.018f, 0.005f, 0.004f), mark, keepCollider: false);
+            Localize(Label("StartOverLabel", UiText.Get(UiTerm.StartOver, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 2f), UiTerm.StartOver);
+            go.AddComponent<StartOverButton>();
         }
 
         static void CreateQuitButton(Vector3 position, Transform root, Material slab, Material mark)

@@ -307,7 +307,7 @@ namespace RoomOrchestra
 
         /// <summary>
         /// Presses that end or wipe something ask first (George, 2026-11-03): Clear with a song to lose, Lesson (starts the
-        /// song over), Quit, and Leave during a battle. Not while the title card is up (there only Start and Quit act).
+        /// song over), Start over, Quit, and Leave during a battle. Not while the title card is up (there only Start and Quit act).
         /// </summary>
         static bool NeedsConfirm(Component owner)
         {
@@ -320,6 +320,7 @@ namespace RoomOrchestra
                     return music.ButtonKind == MusicControlButton.Kind.Clear && EchoConductor.Instance != null && EchoConductor.Instance.Echoes.Count > 0;
                 case TutorialReplayButton _:
                 case QuitButton _:
+                case StartOverButton _:
                     return true;
                 case EchoBattleButton battle:
                     var director = EchoBattleDirector.Instance;

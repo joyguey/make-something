@@ -209,6 +209,16 @@ namespace RoomOrchestra.Tests
             yield return null;
             int rightBand = home.Hover;
             CollectionAssert.AreEquivalent(new[] { 0, 4 }, new[] { leftBand, rightBand }, "one end is the lowest note, the other the highest");
+            // owner, headset 2026-11-08: "when I point at the partition, can the note be clearly labeled?" every band
+            // says its note, the pointed one biggest
+            for (int i = 0; i < RealHome.Bands; i++)
+            {
+                var label = home.LabelOf(i);
+                Assert.IsTrue(label.gameObject.activeInHierarchy, $"band {i} says its note");
+                Assert.AreEqual(UiText.Tile(new MusicalNote(home.Target.Instrument, i), Localization.Current), label.text);
+            }
+            Assert.Greater(home.LabelOf(rightBand).transform.lossyScale.x, home.LabelOf(leftBand).transform.lossyScale.x * 1.5f, "the pointed band's label is the biggest");
+            Assert.IsNotNull(home.LabelOf(rightBand).transform.Find("NoteLabelBacking"), "on a dark backing that reads against the room");
             int before = EchoConductor.Instance.Echoes.Count;
             OrbSelector.ThrowOnTap = false;
             yield return Press(hand, right);

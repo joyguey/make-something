@@ -849,6 +849,18 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(so.FindProperty("launcher").objectReferenceValue);
         }
 
+        // Owner, headset 2026-11-08: a loop switch per instrument, Start over (scan included), and a clearer name than "Places".
+        [Test]
+        public void TheMenuHasLoopStartOverAndChooseFurniture()
+        {
+            var tray = Object.FindFirstObjectByType<MenuTray>(FindObjectsInactive.Include);
+            Assert.IsTrue(Object.FindFirstObjectByType<LoopButton>(FindObjectsInactive.Include).transform.IsChildOf(tray.transform), "Loop on the menu");
+            Assert.IsTrue(Object.FindFirstObjectByType<StartOverButton>(FindObjectsInactive.Include).transform.IsChildOf(tray.transform), "Start over on the menu");
+            var places = Object.FindFirstObjectByType<PlacesButton>(FindObjectsInactive.Include).GetComponentInChildren<LocalizedLabel>(true);
+            Assert.AreEqual("Choose\nfurniture", places.TextFor(UiLanguage.English));
+            Assert.AreEqual((UiTerm.ConfirmStartOver, UiTerm.ConfirmRestart), ConfirmCard.TermsFor(Object.FindFirstObjectByType<StartOverButton>(FindObjectsInactive.Include)), "Start over asks first");
+        }
+
         [Test]
         public void CallLeafIsLabeledAndTappable()
         {

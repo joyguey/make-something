@@ -69,6 +69,41 @@ namespace RoomOrchestra
             PlayerPrefs.Save();
         }
 
+        /// <summary>
+        /// Start over: the saved places' anchors are removed from the headset's storage too (in the background, best
+        /// effort; read before the preferences are wiped). Then nothing is found again next time.
+        /// </summary>
+        public static void ForgetAnchorsOnDevice()
+        {
+            var ids = new List<Guid>();
+            foreach (var e in Load()) if (Guid.TryParse(e.anchor, out var g)) ids.Add(g);
+            Clear();
+            if (ids.Count > 0) _ = UnpersistAsync(ids);
+        }
+
+        static async Task UnpersistAsync(List<Guid> ids)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR && ENABLE_PICO_XR_SDK
+            try
+            {
+                if (!await StartAnchors()) return;
+                using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
+                var (_, handles) = await ByteDance.PICO.XR.PXR_MixedReality.QuerySpatialAnchorAsync(ids.ToArray(), cancel.Token);
+                int removed = 0;
+                if (handles != null)
+                    foreach (var handle in handles)
+                        if (await ByteDance.PICO.XR.PXR_MixedReality.UnPersistSpatialAnchorAsync(handle, cancel.Token) == ByteDance.PICO.XR.PxrResult.SUCCESS) removed++;
+                Debug.Log($"[RoomOrchestra] Start over: {removed} of {ids.Count} saved anchors removed from the headset");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[RoomOrchestra] Start over: anchors not removed ({e.Message}); they are forgotten anyway");
+            }
+#else
+            await Task.Yield();
+#endif
+        }
+
         /// <summary>The instrument on <paramref name="furniture"/> stays on its own furniture: nothing to remember.</summary>
         public static void Forget(string furniture)
         {
