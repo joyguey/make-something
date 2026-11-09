@@ -148,7 +148,7 @@ namespace RoomOrchestra.Tests
             string[] Texts(Component c) => c.GetComponentsInChildren<TMP_Text>().Select(t => t.text).ToArray();
             var tray = Object.FindFirstObjectByType<OrbToken>().transform.parent;
             CollectionAssert.IsSupersetOf(Texts(tray), new[] { "Flutter", "Bop", "Boom" });
-            CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<TierButton>()), "Loudness");
+            Assert.IsNull(Object.FindFirstObjectByType<TierButton>(FindObjectsInactive.Include), "Loudness is gone (owner, 2026-11-08)");
             CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<UndoButton>()), "Undo");
             foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
                 Assert.IsTrue(Texts(column).Any(t => new[] { "udu", "mbira", "erhu" }.Contains(t.Split('\n')[0])), $"{column.name} names its instrument");
@@ -188,11 +188,8 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
-        public void TierButtonAndBallSpawnReachableSeated()
+        public void BallSpawnReachableSeated()
         {
-            var tier = Object.FindFirstObjectByType<TierButton>();
-            Assert.IsNotNull(tier);
-            AssertSeated("TierButton", tier.transform.position);
             var launcher = Object.FindFirstObjectByType<BallLauncher>();
             Assert.IsNotNull(launcher);
             var spawn = launcher.transform.Find("SpawnPoint");
@@ -830,7 +827,6 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(Vector3.zero, pad.transform.localPosition, "authored at home");
             Assert.AreEqual(Quaternion.identity, pad.transform.localRotation);
             Assert.IsTrue(Object.FindFirstObjectByType<OrbToken>().transform.IsChildOf(pad.transform), "the ball tray");
-            Assert.IsTrue(Object.FindFirstObjectByType<TierButton>().transform.IsChildOf(pad.transform));
             Assert.IsTrue(Object.FindFirstObjectByType<UndoButton>().transform.IsChildOf(pad.transform));
             foreach (var b in Object.FindObjectsByType<MusicControlButton>(FindObjectsSortMode.None)) Assert.IsTrue(b.transform.IsChildOf(pad.transform), b.name);
             Assert.IsTrue(Object.FindFirstObjectByType<RecenterButton>().transform.IsChildOf(pad.transform));
@@ -849,12 +845,12 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(so.FindProperty("launcher").objectReferenceValue);
         }
 
-        // Owner, headset 2026-11-08: a loop switch per instrument, Start over (scan included), and a clearer name than "Places".
+        // Owner, headset 2026-11-08: Start over (scan included), a clearer name than "Places", and no Loudness or Loop.
         [Test]
-        public void TheMenuHasLoopStartOverAndChooseFurniture()
+        public void TheMenuHasStartOverAndChooseFurniture()
         {
             var tray = Object.FindFirstObjectByType<MenuTray>(FindObjectsInactive.Include);
-            Assert.IsTrue(Object.FindFirstObjectByType<LoopButton>(FindObjectsInactive.Include).transform.IsChildOf(tray.transform), "Loop on the menu");
+            Assert.IsNull(Object.FindFirstObjectByType<TierButton>(FindObjectsInactive.Include), "no Loudness (owner, 2026-11-08)");
             Assert.IsTrue(Object.FindFirstObjectByType<StartOverButton>(FindObjectsInactive.Include).transform.IsChildOf(tray.transform), "Start over on the menu");
             var places = Object.FindFirstObjectByType<PlacesButton>(FindObjectsInactive.Include).GetComponentInChildren<LocalizedLabel>(true);
             Assert.AreEqual("Choose\nfurniture", places.TextFor(UiLanguage.English));

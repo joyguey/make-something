@@ -237,6 +237,14 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(room.Gone, "and the player's own room is the stage");
             var park = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser/ParkPoint");
             Assert.IsTrue(room.Panels.All(p => Vector3.Distance(p.position, park.position) < 1e-3f), "every panel waits in the cloud");
+
+            // owner, headset 2026-11-08: "the tune from Mary had a little lamb continues to play after the tutorial,
+            // please clear it so the player can start with a clean plate"
+            Assert.AreEqual(TutorialPlan.Song.Length, m_Conductor.Echoes.Count, "the finished tune plays while Flutter says it's done");
+            float until = Time.time + TutorialDirector.DoneLineSeconds + 1f;
+            while (m_Conductor.Echoes.Count > 0 && Time.time < until) yield return null;
+            Assert.AreEqual(0, m_Conductor.Echoes.Count, "then the song is cleared: a clean plate");
+            Assert.IsFalse(m_Conductor.Undo(), "and Undo doesn't bring the lesson's song back");
         }
 
         [UnityTest]

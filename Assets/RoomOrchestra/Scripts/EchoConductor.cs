@@ -90,35 +90,8 @@ namespace RoomOrchestra
         /// <summary>Wires orbits when built from code (tests); scenes set them in the inspector.</summary>
         public void Configure(OrbitView[] views) => orbits = views;
 
-        // Owner, headset 2026-11-08: "is there a way to choose when to loop an instrument or not?" Each instrument loops
-        // what it plays (the default) or plays it once: then a hit sounds live and is not put on its echo ring. What is
-        // already on the ring keeps playing (Undo and Clear remove it). Per session; Start over and a new game loop again.
-        static readonly System.Collections.Generic.HashSet<InstrumentType> s_PlaysOnce = new();
-
-        /// <summary>Whether <paramref name="instrument"/> puts what it plays on its echo loop.</summary>
-        public static bool Loops(InstrumentType instrument) => !s_PlaysOnce.Contains(instrument);
-
-        public static event Action<InstrumentType, bool> LoopChanged;
-
-        public static void SetLoops(InstrumentType instrument, bool loops)
-        {
-            if (Loops(instrument) == loops) return;
-            if (loops) s_PlaysOnce.Remove(instrument); else s_PlaysOnce.Add(instrument);
-            Debug.Log($"[RoomOrchestra] {instrument}: {(loops ? "loops what it plays" : "plays once (no echo)")}");
-            LoopChanged?.Invoke(instrument, loops);
-        }
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetLoops() => s_PlaysOnce.Clear();
-
         void OnHit(MusicalHitEvent hit)
         {
-            var lesson = TutorialDirector.Instance;
-            if (!Loops(hit.Target) && (lesson == null || !lesson.Active)) // the lesson always loops (it teaches the loop)
-            {
-                Debug.Log($"[RoomOrchestra] {hit.Target} plays once: not added to its loop");
-                return;
-            }
             if (m_Sequencer.TryAdd(hit, out var echo) == EchoAddResult.Added)
             {
                 Debug.Log($"[RoomOrchestra] Echo planted {echo} ({m_Sequencer.CountOn(echo.Target)}/{EchoSequencer.MaxPerTarget})");

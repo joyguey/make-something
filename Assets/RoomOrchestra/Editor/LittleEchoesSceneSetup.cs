@@ -107,7 +107,8 @@ namespace RoomOrchestra.EditorTools
                 Localize(name, profile.Type switch { OrbType.Flutter => UiTerm.Flutter, OrbType.Bop => UiTerm.Bop, _ => UiTerm.Boom });
             }
 
-            var tierButton = CreateTierButton(swoop, slabMaterial, motifMaterial);
+            // Loudness was taken off (owner, headset 2026-11-08: "completely unnecessary"); taps play at the medium level
+            // and a throw's strength still sets how loud it is.
             CreateSoundsButton(swoop, slabMaterial, motifMaterial);
             CreateViewButton(swoop, slabMaterial, motifMaterial);
             CreateCallButton(LeafRow(0), swoop, slabMaterial, veinMaterial); // first on the leaf's own row
@@ -152,7 +153,6 @@ namespace RoomOrchestra.EditorTools
             CreateQuitButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreatePlacesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreateRealHidesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
-            CreateLoopButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
@@ -191,7 +191,6 @@ namespace RoomOrchestra.EditorTools
             so.FindProperty("focusMarker").objectReferenceValue = marker;
             so.FindProperty("focusMarkerLift").floatValue = markerLift;
             SetArray(so.FindProperty("tokens"), tokens);
-            so.FindProperty("tierButton").objectReferenceValue = tierButton;
             SetArray(so.FindProperty("pitchColumns"), columns);
             so.FindProperty("startPetal").intValue = StartPetal;
             so.FindProperty("launcher").objectReferenceValue = launcher;
@@ -1506,7 +1505,7 @@ namespace RoomOrchestra.EditorTools
         // leaf, tilted toward the player, far row then near row.
         static readonly string[][] MenuRows =
         {
-            new[] { "TierButton", "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton", "LoopButton" },
+            new[] { "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton" },
             new[] { "MenuCloseButton", "RecenterButton", "PlacesButton", "LessonButton", "StartOverButton", "QuitButton" },
         };
         // Flat over the leaf, like the leaf's own buttons (owner, headset 2026-11-08: the tilted tray was hard to read and
@@ -1579,24 +1578,6 @@ namespace RoomOrchestra.EditorTools
             var label = Label("RealHidesLabel", UiText.Get(UiTerm.RealHidesOn, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 2f);
             Localize(label, UiTerm.RealHidesOn);
             go.AddComponent<RealHidesButton>();
-        }
-
-        // Menu: the focused instrument loops what it plays, or plays it once (owner, headset 2026-11-08). A loop arrow.
-        static void CreateLoopButton(Vector3 position, Transform root, Material slab, Material mark)
-        {
-            var go = SmallButton("LoopButton", position, root, slab, "LoopSlab");
-            var ring = Primitive(PrimitiveType.Cylinder, "LoopRing", go.transform, mark, keepCollider: false);
-            ring.localPosition = new Vector3(0f, 0.035f, 0f);
-            ring.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            ring.localScale = new Vector3(0.034f, 0.003f, 0.034f);
-            var hole = Primitive(PrimitiveType.Cylinder, "LoopHole", go.transform, slab, keepCollider: false);
-            hole.localPosition = new Vector3(0f, 0.035f, -0.002f);
-            hole.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            hole.localScale = new Vector3(0.022f, 0.003f, 0.022f);
-            var tip = Box("LoopArrow", go.transform, new Vector3(0.016f, 0.05f, -0.004f), new Vector3(0.012f, 0.012f, 0.004f), mark, keepCollider: false);
-            tip.localRotation = Quaternion.Euler(0f, 0f, 45f);
-            Label("LoopLabel", $"{UiText.Name(InstrumentType.Mbira, UiLanguage.English)}\n{UiText.Get(UiTerm.LoopOn, UiLanguage.English)}", go.transform, SmallLabelOffset, SmallLabelHeight * 2f); // the button writes its own text
-            go.AddComponent<LoopButton>();
         }
 
         // Menu: start completely over, the room scan included (owner, headset 2026-11-08, for a demo). A curved arrow back.

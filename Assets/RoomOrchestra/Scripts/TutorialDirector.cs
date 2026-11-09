@@ -230,6 +230,7 @@ namespace RoomOrchestra
             m_Misses = 0;
             m_CheerHops = 0;
             m_CloseAt = -1f;
+            m_ClearSongOnClose = false;
             m_TryAgainUntil = -1f;
             m_Closed = false;
             m_Started = false;
@@ -364,6 +365,7 @@ namespace RoomOrchestra
             ParkGlow();
             ParkCountdown();
             Remember();
+            m_ClearSongOnClose = true;
             m_CloseAt = Time.time + DoneLineSeconds;
             // A clear ending (owner: "I didn't know when the tutorial was over"): the friends beam and bounce
             // a few times and every sparkle flares, while Flutter says it's done and play is free from now on.
@@ -428,8 +430,19 @@ namespace RoomOrchestra
             TuckAway.RevealAll(); // and the leaf's extras the lesson kept tucked away
         }
 
+        // Owner, headset 2026-11-08: "the tune from Mary had a little lamb continues to play after the tutorial, please
+        // clear it so the player can start with a clean plate". The finished song plays on while Flutter says the lesson
+        // is done; when that line closes, the song is cleared (not undoable: it was the lesson's, not the player's).
+        bool m_ClearSongOnClose;
+
         void Close()
         {
+            if (m_ClearSongOnClose)
+            {
+                m_ClearSongOnClose = false;
+                conductor?.StartFresh();
+                Debug.Log("[RoomOrchestra] Tutorial: the lesson's song is cleared; the player starts with a clean plate");
+            }
             m_CloseAt = -1f;
             m_GlowOut = false;
             ParkGlow();

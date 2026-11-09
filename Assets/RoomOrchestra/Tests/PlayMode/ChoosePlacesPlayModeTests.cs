@@ -117,8 +117,8 @@ namespace RoomOrchestra.Tests
             var (mesh, world) = DeskTopScan(DeskTop);
             walls.SetSurface("desk", mesh, DeskTop, Quaternion.identity, Vector3.one);
             walls.SetPiece(default, world);
-            var near = DeskTopScan(new Vector3(0f, 0.75f, 0.8f), 0.6f, 0.4f, 0.1f); // the player's own desk
-            walls.SetSurface("near", near.mesh, new Vector3(0f, 0.75f, 0.8f), Quaternion.identity, Vector3.one);
+            var near = DeskTopScan(new Vector3(0f, 0.45f, 0.2f), 0.4f, 0.3f, 0.1f); // the seat the player sits on
+            walls.SetSurface("near", near.mesh, new Vector3(0f, 0.45f, 0.2f), Quaternion.identity, Vector3.one);
             var placer = RealFurniture.Instance;
             RealFurniture.Enabled = true;
             var room = VirtualRoom.Instance;
@@ -132,7 +132,7 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(shield);
             Assert.Greater(shield.GetComponent<MeshFilter>().sharedMesh.triangles.Length, 0, "the far desk hides what is behind it");
             var nearShield = walls.transform.Find("RoomSurface_near/RoomOccluder_near").GetComponent<MeshFilter>().sharedMesh;
-            Assert.AreEqual(0, nearShield.triangles.Length, "the player's own desk never hides the leaf in front of them");
+            Assert.AreEqual(0, nearShield.triangles.Length, "the player's own seat (and they, scanned as room) never hide the leaf in front of them");
             Assert.IsTrue(RealWalls.ShowScan, "the scanned room is shown");
             Assert.IsTrue(walls.transform.Find("RoomSurface_desk").GetComponent<MeshRenderer>().enabled, "and glows");
             Assert.IsFalse(Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None).Length > 0, "the lesson's note columns are put away");

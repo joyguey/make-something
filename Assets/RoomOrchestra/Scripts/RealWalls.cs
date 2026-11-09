@@ -27,9 +27,10 @@ namespace RoomOrchestra
         /// </summary>
         public const int SurfaceLayer = 30;
 
-        /// <summary>The room hides nothing this close to the player's seat (m, across the floor): their own desk must never
-        /// hide the leaf and controls in front of them.</summary>
-        public const float NearClear = 1.5f;
+        /// <summary>The room hides nothing this close to the player's seat (m, across the floor): the chair they sit in
+        /// and their own body (which the scan sees as room) must never hide the leaf and controls in front of them.
+        /// Was 1.5 m while PICO's depth did the near hiding; the scanned mesh now does it all (owner, 2026-11-08).</summary>
+        public const float NearClear = 0.6f;
 
         [Tooltip("How the scanned room looks while it is shown (see-through).")]
         [SerializeField] Material scanLook;
@@ -149,7 +150,7 @@ namespace RoomOrchestra
         {
             var room = VirtualRoom.Instance;
             OcclusionWanted = (room == null || room.Gone) && !s_ShowScan && EnvironmentOcclusion.Wanted;
-            // PICO's own depth does the hiding when the headset delivers it; the scanned room's shield is the fallback
+            // the scanned room's own shapes do the hiding (PICO's depth image is off: it was not accurate enough)
             Occlude = OcclusionWanted && !EnvironmentOcclusion.Active;
         }
 

@@ -31,7 +31,6 @@ namespace RoomOrchestra
 
         public static void Reset()
         {
-            foreach (InstrumentType type in System.Enum.GetValues(typeof(InstrumentType))) EchoConductor.SetLoops(type, true);
             ComfortSettings.ResetToDefaults();
             EnvironmentOcclusion.ForgetSetting();
             Resetting?.Invoke();

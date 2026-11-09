@@ -18,6 +18,12 @@ namespace RoomOrchestra
         public const string PrefKey = "LittleEchoes.RealHides";
         /// <summary>The quad's distance in front of the eyes (m; beyond the camera's near plane) and its size.</summary>
         public const float QuadDistance = 0.2f, QuadSize = 2f;
+        /// <summary>
+        /// Owner, headset 2026-11-08: "the depth occlusion seems to not be very accurate ... map onto the shapes the headset
+        /// recognizes as furniture". PICO's depth image is off; the scanned room mesh (<see cref="RealWalls"/>) does the
+        /// hiding instead. The "Hiding" setting still turns it on and off.
+        /// </summary>
+        public static readonly bool UseHeadsetDepth = false;
 
         [SerializeField] Material occluder;
 
@@ -69,6 +75,11 @@ namespace RoomOrchestra
         void Start()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR && ENABLE_PICO_XR_SDK
+            if (!UseHeadsetDepth)
+            {
+                Debug.Log("[RoomOrchestra] Environment depth: off; the scanned room mesh hides what is behind real things");
+                return;
+            }
             if (occluder == null) return;
             m_Manager = gameObject.AddComponent<ByteDance.PICO.XR.PXR_EnvironmentDepthManager>();
             var head = XrRig.Instance != null ? XrRig.Instance.Head : null;

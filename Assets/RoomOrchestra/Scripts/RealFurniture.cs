@@ -409,7 +409,12 @@ namespace RoomOrchestra
         {
             var walls = RealWalls.Instance;
             var scan = RoomScan.Instance;
-            return RoomObjects.Find(point, walls != null ? walls.PieceTriangles : null, scan != null ? scan.Furniture : null, SeatFloor().y);
+            var box = RoomObjects.Find(point, walls != null ? walls.PieceTriangles : null, scan != null ? scan.Furniture : null, SeatFloor().y);
+            if (StageAnchor.Instance != null && StageAnchor.Instance.TryGetHeadPose(out var head))
+            {
+                box = RoomObjects.ClearOfPlayer(box, point, head.position); // every frame while choosing: no log
+            }
+            return box;
         }
 
         void ShowPreviewShape(Bounds box, InstrumentType instrument)

@@ -150,14 +150,13 @@ namespace RoomOrchestra
             var title = TitleScreen.Instance;
             var intro = IntroSequence.Instance;
             var target = FocusedTarget;
+            // Owner, headset 2026-11-08: "a weird yellow disk on top of the floating ball on the cloud". Over a real
+            // object the disc floated wherever that object's scanned box ended (a chair scanned with the player in it
+            // reached past the cloud). On real objects the glow and the note labels show the target; the disc is only
+            // drawn over the lesson's virtual furniture.
             bool on = (title == null || !title.Showing) && (intro == null || intro.Done) && target != null
-                      && !StationReveal.IsHidden(target.Instrument);
+                      && !StationReveal.IsHidden(target.Instrument) && target.Home == null;
             foreach (var r in m_MarkerLooks) if (r != null && r.enabled != on) r.enabled = on;
-            if (on && target.Home != null) // over the real object it lives on now
-            {
-                var p = target.AimPosition + Vector3.up * focusMarkerLift;
-                if (focusMarker.position != p) focusMarker.position = p;
-            }
         }
 
         // Visuals only change after a real selection change, never at startup.

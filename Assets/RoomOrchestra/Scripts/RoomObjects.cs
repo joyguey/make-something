@@ -174,6 +174,40 @@ namespace RoomOrchestra
             return new Bounds(c, size);
         }
 
+        /// <summary>Room kept clear around the player's head across the floor (m).</summary>
+        public const float PlayerClear = 0.35f;
+
+        /// <summary>
+        /// Owner, headset 2026-11-08: the chair "was extra large because of its proximity to me". The scan does not
+        /// tell the player apart from the chair they sit on, so a box that reaches the player is cut back on the side
+        /// toward them (the cut that keeps more of it and still holds the point pointed at). Unchanged otherwise.
+        /// </summary>
+        public static Bounds ClearOfPlayer(Bounds box, Vector3 point, Vector3 head)
+        {
+            var min = box.min;
+            var max = box.max;
+            bool reaches = head.x > min.x - PlayerClear && head.x < max.x + PlayerClear && head.z > min.z - PlayerClear && head.z < max.z + PlayerClear;
+            var flat = point - head;
+            flat.y = 0f;
+            if (!reaches || flat.magnitude < PlayerClear) return box;
+            // cut across x or across z, on the point's side of the head
+            var xMin = min; var xMax = max;
+            if (point.x >= head.x) xMin.x = Mathf.Max(min.x, head.x + PlayerClear); else xMax.x = Mathf.Min(max.x, head.x - PlayerClear);
+            var zMin = min; var zMax = max;
+            if (point.z >= head.z) zMin.z = Mathf.Max(min.z, head.z + PlayerClear); else zMax.z = Mathf.Min(max.z, head.z - PlayerClear);
+            float xArea = Mathf.Max(0f, xMax.x - xMin.x) * (xMax.z - xMin.z);
+            float zArea = (zMax.x - zMin.x) * Mathf.Max(0f, zMax.z - zMin.z);
+            bool xOk = xMax.x - xMin.x >= 0.1f && Mathf.Abs(point.x - head.x) >= PlayerClear;
+            bool zOk = zMax.z - zMin.z >= 0.1f && Mathf.Abs(point.z - head.z) >= PlayerClear;
+            Vector3 lo, hi;
+            if (xOk && (!zOk || xArea >= zArea)) { lo = xMin; hi = xMax; }
+            else if (zOk) { lo = zMin; hi = zMax; }
+            else return box;
+            var cut = new Bounds();
+            cut.SetMinMax(lo, hi);
+            return cut;
+        }
+
         /// <summary>The object's shape: the scanned triangles inside its box, above the floor (scene space, three per triangle).</summary>
         public static List<Vector3> ShapeIn(Bounds box, IEnumerable<Vector3[]> pieces, float floorY)
         {
