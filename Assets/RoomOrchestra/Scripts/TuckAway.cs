@@ -25,6 +25,9 @@ namespace RoomOrchestra
         [SerializeField] Vector3 homePosition, homeScale, tuckedPosition;
         [SerializeField] bool tucked;
         [SerializeField] Collider[] switchedOff;
+        // Owner, headset 2026-11-08: "there's an exit button that is hidden beneath the leaf when it comes in": seen from
+        // below as the leaf floats down, the tucked Clear hung under it. Tucked controls are not drawn at all now.
+        [SerializeField] Renderer[] hidden;
 
         float m_AppearAt = -1f;
 
@@ -58,6 +61,14 @@ namespace RoomOrchestra
                         off.Add(c);
                     }
                 switchedOff = off.ToArray();
+                var unseen = new List<Renderer>();
+                foreach (var r in GetComponentsInChildren<Renderer>())
+                    if (r.enabled)
+                    {
+                        r.enabled = false;
+                        unseen.Add(r);
+                    }
+                hidden = unseen.ToArray();
             }
             tucked = true;
             Set(tuckedPosition, homeScale * TuckedScale);
@@ -73,6 +84,10 @@ namespace RoomOrchestra
                 foreach (var c in switchedOff)
                     if (c != null) c.enabled = true;
             switchedOff = null;
+            if (hidden != null)
+                foreach (var r in hidden)
+                    if (r != null) r.enabled = true;
+            hidden = null;
         }
 
         /// <summary>A small poof where it belongs, and it pops up inside it.</summary>

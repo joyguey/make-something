@@ -1,6 +1,6 @@
 # Little Echoes: what changed since v2.1
 
-v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 20), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
+v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 0.3.14, build 21), from 2026-11-08, on PICO OS 6 (PICO XR mode, SDK 6.1.1) and Unity 6000.3.25f1.
 
 ## Platform
 - **Moved from PICO Spatial to PICO XR mode** (2026-11-08). This gives the game the room mesh and spatial anchors. v3.5 is the last PICO Spatial build and stays as a fallback.
@@ -11,7 +11,7 @@ v2.1 shipped to the dev team on 2026-10-28. The current build is **v3.14** (app 
 - **Title and opening:** the new app icon, name and title card. After Start, a stalk splits the floor open, the leaf swoops in and Flutter, Bop and Boom bounce onto it.
 - **Guided lesson:** "Mary Had a Little Lamb" teaches the throw first, one thing at a time, and ends on a 3-2-1-Go. The headset remembers that the lesson is done, and the Lesson button replays it.
 - **Virtual starting room:** the lesson takes place in a virtual room, which comes apart when the lesson ends.
-- **Clean plate:** the lesson's song is cleared once Flutter finishes the closing line, so free play starts with no notes.
+- **Clean slate:** once Flutter finishes the closing line, the lesson's song is cleared and the flowers, toadstools and vines it grew vanish in a puff of smoke. The player then chooses furniture and starts their own music from nothing.
 - **Clean start:** only the title card, the cloud and its ball are shown at the title.
 
 ## Playing in the real room

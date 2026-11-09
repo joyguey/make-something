@@ -245,6 +245,10 @@ namespace RoomOrchestra.Tests
             while (m_Conductor.Echoes.Count > 0 && Time.time < until) yield return null;
             Assert.AreEqual(0, m_Conductor.Echoes.Count, "then the song is cleared: a clean plate");
             Assert.IsFalse(m_Conductor.Undo(), "and Undo doesn't bring the lesson's song back");
+            // owner, headset 2026-11-08: "the flowers and mushrooms are still there. they should also disappear"
+            yield return new WaitForSeconds(JungleDirector.VanishDelay + 0.3f);
+            var grown = Object.FindObjectsByType<FloorSprout>(FindObjectsSortMode.None).Where(f => f.Sprouted).Select(f => f.name).ToArray();
+            CollectionAssert.IsEmpty(grown, "no flowers or toadstools left from the lesson");
         }
 
         [UnityTest]
@@ -411,6 +415,8 @@ namespace RoomOrchestra.Tests
             {
                 Assert.IsTrue(t.Tucked, $"{t.name} waits during the lesson");
                 Assert.IsTrue(t.GetComponentsInChildren<Collider>().All(c => !c.enabled), $"{t.name} can't be tapped while tucked");
+                // owner, headset 2026-11-08: the tucked Clear hung under the leaf as it floated in
+                Assert.IsTrue(t.GetComponentsInChildren<Renderer>(true).All(r => !r.enabled), $"{t.name} isn't drawn while tucked");
             }
             foreach (var always in new[] { typeof(UndoButton), typeof(MenuButton) })
             {
@@ -438,6 +444,7 @@ namespace RoomOrchestra.Tests
             {
                 Assert.IsFalse(t.Tucked, $"{t.name} pops up once the lesson is skipped");
                 Assert.IsTrue(t.GetComponentsInChildren<Collider>().Any(c => c.enabled), $"{t.name} can be tapped again");
+                Assert.IsTrue(t.GetComponentsInChildren<Renderer>().Any(r => r.enabled), $"{t.name} is drawn again");
             }
 
             var lesson = Object.FindFirstObjectByType<TutorialReplayButton>().GetComponentInChildren<Collider>().gameObject;

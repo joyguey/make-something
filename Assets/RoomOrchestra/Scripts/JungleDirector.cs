@@ -74,6 +74,12 @@ namespace RoomOrchestra
             Debug.Log($"[RoomOrchestra] Jungle: cleared in a cloud of smoke ({clouds} clouds)");
         }
 
+        /// <summary>
+        /// After the lesson (owner, headset 2026-11-08: "the flowers and mushrooms are still there. they should also
+        /// disappear and a clean slate should be available"): what the lesson's song grew goes in the same smoke as Clear.
+        /// </summary>
+        public void ClearForFreshStart() => OnCleared();
+
         /// <summary>Clear's smoke clouds, as a multiple of a ball's landing poof.</summary>
         public const float ClearSmokeSize = 4f;
 

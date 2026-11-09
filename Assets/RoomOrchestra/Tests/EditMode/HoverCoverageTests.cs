@@ -33,7 +33,10 @@ namespace RoomOrchestra.Tests
                 checkedCount++;
                 var go = collider.gameObject;
                 var renderer = go.GetComponent<MeshRenderer>();
-                bool visible = renderer != null && renderer.enabled && go.GetComponent<MeshFilter>()?.sharedMesh != null;
+                // a control tucked away for the lesson is not drawn (nor tappable) until it pops up: its mesh is what counts
+                var tuck = go.GetComponentInParent<TuckAway>();
+                bool shown = renderer != null && (renderer.enabled || (tuck != null && tuck.Tucked));
+                bool visible = shown && go.GetComponent<MeshFilter>()?.sharedMesh != null;
                 if (!visible)
                     missing.Add($"{Path(go.transform)} (owner {owner.GetType().Name}: no visible mesh)");
             }

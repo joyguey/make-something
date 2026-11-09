@@ -441,7 +441,8 @@ namespace RoomOrchestra
             {
                 m_ClearSongOnClose = false;
                 conductor?.StartFresh();
-                Debug.Log("[RoomOrchestra] Tutorial: the lesson's song is cleared; the player starts with a clean plate");
+                JungleDirector.Instance?.ClearForFreshStart(); // and what it grew: flowers, toadstools, vines, butterflies
+                Debug.Log("[RoomOrchestra] Tutorial: the lesson's song and what it grew are cleared; the player starts with a clean plate");
             }
             m_CloseAt = -1f;
             m_GlowOut = false;
