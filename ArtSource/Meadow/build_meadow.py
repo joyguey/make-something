@@ -8,8 +8,13 @@ Each piece's colours are painted into the colour attribute "Col" (RGB), and its 
 render, Cycles bakes AO into the vertex colours, and the result goes into Col's alpha. The shader
 RoomOrchestra/LitBakedAO multiplies them in. The sky and the ground tiles are not baked (nothing occludes them).
 
-  /Applications/Blender.app/Contents/MacOS/Blender -b -P ArtSource/Meadow/build_meadow.py
-Writes Assets/RoomOrchestra/Art/Meadow/Meadow.fbx and ArtSource/Meadow/Meadow.blend.
+Two times of day (owner, Fable refinement 2026-11-11: "A for morning and C for night time depending on the headset's
+time"): the same pieces in a golden-hour palette (Meadow.fbx) and a dusk palette (Meadow_Dusk.fbx). The random choices
+never depend on the palette, so both exports are the same shapes; Unity swaps the meshes by the headset's clock.
+
+  /Applications/Blender.app/Contents/MacOS/Blender -b -P ArtSource/Meadow/build_meadow.py              (day)
+  MEADOW_PALETTE=dusk /Applications/Blender.app/Contents/MacOS/Blender -b -P ArtSource/Meadow/build_meadow.py
+Writes Assets/RoomOrchestra/Art/Meadow/Meadow.fbx (or Meadow_Dusk.fbx) and, for the day, ArtSource/Meadow/Meadow.blend.
 """
 import math
 import os
@@ -21,20 +26,42 @@ from mathutils import Vector, noise
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-EXPORT = os.path.join(ROOT, "Assets", "RoomOrchestra", "Art", "Meadow", "Meadow.fbx")
 rng = random.Random(2026_11_11)
 
-# A soft, sunny palette in the game's own colours (the leaf green, the characters' turquoise, lilac and butter yellow).
-GRASS = [(0.45, 0.74, 0.38), (0.48, 0.77, 0.40), (0.43, 0.71, 0.37), (0.50, 0.78, 0.42)]  # close greens: soft patches, no checkerboard
-HILL = [(0.36, 0.64, 0.38), (0.44, 0.71, 0.42), (0.31, 0.58, 0.36)]
-LEAVES = [(0.30, 0.62, 0.32), (0.38, 0.70, 0.36), (0.26, 0.55, 0.30)]
-BLOSSOM = [(1.00, 0.72, 0.84), (0.98, 0.80, 0.90)]
+PALETTE = os.environ.get("MEADOW_PALETTE", "day")
+assert PALETTE in ("day", "dusk"), PALETTE
+EXPORT = os.path.join(ROOT, "Assets", "RoomOrchestra", "Art", "Meadow", "Meadow.fbx" if PALETTE == "day" else "Meadow_Dusk.fbx")
+
+
+def hexes(*codes):
+    return [tuple(round(int(c[i:i + 2], 16) / 255, 3) for i in (1, 3, 5)) for c in codes]
+
+
+# Grown-up colours (the teen/adult refinement): less saturated than the first sunny palette, so the characters' own
+# colours carry. Every list keeps the same length in both palettes, so the seeded random choices (and so the shapes)
+# are identical.
+if PALETTE == "day":  # golden hour: warm, soft greens under a peach-to-blue sky
+    GRASS = hexes("#7FA55A", "#86AD5F", "#789E55", "#82A85C")
+    HILL = hexes("#5F8A5A", "#6F9A62", "#55805A")
+    LEAVES = hexes("#4C7A48", "#5A8A52", "#406A42")
+    BLOSSOM = hexes("#D9A9A0", "#E0B5AC")
+    PETALS = hexes("#E6C45A", "#B49AD6", "#7FB8BE", "#D98A8A", "#F0ECE0")
+    CLOUD = hexes("#F2EBE0")[0]
+    SKY_HORIZON, SKY_ZENITH = hexes("#F2D9B8", "#6E93C4")
+    GROUND_LO, GROUND_HI = hexes("#789E55", "#8AB262")
+else:  # dusk: deep teal grass under a coral-to-indigo evening sky
+    GRASS = hexes("#4F7A58", "#557F5E", "#4A7454", "#527C5B")
+    HILL = hexes("#3C5F52", "#44695A", "#36574A")
+    LEAVES = hexes("#35584A", "#3D6252", "#2F4F42")
+    BLOSSOM = hexes("#C98FA8", "#D49DB4")
+    PETALS = hexes("#E6B422", "#B49AD6", "#7FB8BE", "#E6B422", "#F0ECE0")
+    CLOUD = hexes("#D8CFE0")[0]
+    SKY_HORIZON, SKY_ZENITH = hexes("#E09A7A", "#2B3A6B")
+    GROUND_LO, GROUND_HI = hexes("#4A7454", "#5C8664")
 BARK = (0.50, 0.34, 0.22)
 ROCK = [(0.70, 0.70, 0.72), (0.62, 0.63, 0.66)]
-PETALS = [(1.0, 0.86, 0.36), (0.76, 0.62, 1.0), (0.40, 0.86, 0.92), (1.0, 0.62, 0.72), (1.0, 1.0, 1.0)]
 CENTRE = (1.0, 0.80, 0.25)
 STEM = (0.30, 0.58, 0.28)
-CLOUD = (0.97, 0.98, 1.0)
 WOOD = (0.62, 0.43, 0.27)
 WOOD_DARK = (0.48, 0.32, 0.20)
 
@@ -234,9 +261,17 @@ def grass_tuft(name):
 
 
 def cloud(name, size=1.4):
+    """A cumulus: round puffs, biggest in the middle, with puffs in front, behind and underneath, so it is round all
+    the way around from every angle, below included (owner, Fable refinement 2026-11-11: "I like the cumulus but don't
+    make it flat at the bottom, make it round all the way around at all angles")."""
     p = Piece(name)
-    for (x, z, r) in [(0, 0.1, 0.62), (0.7, 0, 0.5), (-0.7, 0, 0.48), (0.3, 0.35, 0.45), (-0.3, 0.3, 0.42), (1.2, -0.1, 0.33), (-1.15, -0.1, 0.32)]:
-        ico(p, (x * size, rng.uniform(-0.1, 0.1), z * size), r * size, CLOUD, subdiv=2, squash=(1, 0.85, 0.75), wobble=0.06)
+    puffs = [  # (x along, y across, z up, radius) in units of size
+        (0.0, 0.0, 0.14, 0.62), (0.62, 0.10, 0.02, 0.48), (-0.60, -0.08, 0.02, 0.46),
+        (1.05, 0.0, -0.05, 0.32), (-1.02, 0.04, -0.05, 0.30),
+        (0.20, -0.32, 0.04, 0.42), (-0.16, 0.34, 0.0, 0.40), (0.05, 0.0, -0.20, 0.46),
+    ]
+    for (x, y, z, r) in puffs:
+        ico(p, (x * size, y * size, z * size), r * size, CLOUD, subdiv=2, squash=(1.05, 1.0, 0.92), wobble=0.02)
     return finish(p)
 
 
@@ -280,7 +315,7 @@ def ground_sectors(radius=12.0, rings=(0.0, 3.0, 6.0, 9.0, 12.0)):
                     c = f.calc_center_median()
                     n = noise.noise(Vector((c.x * 0.28, c.y * 0.28, 0.37))) * 0.6 + noise.noise(Vector((c.x * 0.9, c.y * 0.9, 1.7))) * 0.25
                     t = max(0.0, min(1.0, 0.5 + n))
-                    lo, hi = (0.40, 0.69, 0.35), (0.53, 0.80, 0.43)
+                    lo, hi = GROUND_LO, GROUND_HI
                     p.colours[f] = tuple(lo[q] + (hi[q] - lo[q]) * t for q in range(3))
             bmesh.ops.remove_doubles(p.bm, verts=p.bm.verts, dist=1e-5)
             pieces.append(finish(p))
@@ -303,7 +338,7 @@ def sky_wedge(name, radius=40.0, wedges=8):
         for s in range(steps):
             f = p.bm.faces.new((verts[r][s], verts[r][s + 1], verts[r + 1][s + 1], verts[r + 1][s]))
             t = (r + 0.5) / rings
-            horizon, zenith = (0.86, 0.94, 0.99), (0.45, 0.70, 0.95)
+            horizon, zenith = SKY_HORIZON, SKY_ZENITH
             p.colours[f] = tuple(horizon[i] + (zenith[i] - horizon[i]) * t ** 0.8 for i in range(3))
     obj = finish(p)
     obj.data.flip_normals()  # seen from inside
@@ -394,7 +429,8 @@ def main():
             obj.location = (0, 0, 0)
 
     os.makedirs(os.path.dirname(EXPORT), exist_ok=True)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Meadow.blend"))
+    if PALETTE == "day":
+        bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Meadow.blend"))
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.fbx(
         filepath=EXPORT, use_selection=True, object_types={"MESH"},

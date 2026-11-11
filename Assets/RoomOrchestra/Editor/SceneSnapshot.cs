@@ -14,6 +14,14 @@ namespace RoomOrchestra.EditorTools
     /// </summary>
     public static class SceneSnapshot
     {
+        // The scene, with the meadow at dusk when the command line says -dusk (golden hour otherwise; the scene's own).
+        static void OpenScene()
+        {
+            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            if (System.Environment.GetCommandLineArgs().Contains("-dusk"))
+                Object.FindFirstObjectByType<MeadowTimeOfDay>()?.Apply(true);
+        }
+
         public static void Capture()
         {
             string path = "docs/evidence/scene-start-view.png";
@@ -21,7 +29,7 @@ namespace RoomOrchestra.EditorTools
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
 
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             var camera = GameObject.Find("EditorPreviewCamera")?.GetComponent<Camera>();
             if (camera == null)
             {
@@ -56,7 +64,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") dir = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>()?.Finish();
             var tray = Object.FindFirstObjectByType<MenuTray>();
             var eye = new Vector3(0f, 1.15f, 0.05f);
@@ -117,7 +125,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
             var tutorial = Object.FindFirstObjectByType<TutorialDirector>();
             var so = new SerializedObject(tutorial);
@@ -166,7 +174,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
             foreach (var station in Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None)) station.ShowNow();
             var room = Object.FindFirstObjectByType<VirtualRoom>();
@@ -193,7 +201,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             // -lesson: as the guided song starts (the leaf's extras tucked away); otherwise free play.
             Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: !args.Contains("-lesson"));
             if (!args.Contains("-lesson")) TuckAway.ShowAllNow();
@@ -211,7 +219,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish();
             var battle = Object.FindFirstObjectByType<EchoBattleDirector>();
             var so = new SerializedObject(battle);
@@ -229,7 +237,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish();
             Object.FindFirstObjectByType<TutorialDirector>().SkipNow();
             var room = Object.FindFirstObjectByType<VirtualRoom>();

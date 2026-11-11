@@ -16,12 +16,18 @@ namespace RoomOrchestra.EditorTools
     public static class MeadowArt
     {
         public const string FbxPath = "Assets/RoomOrchestra/Art/Meadow/Meadow.fbx";
+        /// <summary>The same pieces in the dusk palette (<see cref="MeadowTimeOfDay"/> swaps them in by the headset's clock).</summary>
+        public const string DuskFbxPath = "Assets/RoomOrchestra/Art/Meadow/Meadow_Dusk.fbx";
         const string MaterialDir = "Assets/RoomOrchestra/Materials";
         /// <summary>Kept clear for the lesson's furniture, the leaf and the seat (stage space, x and z).</summary>
         static readonly Rect Clearing = new(-3.0f, -2.0f, 6.0f, 6.2f);
         public const float GroundTile = 2f, GroundRadius = 11f, SkyScale = 0.7f;
 
-        static Dictionary<string, Mesh> s_Meshes;
+        static Dictionary<string, Mesh> s_Meshes, s_DuskMeshes;
+        // every piece built, with its dusk mesh (MeadowTimeOfDay), and the clouds (their own look at dusk)
+        static readonly List<MeshFilter> s_Filters = new();
+        static readonly List<Mesh> s_Day = new(), s_Dusk = new();
+        static readonly List<Renderer> s_Clouds = new();
 
         public static bool Available => System.IO.File.Exists(FbxPath);
 
@@ -42,13 +48,30 @@ namespace RoomOrchestra.EditorTools
             return s_Meshes.TryGetValue(name, out var mesh) ? mesh : null;
         }
 
+        static Mesh Dusk(string name)
+        {
+            if (s_DuskMeshes == null)
+            {
+                if (AssetImporter.GetAtPath(DuskFbxPath) is ModelImporter importer && (importer.materialImportMode != ModelImporterMaterialImportMode.None || importer.importAnimation))
+                {
+                    importer.materialImportMode = ModelImporterMaterialImportMode.None;
+                    importer.importAnimation = false;
+                    importer.importCameras = false;
+                    importer.importLights = false;
+                    importer.SaveAndReimport();
+                }
+                s_DuskMeshes = AssetDatabase.LoadAllAssetsAtPath(DuskFbxPath).OfType<Mesh>().ToDictionary(m => m.name);
+            }
+            return s_DuskMeshes.TryGetValue(name, out var mesh) ? mesh : null;
+        }
+
         public static Material Lit() => EnsureMaterial("MeadowBakedAO", "RoomOrchestra/LitBakedAO", Color.white);
         static Material Sky() => EnsureMaterial("MeadowSky", "RoomOrchestra/UnlitVertexColor", Color.white);
-        // clouds glow softly so their undersides stay white, not storm grey
-        static Material CloudLook()
+        // clouds glow softly so their undersides stay light, not storm grey (less at dusk, so they sit in the evening sky)
+        static Material CloudLook(bool dusk = false)
         {
-            var m = EnsureMaterial("MeadowCloud", "RoomOrchestra/LitBakedAO", Color.white);
-            m.SetColor("_EmissionColor", new Color(0.45f, 0.47f, 0.5f));
+            var m = EnsureMaterial(dusk ? "MeadowCloudDusk" : "MeadowCloud", "RoomOrchestra/LitBakedAO", Color.white);
+            m.SetColor("_EmissionColor", dusk ? new Color(0.25f, 0.25f, 0.25f) : new Color(0.45f, 0.47f, 0.5f));
             return m;
         }
 
@@ -77,11 +100,16 @@ namespace RoomOrchestra.EditorTools
             go.transform.localPosition = at;
             go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
             go.transform.localScale = Vector3.one * scale;
-            go.AddComponent<MeshFilter>().sharedMesh = m;
+            var filter = go.AddComponent<MeshFilter>();
+            filter.sharedMesh = m;
             var r = go.AddComponent<MeshRenderer>();
             r.sharedMaterial = material;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; // the meadow casts no shadows on the stage
             panels.Add(go.transform);
+            s_Filters.Add(filter);
+            s_Day.Add(m);
+            s_Dusk.Add(Dusk(mesh) ?? m);
+            if (mesh.StartsWith("Meadow_Cloud")) s_Clouds.Add(r);
             return go.transform;
         }
 
@@ -91,7 +119,12 @@ namespace RoomOrchestra.EditorTools
             var source = M(name);
             var middle = source.bounds.center;
             middle.y = 0f;
-            string path = $"Assets/RoomOrchestra/Meshes/Meadow/{name}.asset";
+            return (CentredCopy(source, name, middle, name), middle);
+        }
+
+        static Mesh CentredCopy(Mesh source, string name, Vector3 middle, string assetName)
+        {
+            string path = $"Assets/RoomOrchestra/Meshes/Meadow/{assetName}.asset";
             System.IO.Directory.CreateDirectory("Assets/RoomOrchestra/Meshes/Meadow");
             var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
             bool created = mesh == null;
@@ -105,7 +138,7 @@ namespace RoomOrchestra.EditorTools
             mesh.RecalculateBounds();
             if (created) AssetDatabase.CreateAsset(mesh, path);
             EditorUtility.SetDirty(mesh);
-            return (mesh, middle);
+            return mesh;
         }
 
         static bool InClearing(Vector3 p, float margin) =>
@@ -122,6 +155,11 @@ namespace RoomOrchestra.EditorTools
         public static List<Transform> Build(Transform room)
         {
             s_Meshes = null;
+            s_DuskMeshes = null;
+            s_Filters.Clear();
+            s_Day.Clear();
+            s_Dusk.Clear();
+            s_Clouds.Clear();
             var panels = new List<Transform>();
             if (!Available) return panels;
             var lit = Lit();
@@ -136,7 +174,14 @@ namespace RoomOrchestra.EditorTools
             {
                 var (mesh, middle) = Centred(name);
                 var piece = Piece(name, room, centre + middle + Vector3.down * 0.005f, 0f, 1f, lit, panels);
-                if (piece != null) piece.GetComponent<MeshFilter>().sharedMesh = mesh;
+                if (piece != null)
+                {
+                    piece.GetComponent<MeshFilter>().sharedMesh = mesh;
+                    int k = s_Filters.Count - 1;
+                    s_Day[k] = mesh;
+                    var dusk = Dusk(name);
+                    s_Dusk[k] = dusk != null ? CentredCopy(dusk, name, middle, name + "_Dusk") : mesh; // the day's middle: the same place
+                }
             }
             // flowers and grass tufts, around the clearing
             for (int i = 0; i < 16; i++)
@@ -189,6 +234,10 @@ namespace RoomOrchestra.EditorTools
             }
             for (int w = 0; w < 8; w++)
                 Piece("Meadow_SkyWedge", room, centre, w * 45f, SkyScale, sky, panels);
+
+            var clock = room.GetComponent<MeadowTimeOfDay>();
+            if (clock == null) clock = room.gameObject.AddComponent<MeadowTimeOfDay>();
+            clock.Configure(s_Filters.ToArray(), s_Day.ToArray(), s_Dusk.ToArray(), s_Clouds.ToArray(), CloudLook(), CloudLook(dusk: true));
             return panels;
         }
 
