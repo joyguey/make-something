@@ -224,7 +224,7 @@ namespace RoomOrchestra
                     if (m_RestoreDone) FinishRestore();
                     break;
                 case Phase.LookingAround:
-                    if (Time.time - m_ScanStart >= LookAroundSeconds) StartChoosing();
+                    LookingAround();
                     break;
                 case Phase.Scanning:
                     if (Time.time < m_NextTry) return;
@@ -311,15 +311,96 @@ namespace RoomOrchestra
         // or after Start over), Flutter asks the player to look slowly around the whole room while the scan glows and
         // fills in. The headset keeps scanning while they choose too. Not in the Editor (its tests have no room to scan).
         /// <summary>How long the player looks around the room before choosing (s).</summary>
-        public static float LookAroundSeconds => Application.isEditor ? 0f : 20f;
+        public static float LookAroundSeconds => Application.isEditor ? 0f : 6f;
 
         void LookAround()
         {
             m_Phase = Phase.LookingAround;
             m_ScanStart = Time.time;
+            m_NextCoverage = 0f;
             RealWalls.ShowScan = true;
-            Debug.Log($"[RoomOrchestra] Real furniture: look around the whole room for {LookAroundSeconds:F0} s while the scan fills in");
-            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.ScanRoom, LookAroundSeconds);
+            Debug.Log("[RoomOrchestra] Real furniture: look around the whole room while the scan fills in (a bar shows how much)");
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.ScanRoom, LookAroundMaxSeconds);
+        }
+
+        // ---- Moving a kept virtual piece by hand (owner, headset 2026-11-12: "I'd like to be able to grab and drag the
+        // virtual furniture if I end up using the chair ... it was being occluded by the wall") ----
+        // After the lesson, a grip or a fist on a piece of virtual furniture the player kept picks it up; it slides over
+        // the floor with the hand, its echo ring and vines with it.
+        Station m_Moving;
+        Vector3 m_MoveOffset, m_MoveFrom;
+        /// <summary>How close a hand must be to a kept piece to take hold of it (m, from its outline).</summary>
+        public const float MoveReach = 0.2f;
+
+        /// <summary>A hand at <paramref name="hand"/> takes hold of a kept virtual piece there; false if there is none.</summary>
+        public bool TryBeginMove(Vector3 hand)
+        {
+            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return false;
+            foreach (var s in m_Stations)
+            {
+                if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
+                var box = VisibleBox(s.Root);
+                box.Expand(MoveReach * 2f);
+                if (!box.Contains(hand)) continue;
+                m_Moving = s;
+                m_MoveFrom = VisibleBox(s.Root).center;
+                m_MoveOffset = s.Root.position - hand;
+                m_MoveOffset.y = 0f;
+                Debug.Log($"[RoomOrchestra] Real furniture: the virtual {s.Name} taken by hand");
+                return true;
+            }
+            return false;
+        }
+
+        public bool Moving => m_Moving != null;
+
+        public void MoveTo(Vector3 hand)
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            var p = hand + m_MoveOffset;
+            p.y = s.Root.position.y; // it stays on the floor
+            s.Root.position = p;
+            if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
+            Physics.SyncTransforms();
+        }
+
+        public void EndMove()
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            m_Moving = null;
+            var box = VisibleBox(s.Root);
+            var jungle = JungleDirector.Instance;
+            if (jungle != null)
+                jungle.GrowAround(s.Name, new Vector3(m_MoveFrom.x, box.min.y, m_MoveFrom.z), box.size, new Vector3(box.center.x, box.min.y, box.center.z), box.size);
+            UiSounds.Play(UiSound.Place, box.center);
+            Debug.Log($"[RoomOrchestra] Real furniture: the virtual {s.Name} put down at {box.center:F2}");
+        }
+
+        /// <summary>Choosing starts once this share of the room around the player is scanned, after at least
+        /// <see cref="LookAroundSeconds"/>, or after <see cref="LookAroundMaxSeconds"/> whatever the scan shows.</summary>
+        public const float CoverageToChoose = 0.75f, LookAroundMaxSeconds = 45f;
+        float m_NextCoverage, m_Coverage;
+        /// <summary>The scan's coverage of the room around the player now (0..1).</summary>
+        public float ScanCoverage => m_Coverage;
+
+        void LookingAround()
+        {
+            float t = Time.time - m_ScanStart;
+            if (Time.time >= m_NextCoverage)
+            {
+                m_NextCoverage = Time.time + 0.5f;
+                var walls = RealWalls.Instance;
+                var centre = StageAnchor.Instance != null && StageAnchor.Instance.TryGetHeadPose(out var head) ? head.position : SeatFloor();
+                m_Coverage = walls != null ? walls.Coverage(centre) : 0f;
+            }
+            ScanProgressBar.Instance?.Show(m_Coverage);
+            bool enough = m_Coverage >= CoverageToChoose && t >= LookAroundSeconds;
+            if (!enough && t < (Application.isEditor ? LookAroundSeconds : LookAroundMaxSeconds)) return;
+            Debug.Log($"[RoomOrchestra] Real furniture: the room is {m_Coverage * 100f:F0}% scanned after {t:F0} s; choosing begins");
+            ScanProgressBar.Instance?.Done();
+            StartChoosing();
         }
 
         /// <summary>Choose places again (Menu): the saved places are forgotten and Flutter asks again.</summary>

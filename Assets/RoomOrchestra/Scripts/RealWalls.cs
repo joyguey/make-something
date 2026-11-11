@@ -269,6 +269,36 @@ namespace RoomOrchestra
         /// <summary>Every scanned piece's triangles in scene space (three corners each), for finding a real object's shape.</summary>
         public IEnumerable<Vector3[]> PieceTriangles => m_Pieces.Values;
 
+        // ---- How much of the room is scanned (owner, headset 2026-11-12: "there should be some indicator of a bar to
+        // show how much of the room has been scanned") ----
+        /// <summary>Directions around the player; one counts once this many scanned triangles lie that way, near enough.</summary>
+        public const int CoverageSectors = 16, TrianglesPerSector = 24;
+        public const float CoverageNear = 0.4f, CoverageFar = 7f;
+
+        /// <summary>Test hook: a scanned piece under its own number (counted by <see cref="Coverage"/> only).</summary>
+        public void SetPieceForTest(int n, Vector3[] worldTriangles) => m_TestPieces[n] = worldTriangles;
+
+        readonly Dictionary<int, Vector3[]> m_TestPieces = new();
+
+        /// <summary>The share (0..1) of directions around <paramref name="centre"/> the scan already covers.</summary>
+        public float Coverage(Vector3 centre)
+        {
+            var counts = new int[CoverageSectors];
+            foreach (var tris in System.Linq.Enumerable.Concat(m_Pieces.Values, m_TestPieces.Values))
+                for (int i = 0; i + 2 < tris.Length; i += 3)
+                {
+                    var c = (tris[i] + tris[i + 1] + tris[i + 2]) / 3f - centre;
+                    c.y = 0f;
+                    float d = c.magnitude;
+                    if (d < CoverageNear || d > CoverageFar) continue;
+                    float a = Mathf.Atan2(c.z, c.x) / (Mathf.PI * 2f) + 0.5f;
+                    counts[Mathf.Clamp((int)(a * CoverageSectors), 0, CoverageSectors - 1)]++;
+                }
+            int covered = 0;
+            foreach (var n in counts) if (n >= TrianglesPerSector) covered++;
+            return covered / (float)CoverageSectors;
+        }
+
         /// <summary>A scanned piece's triangles in scene space (tests feed a pretend room this way).</summary>
         public void SetPiece(MeshId id, Vector3[] worldTriangles)
         {

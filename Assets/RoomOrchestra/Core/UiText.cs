@@ -136,7 +136,10 @@ namespace RoomOrchestra
         Handpan,
         Guzheng,
         Balafon,
-        SlitDrum
+        SlitDrum,
+        /// <summary>The room-scan progress bar (owner, headset 2026-11-12).</summary>
+        ScanProgress,
+        ScanProgressHint
     }
 
     /// <summary>
@@ -169,6 +172,8 @@ namespace RoomOrchestra
             { UiTerm.Guzheng, ("guzheng", "古筝") },
             { UiTerm.Balafon, ("balafon", "巴拉风木琴") },
             { UiTerm.SlitDrum, ("slit drum", "木鼓") },
+            { UiTerm.ScanProgress, ("Scanning your room: {0}%", "正在扫描房间：{0}%") },
+            { UiTerm.ScanProgressHint, ("Look all around: walls, floor, furniture", "看一圈：墙、地板、家具") },
             { UiTerm.Muted, ("Muted", "静音") },
             { UiTerm.Open, ("Deep", "开音") },
             { UiTerm.MutedHit, ("Soft", "闷音") },

@@ -157,6 +157,7 @@ namespace RoomOrchestra.EditorTools
             CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
+            CreateScanProgressBar(root.transform);
             root.AddComponent<InstrumentIconLibrary>().Configure(
                 ((InstrumentType[])System.Enum.GetValues(typeof(InstrumentType))).Select(InstrumentIconMesh).ToArray(), MeadowArt.Lit());
             // the meadow theme (V3 review: background music), on the title, the opening and while the song is empty
@@ -1975,6 +1976,31 @@ namespace RoomOrchestra.EditorTools
                 .Select(o => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/RoomOrchestra/Audio/Effects/Bounce_{o}.wav")).ToArray();
             if (clips.Any(c => c == null)) Debug.LogWarning("[RoomOrchestra] Bounce sounds missing: run ArtSource/Audio/gen_bounce.py");
             return clips;
+        }
+
+        // The room-scan progress bar (owner, headset 2026-11-12): a dark track, a green fill, the percentage above and
+        // a hint below. It places itself in front of the player while the room is scanned.
+        static void CreateScanProgressBar(Transform root)
+        {
+            var bar = Holder("ScanProgress", root, new Vector3(0f, 0.15f, -1.3f)); // saved low behind the seat, hidden; it places itself
+            bar.rotation = FacePlayer(bar.position);
+            var plate = EnsureMaterial("ScanBarPlate", "Ball", new Color(0.16f, 0.09f, 0.22f));
+            var track = EnsureMaterial("ScanBarTrack", "Ball", new Color(0.3f, 0.24f, 0.36f));
+            var fillLook = Glow(EnsureMaterial("ScanBarFill", "Ball", new Color(0.45f, 0.86f, 0.5f)), new Color(0.2f, 0.45f, 0.22f));
+            Box("ScanPlate", bar, new Vector3(0f, 0f, 0.012f), new Vector3(0.5f, 0.2f, 0.015f), plate, keepCollider: false);
+            var meter = Holder("ScanMeter", bar, new Vector3(0f, -0.005f, 0f));
+            meter.localRotation = Quaternion.identity;
+            meter.localScale = new Vector3(ScanProgressBar.BarWidth, 0.035f, 0.012f);
+            Box("ScanTrack", meter, Vector3.zero, Vector3.one, track, keepCollider: false);
+            var fill = Box("ScanFill", meter, new Vector3(0f, 0f, -0.25f), new Vector3(1f, 1.05f, 1f), fillLook, keepCollider: false); // saved full; it shows the progress
+            var percent = Label("ScanLabel", "Scanning your room: 0%", bar, new Vector3(0f, 0.055f, -0.006f), 0.032f);
+            percent.localRotation = Quaternion.identity;
+            var help = Label("ScanHint", "Look all around: walls, floor, furniture", bar, new Vector3(0f, -0.06f, -0.006f), 0.022f);
+            help.localRotation = Quaternion.identity;
+            foreach (var r in bar.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var view = bar.gameObject.AddComponent<ScanProgressBar>();
+            view.Configure(fill, percent.GetComponentInChildren<TMP_Text>(), help.GetComponentInChildren<TMP_Text>());
+            EditorUtility.SetDirty(view);
         }
 
         const string InstrumentIconsFbx = "Assets/RoomOrchestra/Art/Icons/InstrumentIcons.fbx";

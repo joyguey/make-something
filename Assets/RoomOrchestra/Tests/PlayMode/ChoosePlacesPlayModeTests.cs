@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -195,6 +196,21 @@ namespace RoomOrchestra.Tests
             }
             Assert.AreEqual(RealFurniture.Phase.Placed, placer.State, "all three chosen");
             Assert.AreEqual(1, placer.MatchedCount, "one on the desk, two kept virtual");
+
+            // owner, headset 2026-11-12: a kept virtual piece can be picked up and moved somewhere easier to see
+            var kept = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None).First(t => t != first && Drawn(t));
+            var keptFrom = kept.transform.position;
+            var grabAt = kept.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((x, y) => { x.Encapsulate(y); return x; }).center;
+            Assert.IsTrue(placer.TryBeginMove(grabAt), $"a hand on the {kept.name} takes hold of it");
+            var shift = new Vector3(0.6f, 0.3f, -0.4f);
+            placer.MoveTo(grabAt + shift);
+            yield return null;
+            Assert.AreEqual(keptFrom.x + shift.x, kept.transform.position.x, 0.02f, "it follows the hand across the floor");
+            Assert.AreEqual(keptFrom.z + shift.z, kept.transform.position.z, 0.02f);
+            Assert.AreEqual(keptFrom.y, kept.transform.position.y, 0.02f, "and stays on the floor");
+            placer.EndMove();
+            Assert.IsFalse(placer.Moving);
+            Assert.IsFalse(placer.TryBeginMove(new Vector3(9f, 1f, 9f)), "nothing to take far from any furniture");
             Assert.IsFalse(RealWalls.ShowScan, "the room stops glowing");
             yield return null;
             Assert.IsTrue(RealWalls.Occlude, "and now real walls and furniture hide what is behind them");
