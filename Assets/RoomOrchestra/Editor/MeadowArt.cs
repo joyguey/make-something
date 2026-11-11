@@ -85,6 +85,29 @@ namespace RoomOrchestra.EditorTools
             return go.transform;
         }
 
+        // A copy of a mesh built in place, moved so its own middle is its origin (saved beside the other meshes).
+        static (Mesh mesh, Vector3 middle) Centred(string name)
+        {
+            var source = M(name);
+            var middle = source.bounds.center;
+            middle.y = 0f;
+            string path = $"Assets/RoomOrchestra/Meshes/Meadow/{name}.asset";
+            System.IO.Directory.CreateDirectory("Assets/RoomOrchestra/Meshes/Meadow");
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            bool created = mesh == null;
+            if (created) mesh = new Mesh();
+            mesh.Clear();
+            mesh.name = name;
+            mesh.vertices = source.vertices.Select(v => v - middle).ToArray();
+            mesh.normals = source.normals;
+            mesh.colors = source.colors;
+            mesh.triangles = source.triangles;
+            mesh.RecalculateBounds();
+            if (created) AssetDatabase.CreateAsset(mesh, path);
+            EditorUtility.SetDirty(mesh);
+            return (mesh, middle);
+        }
+
         static bool InClearing(Vector3 p, float margin) =>
             p.x > Clearing.xMin - margin && p.x < Clearing.xMax + margin && p.z > Clearing.yMin - margin && p.z < Clearing.yMax + margin;
 
@@ -106,14 +129,15 @@ namespace RoomOrchestra.EditorTools
             var rng = new System.Random(20261111);
             var centre = new Vector3(0f, 0f, 1.2f);
 
-            // grass underfoot: 2 m tiles to the meadow's edge, three variants turned at random
-            for (float x = -GroundRadius; x <= GroundRadius; x += GroundTile)
-                for (float z = -GroundRadius; z <= GroundRadius; z += GroundTile)
-                {
-                    var at = centre + new Vector3(x, 0f, z);
-                    if (new Vector2(x, z).magnitude > GroundRadius) continue;
-                    Piece($"Meadow_Ground{rng.Next(3)}", room, at + Vector3.down * 0.005f, 90f * rng.Next(4), 1f, lit, panels);
-                }
+            // grass underfoot: the floor's ring sectors, built in place in Blender with one noise across them (soft
+            // patches, no checkerboard), each moved to its own middle so the floor still comes apart piece by piece
+            M("Meadow_SkyWedge"); // loads the meadow's meshes
+            foreach (var name in s_Meshes.Keys.Where(k => k.StartsWith("Meadow_GroundS")).OrderBy(k => k).ToList())
+            {
+                var (mesh, middle) = Centred(name);
+                var piece = Piece(name, room, centre + middle + Vector3.down * 0.005f, 0f, 1f, lit, panels);
+                if (piece != null) piece.GetComponent<MeshFilter>().sharedMesh = mesh;
+            }
             // flowers and grass tufts, around the clearing
             for (int i = 0; i < 16; i++)
             {

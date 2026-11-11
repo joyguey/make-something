@@ -251,6 +251,42 @@ def ground_tile(name, size=2.0, seed=0):
     return finish(p)
 
 
+def ground_sectors(radius=12.0, rings=(0.0, 3.0, 6.0, 9.0, 12.0)):
+    """The meadow floor around the stage (its centre at the origin): ring sectors that meet exactly, coloured by one
+    noise over the whole meadow (soft patches that flow across pieces, no checkerboard). Built in place: Unity moves
+    each piece's origin to its middle, so the floor still comes apart piece by piece."""
+    pieces = []
+    for r in range(len(rings) - 1):
+        r0, r1 = rings[r], rings[r + 1]
+        sectors = 4 if r == 0 else 8
+        for k in range(sectors):
+            p = Piece(f"Meadow_GroundS{r}_{k}")
+            a0, a1 = k / sectors * math.tau, (k + 1) / sectors * math.tau
+            rad_steps, ang_steps = 4, 64 // sectors  # every ring cut into the same 64 steps round: edges meet with no gaps
+            grid = []
+            for i in range(rad_steps + 1):
+                rr = r0 + (r1 - r0) * i / rad_steps
+                row = []
+                for j in range(ang_steps + 1):
+                    aa = a0 + (a1 - a0) * j / ang_steps
+                    row.append(p.bm.verts.new((rr * math.cos(aa), rr * math.sin(aa), 0.0)))
+                grid.append(row)
+            for i in range(rad_steps):
+                for j in range(ang_steps):
+                    if i == 0 and r0 == 0.0:
+                        f = p.bm.faces.new((grid[0][0], grid[1][j], grid[1][j + 1]))
+                    else:
+                        f = p.bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+                    c = f.calc_center_median()
+                    n = noise.noise(Vector((c.x * 0.28, c.y * 0.28, 0.37))) * 0.6 + noise.noise(Vector((c.x * 0.9, c.y * 0.9, 1.7))) * 0.25
+                    t = max(0.0, min(1.0, 0.5 + n))
+                    lo, hi = (0.40, 0.69, 0.35), (0.53, 0.80, 0.43)
+                    p.colours[f] = tuple(lo[q] + (hi[q] - lo[q]) * t for q in range(3))
+            bmesh.ops.remove_doubles(p.bm, verts=p.bm.verts, dist=1e-5)
+            pieces.append(finish(p))
+    return pieces
+
+
 def sky_wedge(name, radius=40.0, wedges=8):
     """One of the sky's wedges: a dome slice, inside facing, blue overhead to pale at the horizon."""
     p = Piece(name)
@@ -344,21 +380,23 @@ def main():
     built.append((grass_tuft("Meadow_Grass1"), 0.15))
     for i in range(2):
         built.append((cloud(f"Meadow_Cloud{i}", size=rng.uniform(1.2, 1.7)), 0.8))
-    for i in range(3):
-        built.append((ground_tile(f"Meadow_Ground{i}", seed=i), None))
+    for g in ground_sectors():
+        built.append((g, None))
     built.append((sky_wedge("Meadow_SkyWedge"), None))
     built.append((sign("Meadow_TitleSign"), 0.3))
 
     # each piece apart from the others while baking, then home at the origin
     for k, (obj, distance) in enumerate(built):
-        obj.location = (k * 60.0, 0, 0) if obj.name != "Meadow_SkyWedge" else (0, 0, -500)
+        if distance is not None:  # only the baked pieces move apart (the floor and sky are built in place)
+            obj.location = (k * 60.0, 0, 0)
     bpy.context.view_layer.update()
     for obj, distance in built:
         if distance is not None:
             bake_ao(obj, distance, floor=0.82 if "Cloud" in obj.name else 0.25)  # clouds stay bright and soft
             print(f"[meadow] AO baked: {obj.name}")
-    for obj, _ in built:
-        obj.location = (0, 0, 0)
+    for obj, distance in built:
+        if distance is not None:
+            obj.location = (0, 0, 0)
 
     os.makedirs(os.path.dirname(EXPORT), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Meadow.blend"))

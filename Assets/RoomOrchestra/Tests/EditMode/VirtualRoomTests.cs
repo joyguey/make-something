@@ -39,7 +39,7 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(inside.Contains(new Vector3(0f, 1.15f, 0f)), "the seat is inside");
             // V3 review: a meadow instead of a box: grass, flowers, trees, hills, clouds and sky, inside invisible fences
             Assert.AreEqual(40, room.Panels.Count(p => p.name.StartsWith("Wall")), "4 invisible fences of 10");
-            Assert.Greater(room.Panels.Count(p => p.name.StartsWith("Ground")), 60, "grass underfoot");
+            Assert.AreEqual(28, room.Panels.Count(p => p.name.StartsWith("GroundS")), "grass underfoot: the floor's ring sectors");
             foreach (var kind in new[] { "Tree", "Hill", "Flowers", "Bush", "Cloud", "SkyWedge" })
                 Assert.IsTrue(room.Panels.Any(p => p.name.StartsWith(kind)), $"the meadow has {kind}");
         }
