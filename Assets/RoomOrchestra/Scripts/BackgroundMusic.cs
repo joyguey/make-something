@@ -12,7 +12,31 @@ namespace RoomOrchestra
     [RequireComponent(typeof(AudioSource))]
     public class BackgroundMusic : MonoBehaviour
     {
-        public const float Level = 0.32f, FadeSeconds = 1.6f, ComeBackAfterSeconds = 4f;
+        public const float Level = 0.32f, FadeSeconds = 1.2f, ComeBackAfterSeconds = 4f;
+        /// <summary>
+        /// Owner, headset 2026-11-12: "the song should only be playing during the silence and disappear once I throw a
+        /// ball". A throw or any note fades it out; it comes back only after this long with nothing played.
+        /// </summary>
+        public const float SilenceSeconds = 8f;
+        static float s_LastPlayed = -100f;
+        public static void PlayerPlayed() => s_LastPlayed = Time.unscaledTime;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => s_LastPlayed = -100f;
+
+        void OnEnable()
+        {
+            BallLauncher.Thrown += PlayerPlayed;
+            MusicalHitPipeline.Committed += OnHit;
+        }
+
+        void OnDisable()
+        {
+            BallLauncher.Thrown -= PlayerPlayed;
+            MusicalHitPipeline.Committed -= OnHit;
+        }
+
+        static void OnHit(MusicalHitEvent _) => PlayerPlayed();
 
         [SerializeField] AudioClip theme;
 
@@ -52,6 +76,7 @@ namespace RoomOrchestra
             bool lesson = tutorial != null && tutorial.Active;
             if (intro != null && !intro.Done) return !lesson;
             if (lesson) return false;
+            if (Time.unscaledTime - s_LastPlayed < SilenceSeconds) return false; // the player is playing
             var conductor = EchoConductor.Instance;
             if (conductor != null && (conductor.IsPaused || conductor.Echoes.Count > 0)) return false;
             return true; // the meadow, scanning, choosing furniture, an empty song

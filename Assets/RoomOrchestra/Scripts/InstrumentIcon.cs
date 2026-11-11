@@ -21,6 +21,9 @@ namespace RoomOrchestra
         int m_Shown = -1;
         Quaternion m_Rest;
 
+        /// <summary>Faces this way (scene space) and sways about it; unset, it sways about its own resting turn.</summary>
+        public Quaternion? Facing { get; set; }
+
         /// <summary>The instrument the icon shows now.</summary>
         public InstrumentType? Showing => m_Shown < 0 ? null : (InstrumentType)m_Shown;
 
@@ -69,9 +72,9 @@ namespace RoomOrchestra
         void Update()
         {
             Refresh();
-            if (VineGrowth.ReducedMotion) return;
-            float yaw = SwayDegrees * Mathf.Sin(Time.time * Mathf.PI * 2f / SwaySeconds);
-            transform.localRotation = m_Rest * Quaternion.Euler(0f, yaw, 0f);
+            float yaw = VineGrowth.ReducedMotion ? 0f : SwayDegrees * Mathf.Sin(Time.time * Mathf.PI * 2f / SwaySeconds);
+            if (Facing.HasValue) transform.rotation = Facing.Value * Quaternion.Euler(0f, yaw, 0f);
+            else transform.localRotation = m_Rest * Quaternion.Euler(0f, yaw, 0f);
         }
     }
 }

@@ -143,6 +143,16 @@ namespace RoomOrchestra
         // out (owner, headset 2026-11-08: "a yellow disk behind the menu" at the start).
         Renderer[] m_MarkerLooks;
 
+        /// <summary>Never over the ball on the cloud (owner, headset 2026-11-12: "a yellow disk on top of the ball").</summary>
+        public const float ClearOfBall = 0.5f;
+
+        bool NearTheBall(Vector3 at)
+        {
+            var ball = launcher != null ? launcher.ReadyBall : null;
+            if (ball != null && (ball.transform.position - at).sqrMagnitude < ClearOfBall * ClearOfBall) return true;
+            return launcher != null && launcher.SpawnPosition.HasValue && (launcher.SpawnPosition.Value - at).sqrMagnitude < ClearOfBall * ClearOfBall;
+        }
+
         void LateUpdate()
         {
             if (focusMarker == null) return;
@@ -155,7 +165,8 @@ namespace RoomOrchestra
             // reached past the cloud). On real objects the glow and the note labels show the target; the disc is only
             // drawn over the lesson's virtual furniture.
             bool on = (title == null || !title.Showing) && (intro == null || intro.Done) && target != null
-                      && !StationReveal.IsHidden(target.Instrument) && target.Home == null;
+                      && !StationReveal.IsHidden(target.Instrument) && target.Home == null
+                      && !NearTheBall(target.AimPosition + Vector3.up * focusMarkerLift);
             foreach (var r in m_MarkerLooks) if (r != null && r.enabled != on) r.enabled = on;
         }
 

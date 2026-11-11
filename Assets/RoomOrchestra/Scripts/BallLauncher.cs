@@ -12,6 +12,8 @@ namespace RoomOrchestra
     /// </summary>
     public class BallLauncher : MonoBehaviour
     {
+        /// <summary>A ball left the player's hand (the meadow theme steps aside for the player's music).</summary>
+        public static event System.Action Thrown;
         [SerializeField] Transform spawnPoint;
         [Tooltip("Where spare balls wait out of sight (inside the ball stand's cloud).")]
         [SerializeField] Transform parkPoint;
@@ -341,6 +343,7 @@ namespace RoomOrchestra
             m_Thrown.AddLast(ball);
             ThrowCount++;
             Debug.Log($"[RoomOrchestra] Ball thrown #{ThrowCount} speed={velocity.magnitude:F1} m/s");
+            Thrown?.Invoke();
             PrepareNext();
             return ball;
         }

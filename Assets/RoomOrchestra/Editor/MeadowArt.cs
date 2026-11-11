@@ -151,6 +151,9 @@ namespace RoomOrchestra.EditorTools
                 if (InClearing(at, 0f)) continue;
                 Piece($"Meadow_Grass{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 0.8f + (float)rng.NextDouble() * 0.6f, lit, panels);
             }
+            // the bush the friends hide in until Start, beside the leaf (LittleEchoesSceneSetup.FriendsBushAt)
+            var hide = Piece("Meadow_Bush2", room, LittleEchoesSceneSetup.FriendsBushAt, 20f, 1.15f, lit, panels);
+            if (hide != null) hide.name = "FriendsBush";
             // bushes and rocks at the clearing's edge
             for (int i = 0; i < 11; i++)
             {

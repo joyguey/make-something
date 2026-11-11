@@ -795,14 +795,19 @@ namespace RoomOrchestra.EditorTools
         // characters sitting on the floor in front of the leaf's home, ready to bounce up onto it.
         const float IntroFloorZ = 1.0f;
 
+        /// <summary>The bush the three friends hide in until Start (stage space), left of where the leaf lands.</summary>
+        public static readonly Vector3 FriendsBushAt = new(-1.05f, 0f, 1.6f);
+
         static IntroSequence CreateIntro(GameObject root, Transform swoop, OrbToken[] tokens, LeafStalk stalk)
         {
             var cast = tokens.Select(t => t.transform).ToArray();
-            var floor = cast.Select(t =>
+            // Owner, headset 2026-11-12: not waiting on the floor at the title; they hide in a bush beside the leaf and
+            // pop out of it on Start, hopping up onto the leaf as it lands.
+            var floor = cast.Select((t, i) =>
             {
                 var body = t.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
                 float aboveFeet = t.position.y - body.min.y;
-                return new Vector3(t.position.x, aboveFeet + 0.003f, IntroFloorZ);
+                return FriendsBushAt + new Vector3(-0.1f + 0.1f * i, aboveFeet + 0.003f, 0.04f * (i % 2));
             }).ToArray();
             var intro = root.AddComponent<IntroSequence>();
             var title = CreateTitle(root, intro);
@@ -815,6 +820,8 @@ namespace RoomOrchestra.EditorTools
         // The title card (Version 1 feedback: "boot into a proper title screen"): in front of the player, the
         // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
         static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
+        /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
+        const float TitleRailTop = 0.47f;
         // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
         static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
 
@@ -873,6 +880,9 @@ namespace RoomOrchestra.EditorTools
                 friend.transform.localScale = Vector3.one * 0.16f;
                 var body = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Orb_{types[i]}.mat");
                 if (CharacterArt.Has(types[i])) CharacterArt.Dress(friend, types[i], body);
+                // standing on the top rail, above its leafy vine (owner, headset 2026-11-12: they sank into the post)
+                var look = friend.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+                friend.transform.position += Vector3.up * (TitleCardAt.y + TitleRailTop - look.min.y);
                 friend.AddComponent<TitleFriend>().Configure(i * 0.33f);
             }
             var title = root.AddComponent<TitleScreen>();

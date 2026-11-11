@@ -211,6 +211,15 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(home.Icon.gameObject.activeInHierarchy, "and the instrument's picture over the object");
             yield return null;
             Assert.AreEqual(home.Target.Instrument, home.Icon.Showing);
+            // owner, headset 2026-11-12: "where can I switch out an instrument?" a tap on the picture changes it
+            var was = home.Target.Instrument;
+            Assert.IsTrue(InstrumentInputRouter.Activate(home.Icon.gameObject), "the picture takes a tap");
+            yield return null;
+            Assert.AreEqual(InstrumentPacks.Next(was), home.Target.Instrument, "and the furniture plays the next instrument");
+            yield return null;
+            Assert.AreEqual(home.Target.Instrument, home.Icon.Showing, "the picture follows");
+            InstrumentPacks.Instance.Place(home.Target, was); // back, for the rest of the test
+            yield return new WaitForSeconds(0.3f);
             Point(hand, right, false);
             yield return null;
             int rightBand = home.Hover;
