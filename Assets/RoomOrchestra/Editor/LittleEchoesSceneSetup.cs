@@ -157,6 +157,8 @@ namespace RoomOrchestra.EditorTools
             CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
+            root.AddComponent<InstrumentIconLibrary>().Configure(
+                ((InstrumentType[])System.Enum.GetValues(typeof(InstrumentType))).Select(InstrumentIconMesh).ToArray(), MeadowArt.Lit());
             // the meadow theme (V3 review: background music), on the title, the opening and while the song is empty
             var theme = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RoomOrchestra/Audio/Music/MeadowTheme.wav");
             if (theme != null)
@@ -1327,8 +1329,14 @@ namespace RoomOrchestra.EditorTools
                 pack.udu = SoundSets.Clips(dir, "Udu");
                 pack.mbira = SoundSets.Clips(dir, "Mbira");
                 pack.erhu = SoundSets.Clips(dir, "Erhu");
-                pack.volumes = new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu }
-                    .Select(t => SoundSets.VolumeFor(dir, t.ToString())).ToArray();
+                // the V4 library: the same sounds in every pack, each matched to the first three's loudness
+                pack.ocarina = SoundSets.Clips(SoundSets.LibraryDir, "Ocarina");
+                pack.handpan = SoundSets.Clips(SoundSets.LibraryDir, "Handpan");
+                pack.guzheng = SoundSets.Clips(SoundSets.LibraryDir, "Guzheng");
+                pack.balafon = SoundSets.Clips(SoundSets.LibraryDir, "Balafon");
+                pack.slitDrum = SoundSets.Clips(SoundSets.LibraryDir, "SlitDrum");
+                pack.volumes = ((InstrumentType[])System.Enum.GetValues(typeof(InstrumentType)))
+                    .Select(t => System.Array.IndexOf(Instruments.Library, t) >= 0 ? SoundSets.LibraryVolume(t.ToString()) : SoundSets.VolumeFor(dir, t.ToString())).ToArray();
                 return pack;
             }
             var packs = root.AddComponent<InstrumentPacks>();
@@ -1844,6 +1852,14 @@ namespace RoomOrchestra.EditorTools
             caption.rotation = mixTile.rotation;
             var mix = mixTile.gameObject.AddComponent<MixButton>();
             mix.Configure(target, caption.GetComponentInChildren<TMP_Text>());
+            // a small picture of the instrument beside its name (owner, 2026-11-11: names people may never have heard)
+            var icon = InstrumentIcon.Create(go.transform, "InstrumentIcon", 0.9f);
+            icon.transform.position = mixTile.position - mixTile.right * 0.15f;
+            icon.transform.rotation = mixTile.rotation;
+            icon.GetComponent<MeshFilter>().sharedMesh = InstrumentIconMesh(target.Instrument);
+            icon.GetComponent<MeshRenderer>().sharedMaterial = MeadowArt.Lit();
+            icon.Configure(target);
+            EditorUtility.SetDirty(icon);
             EditorUtility.SetDirty(mix);
 
             // Under the name: Change gives this furniture the next instrument (InstrumentPacks).
@@ -1949,6 +1965,19 @@ namespace RoomOrchestra.EditorTools
                 .Select(o => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/RoomOrchestra/Audio/Effects/Bounce_{o}.wav")).ToArray();
             if (clips.Any(c => c == null)) Debug.LogWarning("[RoomOrchestra] Bounce sounds missing: run ArtSource/Audio/gen_bounce.py");
             return clips;
+        }
+
+        const string InstrumentIconsFbx = "Assets/RoomOrchestra/Art/Icons/InstrumentIcons.fbx";
+
+        static Mesh InstrumentIconMesh(InstrumentType type)
+        {
+            if (AssetImporter.GetAtPath(InstrumentIconsFbx) is ModelImporter importer && importer.materialImportMode != ModelImporterMaterialImportMode.None)
+            {
+                importer.materialImportMode = ModelImporterMaterialImportMode.None;
+                importer.importAnimation = false;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAllAssetsAtPath(InstrumentIconsFbx).OfType<Mesh>().FirstOrDefault(m => m.name == $"Icon_{type}");
         }
 
         static Material EnsureMaterial(string name, string template, Color color)

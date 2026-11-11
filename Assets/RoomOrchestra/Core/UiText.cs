@@ -130,7 +130,13 @@ namespace RoomOrchestra
         BattleGone,
         BattleFinishLesson,
         ConfirmAgain,
-        Quit
+        Quit,
+        /// <summary>The V4 instrument library's names (appended: terms are stored by number).</summary>
+        Ocarina,
+        Handpan,
+        Guzheng,
+        Balafon,
+        SlitDrum
     }
 
     /// <summary>
@@ -158,6 +164,11 @@ namespace RoomOrchestra
             { UiTerm.Udu, ("udu", "乌杜鼓") },
             { UiTerm.Mbira, ("mbira", "拇指琴") },
             { UiTerm.Erhu, ("erhu", "二胡") },
+            { UiTerm.Ocarina, ("ocarina", "陶笛") },
+            { UiTerm.Handpan, ("handpan", "手碟") },
+            { UiTerm.Guzheng, ("guzheng", "古筝") },
+            { UiTerm.Balafon, ("balafon", "巴拉风木琴") },
+            { UiTerm.SlitDrum, ("slit drum", "木鼓") },
             { UiTerm.Muted, ("Muted", "静音") },
             { UiTerm.Open, ("Deep", "开音") },
             { UiTerm.MutedHit, ("Soft", "闷音") },
@@ -268,6 +279,11 @@ namespace RoomOrchestra
         {
             InstrumentType.Udu => UiTerm.Udu,
             InstrumentType.Mbira => UiTerm.Mbira,
+            InstrumentType.Ocarina => UiTerm.Ocarina,
+            InstrumentType.Handpan => UiTerm.Handpan,
+            InstrumentType.Guzheng => UiTerm.Guzheng,
+            InstrumentType.Balafon => UiTerm.Balafon,
+            InstrumentType.SlitDrum => UiTerm.SlitDrum,
             _ => UiTerm.Erhu,
         }, language);
 

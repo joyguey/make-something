@@ -151,6 +151,9 @@ namespace RoomOrchestra.Tests
             Assert.Greater(preview.GetComponent<MeshFilter>().sharedMesh.vertexCount, 100, "in its own scanned shape");
             var cursor = placer.SpotAt(0);
             Assert.IsTrue(cursor.Shown, "with the instrument's name over it");
+            var spotIcon = cursor.GetComponentInChildren<InstrumentIcon>();
+            Assert.IsNotNull(spotIcon, "and its picture (owner, 2026-11-11)");
+            Assert.AreEqual(first.Instrument, spotIcon.Showing);
             Assert.AreEqual(first.Instrument.ToString().ToLowerInvariant(), cursor.Text.ToLowerInvariant());
 
             // a press: the mbira lives on the desk; the virtual chair is gone
@@ -205,6 +208,9 @@ namespace RoomOrchestra.Tests
             yield return null;
             int leftBand = home.Hover;
             Assert.IsTrue(home.BandsShown, "pointing shows the five bands");
+            Assert.IsTrue(home.Icon.gameObject.activeInHierarchy, "and the instrument's picture over the object");
+            yield return null;
+            Assert.AreEqual(home.Target.Instrument, home.Icon.Showing);
             Point(hand, right, false);
             yield return null;
             int rightBand = home.Hover;

@@ -51,6 +51,9 @@ namespace RoomOrchestra
         int m_Hover = -1;
 
         public InstrumentTarget Target => m_Target;
+        InstrumentIcon m_Icon;
+        /// <summary>The instrument's picture over the object while its notes show (tests).</summary>
+        public InstrumentIcon Icon => m_Icon;
         public string Furniture { get; private set; }
         /// <summary>The object's box in its own frame (centred on this transform).</summary>
         public Vector3 Size => m_Size;
@@ -159,6 +162,10 @@ namespace RoomOrchestra
                     }
                     label.SetActive(false);
                 }
+            // the instrument's picture floats over the object while its notes show (owner, 2026-11-11)
+            m_Icon = InstrumentIcon.Create(transform, "InstrumentIcon", 1.6f);
+            m_Icon.Configure(m_Target);
+            m_Icon.gameObject.SetActive(false);
             WorldBounds = ComputeWorldBounds();
         }
 
@@ -173,6 +180,11 @@ namespace RoomOrchestra
         {
             InstrumentType.Udu => new Color(1f, 0.62f, 0.3f),
             InstrumentType.Mbira => new Color(0.55f, 0.9f, 0.55f),
+            InstrumentType.Ocarina => new Color(0.95f, 0.75f, 0.55f),
+            InstrumentType.Handpan => new Color(0.7f, 0.8f, 0.95f),
+            InstrumentType.Guzheng => new Color(0.95f, 0.55f, 0.6f),
+            InstrumentType.Balafon => new Color(0.85f, 0.7f, 0.45f),
+            InstrumentType.SlitDrum => new Color(0.75f, 0.55f, 0.4f),
             _ => new Color(0.75f, 0.6f, 1f)
         };
 
@@ -373,6 +385,16 @@ namespace RoomOrchestra
             if (!on)
                 foreach (var label in m_Labels)
                     if (label != null && label.gameObject.activeSelf) label.gameObject.SetActive(false);
+            if (m_Icon != null && m_Icon.gameObject.activeSelf != on) m_Icon.gameObject.SetActive(on);
+            if (on && m_Icon != null)
+            {
+                var viewer = Viewer();
+                var at = Top + Vector3.up * 0.32f;
+                m_Icon.transform.position = at;
+                var look = at - viewer;
+                look.y = 0f;
+                if (look.sqrMagnitude > 1e-4f) m_Icon.transform.rotation = Quaternion.LookRotation(look);
+            }
         }
 
         void Update()

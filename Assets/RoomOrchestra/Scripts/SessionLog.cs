@@ -7,7 +7,7 @@ namespace RoomOrchestra
     /// Keeps the game's own log lines ([RoomOrchestra] and any error) in a file on the headset, so a whole session can be
     /// read afterwards (owner, 2026-11-08: "please look at the log for the mistakes", and the headset's shared log had
     /// already dropped the start of that session). The last three sessions are kept in the app's own files folder
-    /// (adb pull /sdcard/Android/data/com.roomorchestra.app/files/logs); nothing is sent anywhere.
+    /// (adb pull /sdcard/Android/data/com.littleechoes.app/files/logs); nothing is sent anywhere.
     /// </summary>
     public static class SessionLog
     {

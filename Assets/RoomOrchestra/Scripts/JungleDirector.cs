@@ -102,7 +102,8 @@ namespace RoomOrchestra
             m_Chorus = false;
         }
 
-        void OnNoteAdded(EchoEvent echo) => NoteAdded(echo.Target);
+        // the rainforest grows by the furniture: a note on the ocarina the lamp plays now grows the lamp's vine (V4 library)
+        void OnNoteAdded(EchoEvent echo) => NoteAdded(InstrumentPacks.Instance != null ? InstrumentPacks.Instance.HomeOf(echo.Target) : echo.Target);
 
         /// <summary>A note was added to the song on <paramref name="instrument"/>: the jungle grows a little.</summary>
         public void NoteAdded(InstrumentType instrument)

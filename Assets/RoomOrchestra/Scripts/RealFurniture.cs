@@ -400,8 +400,11 @@ namespace RoomOrchestra
             }
             var top = new Vector3(m_PreviewBox.center.x, m_PreviewBox.max.y, m_PreviewBox.center.z);
             if (cursor != null)
+            {
                 cursor.Show(top, new Vector2(Mathf.Min(m_PreviewBox.size.x, CursorSide * 2f), Mathf.Min(m_PreviewBox.size.z, CursorSide * 2f)),
-                    UiText.Get(TermFor(target.Instrument), Localization.Current), tappable: false);
+                    UiText.Name(target.Instrument, Localization.Current), tappable: false);
+                cursor.ShowIcon(target.Instrument); // its picture above its name (owner, 2026-11-11)
+            }
         }
 
         /// <summary>The real object at a point on the room's surface, as a box in scene space.</summary>
@@ -451,6 +454,7 @@ namespace RoomOrchestra
         /// <summary>The pointer left the room's surface.</summary>
         public void HidePreview()
         {
+            SpotAt(0)?.ShowIcon(null);
             SpotAt(0)?.Hide();
             m_HasPreview = false;
             if (m_PreviewShape != null) m_PreviewShape.SetActive(false);

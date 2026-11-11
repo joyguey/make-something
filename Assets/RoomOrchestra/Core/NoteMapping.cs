@@ -28,7 +28,7 @@ namespace RoomOrchestra
         /// <summary>Readable name, e.g. "F#4" or "udu Bend".</summary>
         public string Label => IsPercussion
             ? $"udu {Articulation}"
-            : NoteMapping.NoteName(Index) + (Instrument == InstrumentType.Mbira ? "4" : "5");
+            : NoteMapping.NoteName(Index) + NoteMapping.Octave(Instrument);
 
         public override string ToString() => Label;
     }
@@ -66,11 +66,21 @@ namespace RoomOrchestra
             float f = s_Degrees4[sampleIndex < 0 ? 0 : sampleIndex >= Count ? Count - 1 : sampleIndex];
             return instrument switch
             {
-                InstrumentType.Erhu => f * 2f,
+                InstrumentType.Erhu or InstrumentType.Ocarina => f * 2f,
                 InstrumentType.Udu => f / 4f,
-                _ => f,
+                InstrumentType.SlitDrum => f / 2f,
+                _ => f, // mbira, handpan, guzheng, balafon: D4-B4
             };
         }
+
+        /// <summary>The octave an instrument's notes sit in (for labels like "F#4").</summary>
+        public static int Octave(InstrumentType instrument) => instrument switch
+        {
+            InstrumentType.Erhu or InstrumentType.Ocarina => 5,
+            InstrumentType.Udu => 2,
+            InstrumentType.SlitDrum => 3,
+            _ => 4,
+        };
 
         public static string NoteName(int index) => s_Names[index < 0 ? 0 : index >= Count ? Count - 1 : index];
     }

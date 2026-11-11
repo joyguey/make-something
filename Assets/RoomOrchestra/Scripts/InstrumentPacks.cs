@@ -22,6 +22,8 @@ namespace RoomOrchestra
         {
             public UiTerm name;
             public AudioClip[] udu, mbira, erhu;
+            [Tooltip("The V4 library (the same sounds in every pack): ocarina, handpan, guzheng, balafon, slit drum.")]
+            public AudioClip[] ocarina, handpan, guzheng, balafon, slitDrum;
             [Tooltip("Each instrument's volume in this pack (Udu, Mbira, Erhu), trimmed to the approved balance.")]
             public float[] volumes = { 0.7f, 0.7f, 0.7f };
 
@@ -29,6 +31,11 @@ namespace RoomOrchestra
             {
                 InstrumentType.Udu => udu,
                 InstrumentType.Mbira => mbira,
+                InstrumentType.Ocarina => ocarina,
+                InstrumentType.Handpan => handpan,
+                InstrumentType.Guzheng => guzheng,
+                InstrumentType.Balafon => balafon,
+                InstrumentType.SlitDrum => slitDrum,
                 _ => erhu,
             };
 
@@ -91,7 +98,19 @@ namespace RoomOrchestra
 
         public static string FormatPlaces(IReadOnlyList<InstrumentType> places) => string.Join(",", places);
 
-        /// <summary>The next instrument after <paramref name="type"/> (Udu, Mbira, Erhu, Udu...).</summary>
+        /// <summary>
+        /// The furniture's own instrument (the first arrangement's) for whichever furniture plays <paramref name="type"/>
+        /// now: the rainforest grows by the furniture, whatever instrument it plays (V4 library).
+        /// </summary>
+        public InstrumentType HomeOf(InstrumentType type)
+        {
+            if (furniture == null || firstPlaces == null) return type;
+            for (int i = 0; i < furniture.Length && i < firstPlaces.Length; i++)
+                if (furniture[i] != null && furniture[i].Instrument == type) return firstPlaces[i];
+            return type;
+        }
+
+        /// <summary>The next instrument after <paramref name="type"/> (udu, mbira, erhu, then the V4 library, and round).</summary>
         public static InstrumentType Next(InstrumentType type) =>
             (InstrumentType)(((int)type + 1) % Enum.GetValues(typeof(InstrumentType)).Length);
 
