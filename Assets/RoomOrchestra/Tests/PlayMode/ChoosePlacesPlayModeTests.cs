@@ -211,6 +211,20 @@ namespace RoomOrchestra.Tests
             placer.EndMove();
             Assert.IsFalse(placer.Moving);
             Assert.IsFalse(placer.TryBeginMove(new Vector3(9f, 1f, 9f)), "nothing to take far from any furniture");
+            // owner, headset 2026-11-12: "do I need to walk up to it?" no: point at it from the seat and drag
+            var seatEye = new Vector3(0f, 1.15f, 0f);
+            var keptMiddle = kept.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((x, y) => { x.Encapsulate(y); return x; }).center;
+            Assert.IsTrue(placer.TryBeginMoveByRay(new Ray(seatEye, keptMiddle - seatEye)), "pointed at from the seat, it is taken");
+            var floorTarget = new Vector3(-0.8f, 0f, 1.6f);
+            placer.MoveAlong(new Ray(seatEye, floorTarget - seatEye));
+            var firstSpot = kept.transform.position;
+            placer.MoveAlong(new Ray(seatEye, floorTarget + Vector3.right * 0.3f - seatEye));
+            yield return null;
+            Assert.AreEqual(0.3f, kept.transform.position.x - firstSpot.x, 0.05f, "it slides with the pointed spot on the floor");
+            Assert.AreEqual(0f, kept.transform.position.z - firstSpot.z, 0.05f);
+            placer.EndMove();
+            Assert.Less(Mathf.Abs(kept.transform.position.y - keptFrom.y), 0.02f, "still on the floor");
+            Assert.IsFalse(placer.TryBeginMoveByRay(new Ray(seatEye, Vector3.up)), "pointing at the sky takes nothing");
             Assert.IsFalse(RealWalls.ShowScan, "the room stops glowing");
             yield return null;
             Assert.IsTrue(RealWalls.Occlude, "and now real walls and furniture hide what is behind them");

@@ -311,19 +311,14 @@ def sky_wedge(name, radius=40.0, wedges=8):
 
 
 def sign(name):
-    """The title's wooden sign frame: two posts and a top rail, around the title card (1.0 x 0.6 m)."""
+    """The title's wooden sign frame: two posts, a top rail the friends hop on and a lower rail, around the title card."""
     p = Piece(name)
     for x in (-0.58, 0.58):
         box(p, (x, 0, 0.75), (0.07, 0.07, 1.5), WOOD)
         box(p, (x, 0, 1.52), (0.1, 0.1, 0.06), WOOD_DARK)
     box(p, (0, 0, 1.5), (1.26, 0.08, 0.07), WOOD)
     box(p, (0, 0, 0.82), (1.18, 0.05, 0.05), WOOD_DARK)
-    # a little vine with leaves and flowers along the top rail
-    for i in range(9):
-        x = -0.55 + i * 0.1375
-        ico(p, (x, -0.05, 1.55 + 0.03 * math.sin(i)), 0.05, rng.choice(LEAVES), subdiv=0, squash=(1.2, 0.5, 0.8), wobble=0)
-        if i % 2 == 0:
-            ico(p, (x + 0.04, -0.07, 1.6), 0.03, rng.choice(PETALS), subdiv=0, wobble=0)
+    # a bare top rail: the three friends hop on it (owner, headset 2026-11-12: the vine read as artifacts)
     return finish(p)
 
 

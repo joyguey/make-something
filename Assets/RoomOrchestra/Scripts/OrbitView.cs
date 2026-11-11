@@ -157,6 +157,27 @@ namespace RoomOrchestra
                 if (parkPoint != null) Move(mini, parkPoint.position);
             }
             m_LastPhase = phase;
+            ShowOnlyTheRing();
+        }
+
+        // Owner, headset 2026-11-12: a mini sat on top of the lamp, inside its ring, before anything was played. Waiting
+        // minis rested in the hub, trusting it to hide them; PICO XR mode draws only what is switched on, so a waiting
+        // mini is not drawn at all now, and a mini on the ring always is.
+        readonly Dictionary<Transform, Renderer[]> m_Looks = new();
+
+        void ShowOnlyTheRing()
+        {
+            foreach (var pool in new[] { flutterMinis, bopMinis, boomMinis })
+            {
+                if (pool == null) continue;
+                foreach (var mini in pool)
+                {
+                    if (mini == null) continue;
+                    if (!m_Looks.TryGetValue(mini, out var looks)) m_Looks[mini] = looks = mini.GetComponentsInChildren<Renderer>(true);
+                    bool on = m_ByMini.ContainsKey(mini);
+                    foreach (var r in looks) if (r != null && r.enabled != on) r.enabled = on;
+                }
+            }
         }
 
         Transform FreeMini(OrbType orb)

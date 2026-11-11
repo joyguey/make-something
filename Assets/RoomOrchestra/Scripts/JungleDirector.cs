@@ -103,7 +103,14 @@ namespace RoomOrchestra
         }
 
         // the rainforest grows by the furniture: a note on the ocarina the lamp plays now grows the lamp's vine (V4 library)
-        void OnNoteAdded(EchoEvent echo) => NoteAdded(InstrumentPacks.Instance != null ? InstrumentPacks.Instance.HomeOf(echo.Target) : echo.Target);
+        void OnNoteAdded(EchoEvent echo)
+        {
+            // Owner, headset 2026-11-12: "for the tutorial, there shouldn't be anything growing, I'd like it to be a
+            // surprise in the real thing". The lesson's notes grow nothing; the rainforest first appears in the room.
+            var lesson = TutorialDirector.Instance;
+            if (lesson != null && lesson.Active) return;
+            NoteAdded(InstrumentPacks.Instance != null ? InstrumentPacks.Instance.HomeOf(echo.Target) : echo.Target);
+        }
 
         /// <summary>A note was added to the song on <paramref name="instrument"/>: the jungle grows a little.</summary>
         public void NoteAdded(InstrumentType instrument)

@@ -12,7 +12,7 @@ namespace RoomOrchestra
     [RequireComponent(typeof(AudioSource))]
     public class BackgroundMusic : MonoBehaviour
     {
-        public const float Level = 0.32f, FadeSeconds = 1.2f, ComeBackAfterSeconds = 4f;
+        public const float Level = 0.55f, FadeSeconds = 1.2f, ComeBackAfterSeconds = 4f; // owner, headset 2026-11-12: "a little bit faint"
         /// <summary>
         /// Owner, headset 2026-11-12: "the song should only be playing during the silence and disappear once I throw a
         /// ball". A throw or any note fades it out; it comes back only after this long with nothing played.

@@ -354,15 +354,66 @@ namespace RoomOrchestra
 
         public bool Moving => m_Moving != null;
 
-        public void MoveTo(Vector3 hand)
+        // From across the room (owner, headset 2026-11-12: "I couldn't move the chair, do I need to walk up to it?"):
+        // a grip or a fist while pointing (or looking) at a kept piece takes hold of it; it then slides to where the
+        // pointer (or the gaze) meets the floor.
+        float m_MoveFloor;
+        Vector3 m_RayOffset;
+        public const float MoveRange = 6f;
+
+        /// <summary>A grip along <paramref name="ray"/> takes hold of the kept virtual piece it points at; false if none.</summary>
+        public bool TryBeginMoveByRay(Ray ray)
+        {
+            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return false;
+            Station best = null;
+            float bestDistance = MoveRange;
+            foreach (var s in m_Stations)
+            {
+                if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
+                var box = VisibleBox(s.Root);
+                box.Expand(0.1f);
+                if (box.IntersectRay(ray, out float d) && d < bestDistance) { best = s; bestDistance = d; }
+            }
+            if (best == null) return false;
+            var hold = VisibleBox(best.Root);
+            m_Moving = best;
+            m_MoveFrom = hold.center;
+            m_MoveFloor = hold.min.y;
+            m_RayOffset = best.Root.position - FloorPoint(ray, best.Root.position);
+            m_RayOffset.y = 0f;
+            Debug.Log($"[RoomOrchestra] Real furniture: the virtual {best.Name} taken by hand from {bestDistance:F1} m");
+            return true;
+        }
+
+        Vector3 FloorPoint(Ray ray, Vector3 fallback)
+        {
+            if (Mathf.Abs(ray.direction.y) < 1e-3f) return fallback;
+            float t = (m_MoveFloor - ray.origin.y) / ray.direction.y;
+            if (t <= 0f || t > MoveRange) return fallback; // pointing up or too far: it stays where it is
+            return ray.origin + ray.direction * t;
+        }
+
+        /// <summary>The held piece slides to where <paramref name="ray"/> meets the floor.</summary>
+        public void MoveAlong(Ray ray)
         {
             var s = m_Moving;
             if (s == null) return;
-            var p = hand + m_MoveOffset;
+            SetRoot(s, FloorPoint(ray, s.Root.position - m_RayOffset) + m_RayOffset);
+        }
+
+        static void SetRoot(Station s, Vector3 p)
+        {
             p.y = s.Root.position.y; // it stays on the floor
             s.Root.position = p;
             if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
             Physics.SyncTransforms();
+        }
+
+        public void MoveTo(Vector3 hand)
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            SetRoot(s, hand + m_MoveOffset);
         }
 
         public void EndMove()
@@ -718,7 +769,10 @@ namespace RoomOrchestra
             m_Phase = Phase.Placed;
             RealWalls.ShowScan = false;
             Debug.Log($"[RoomOrchestra] Real furniture: {MatchedCount} of {m_Stations.Count} instruments on real places the player chose");
-            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.PlaceDone, SayResultSeconds);
+            // a virtual piece kept: say how to move it (owner, headset 2026-11-12: "include instructions ... if the
+            // player chooses to use a virtual version of the instrument"), and give it longer to read
+            bool kept = m_Stations.Exists(st => !st.Removed && st.Home != null);
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(kept ? UiTerm.PlaceDoneMovable : UiTerm.PlaceDone, kept ? SayResultSeconds * 2f : SayResultSeconds);
         }
 
         /// <summary>Every real piece an instrument could live on, biggest first (the scan's order).</summary>

@@ -17,6 +17,15 @@ namespace RoomOrchestra
         readonly bool[] m_WasGrip = new bool[2];
         int m_Hand = -1;
         bool m_Furniture; // holding a kept virtual piece of furniture, not the leaf
+        bool m_ByRay;     // ... from afar, along the pointer (or the gaze)
+
+        // The pointer's ray in scene space: the controller's, or the eyes' with the hands (look and pinch).
+        static Ray PointerRay(PointerFrame frame, Transform rig)
+        {
+            var origin = rig != null ? rig.TransformPoint(frame.Position) : frame.Position;
+            var dir = (rig != null ? rig.rotation * frame.Rotation : frame.Rotation) * Vector3.forward;
+            return new Ray(origin, dir);
+        }
         Renderer m_Leaf;
 
         /// <summary>The hand holding the leaf (0 left, 1 right), or -1.</summary>
@@ -43,7 +52,8 @@ namespace RoomOrchestra
                 {
                     if (grip)
                     {
-                        if (m_Furniture) furniture?.MoveTo(at);
+                        if (m_Furniture && m_ByRay) furniture?.MoveAlong(PointerRay(frame, rig));
+                        else if (m_Furniture) furniture?.MoveTo(at);
                         else tray.MoveGrab(at);
                     }
                     else
@@ -62,10 +72,18 @@ namespace RoomOrchestra
                         m_Furniture = false;
                         tray.BeginGrab(at);
                     }
-                    else if (furniture != null && furniture.TryBeginMove(at)) // a kept virtual piece (owner, 2026-11-12)
+                    else if (furniture != null && furniture.TryBeginMove(at)) // a kept virtual piece within reach (owner, 2026-11-12)
                     {
                         m_Hand = hand;
                         m_Furniture = true;
+                        m_ByRay = false;
+                        UiSounds.Play(UiSound.Press, at);
+                    }
+                    else if (furniture != null && (frame.Tracked || frame.Gaze) && furniture.TryBeginMoveByRay(PointerRay(frame, rig))) // or pointed at, from afar
+                    {
+                        m_Hand = hand;
+                        m_Furniture = true;
+                        m_ByRay = true;
                         UiSounds.Play(UiSound.Press, at);
                     }
                 }

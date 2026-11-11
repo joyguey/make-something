@@ -822,7 +822,7 @@ namespace RoomOrchestra.EditorTools
         // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
         static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
         /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
-        const float TitleRailTop = 0.47f;
+        const float TitleRailTop = 0.405f;
         // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
         static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
 

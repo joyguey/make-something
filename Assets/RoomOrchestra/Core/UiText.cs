@@ -139,7 +139,9 @@ namespace RoomOrchestra
         SlitDrum,
         /// <summary>The room-scan progress bar (owner, headset 2026-11-12).</summary>
         ScanProgress,
-        ScanProgressHint
+        ScanProgressHint,
+        /// <summary>Furniture chosen with a virtual piece kept: how to change and move it (owner, headset 2026-11-12).</summary>
+        PlaceDoneMovable
     }
 
     /// <summary>
@@ -173,6 +175,7 @@ namespace RoomOrchestra
             { UiTerm.Balafon, ("balafon", "巴拉风木琴") },
             { UiTerm.SlitDrum, ("slit drum", "木鼓") },
             { UiTerm.ScanProgress, ("Scanning your room: {0}%", "正在扫描房间：{0}%") },
+            { UiTerm.PlaceDoneMovable, ("All set! Tap the picture above any furniture to change its instrument. To move a virtual one, point at it and hold the grip button (or look at it and make a fist), then drag it.", "好啦！点家具上面的小图可以换乐器。要移动虚拟家具，指着它按住握把键（或看着它握拳），然后拖动。") },
             { UiTerm.ScanProgressHint, ("Look all around: walls, floor, furniture", "看一圈：墙、地板、家具") },
             { UiTerm.Muted, ("Muted", "静音") },
             { UiTerm.Open, ("Deep", "开音") },
