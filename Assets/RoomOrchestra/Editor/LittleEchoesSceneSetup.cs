@@ -822,7 +822,7 @@ namespace RoomOrchestra.EditorTools
         // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
         static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
         /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
-        const float TitleRailTop = 0.405f;
+        const float TitleRailTop = 0.398f; // the rail top (1.535 m in Blender x 1.173) less 2 mm: flush, no gap
         // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
         static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
 
@@ -882,9 +882,11 @@ namespace RoomOrchestra.EditorTools
                 var body = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Orb_{types[i]}.mat");
                 if (CharacterArt.Has(types[i])) CharacterArt.Dress(friend, types[i], body);
                 // standing on the top rail, above its leafy vine (owner, headset 2026-11-12: they sank into the post)
-                var look = friend.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
-                friend.transform.position += Vector3.up * (TitleCardAt.y + TitleRailTop - look.min.y);
-                friend.AddComponent<TitleFriend>().Configure(i * 0.33f);
+                // the body itself (not its outline shell) sits flush on the rail (owner, headset 2026-11-12)
+                var bodyBox = friend.transform.Find("Visual").GetComponent<Renderer>().bounds;
+                friend.transform.position += Vector3.up * (TitleCardAt.y + TitleRailTop - bodyBox.min.y);
+                float aboveFeet = friend.transform.position.y - (TitleCardAt.y + TitleRailTop);
+                friend.AddComponent<TitleFriend>().Configure(i * 0.33f, aboveFeet / Mathf.Max(1e-4f, friend.transform.lossyScale.y) * friend.transform.localScale.y);
             }
             var title = root.AddComponent<TitleScreen>();
             title.Configure(card, GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint"), intro);
