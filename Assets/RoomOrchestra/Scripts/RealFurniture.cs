@@ -224,7 +224,7 @@ namespace RoomOrchestra
                     if (m_RestoreDone) FinishRestore();
                     break;
                 case Phase.LookingAround:
-                    if (Time.time - m_ScanStart >= LookAroundSeconds) StartChoosing();
+                    LookingAround();
                     break;
                 case Phase.Scanning:
                     if (Time.time < m_NextTry) return;
@@ -311,15 +311,147 @@ namespace RoomOrchestra
         // or after Start over), Flutter asks the player to look slowly around the whole room while the scan glows and
         // fills in. The headset keeps scanning while they choose too. Not in the Editor (its tests have no room to scan).
         /// <summary>How long the player looks around the room before choosing (s).</summary>
-        public static float LookAroundSeconds => Application.isEditor ? 0f : 20f;
+        public static float LookAroundSeconds => Application.isEditor ? 0f : 6f;
 
         void LookAround()
         {
             m_Phase = Phase.LookingAround;
             m_ScanStart = Time.time;
+            m_NextCoverage = 0f;
             RealWalls.ShowScan = true;
-            Debug.Log($"[RoomOrchestra] Real furniture: look around the whole room for {LookAroundSeconds:F0} s while the scan fills in");
-            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.ScanRoom, LookAroundSeconds);
+            Debug.Log("[RoomOrchestra] Real furniture: look around the whole room while the scan fills in (a bar shows how much)");
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.ScanRoom, LookAroundMaxSeconds);
+        }
+
+        // ---- Moving a kept virtual piece by hand (owner, headset 2026-11-12: "I'd like to be able to grab and drag the
+        // virtual furniture if I end up using the chair ... it was being occluded by the wall") ----
+        // After the lesson, a grip or a fist on a piece of virtual furniture the player kept picks it up; it slides over
+        // the floor with the hand, its echo ring and vines with it.
+        Station m_Moving;
+        Vector3 m_MoveOffset, m_MoveFrom;
+        /// <summary>How close a hand must be to a kept piece to take hold of it (m, from its outline).</summary>
+        public const float MoveReach = 0.2f;
+
+        /// <summary>A hand at <paramref name="hand"/> takes hold of a kept virtual piece there; false if there is none.</summary>
+        public bool TryBeginMove(Vector3 hand)
+        {
+            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return false;
+            foreach (var s in m_Stations)
+            {
+                if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
+                var box = VisibleBox(s.Root);
+                box.Expand(MoveReach * 2f);
+                if (!box.Contains(hand)) continue;
+                m_Moving = s;
+                m_MoveFrom = VisibleBox(s.Root).center;
+                m_MoveOffset = s.Root.position - hand;
+                m_MoveOffset.y = 0f;
+                Debug.Log($"[RoomOrchestra] Real furniture: the virtual {s.Name} taken by hand");
+                return true;
+            }
+            return false;
+        }
+
+        public bool Moving => m_Moving != null;
+
+        // From across the room (owner, headset 2026-11-12: "I couldn't move the chair, do I need to walk up to it?"):
+        // a grip or a fist while pointing (or looking) at a kept piece takes hold of it; it then slides to where the
+        // pointer (or the gaze) meets the floor.
+        float m_MoveFloor;
+        Vector3 m_RayOffset;
+        public const float MoveRange = 6f;
+
+        /// <summary>A grip along <paramref name="ray"/> takes hold of the kept virtual piece it points at; false if none.</summary>
+        public bool TryBeginMoveByRay(Ray ray)
+        {
+            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return false;
+            Station best = null;
+            float bestDistance = MoveRange;
+            foreach (var s in m_Stations)
+            {
+                if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
+                var box = VisibleBox(s.Root);
+                box.Expand(0.1f);
+                if (box.IntersectRay(ray, out float d) && d < bestDistance) { best = s; bestDistance = d; }
+            }
+            if (best == null) return false;
+            var hold = VisibleBox(best.Root);
+            m_Moving = best;
+            m_MoveFrom = hold.center;
+            m_MoveFloor = hold.min.y;
+            m_RayOffset = best.Root.position - FloorPoint(ray, best.Root.position);
+            m_RayOffset.y = 0f;
+            Debug.Log($"[RoomOrchestra] Real furniture: the virtual {best.Name} taken by hand from {bestDistance:F1} m");
+            return true;
+        }
+
+        Vector3 FloorPoint(Ray ray, Vector3 fallback)
+        {
+            if (Mathf.Abs(ray.direction.y) < 1e-3f) return fallback;
+            float t = (m_MoveFloor - ray.origin.y) / ray.direction.y;
+            if (t <= 0f || t > MoveRange) return fallback; // pointing up or too far: it stays where it is
+            return ray.origin + ray.direction * t;
+        }
+
+        /// <summary>The held piece slides to where <paramref name="ray"/> meets the floor.</summary>
+        public void MoveAlong(Ray ray)
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            SetRoot(s, FloorPoint(ray, s.Root.position - m_RayOffset) + m_RayOffset);
+        }
+
+        static void SetRoot(Station s, Vector3 p)
+        {
+            p.y = s.Root.position.y; // it stays on the floor
+            s.Root.position = p;
+            if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
+            Physics.SyncTransforms();
+        }
+
+        public void MoveTo(Vector3 hand)
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            SetRoot(s, hand + m_MoveOffset);
+        }
+
+        public void EndMove()
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            m_Moving = null;
+            var box = VisibleBox(s.Root);
+            var jungle = JungleDirector.Instance;
+            if (jungle != null)
+                jungle.GrowAround(s.Name, new Vector3(m_MoveFrom.x, box.min.y, m_MoveFrom.z), box.size, new Vector3(box.center.x, box.min.y, box.center.z), box.size);
+            UiSounds.Play(UiSound.Place, box.center);
+            Debug.Log($"[RoomOrchestra] Real furniture: the virtual {s.Name} put down at {box.center:F2}");
+        }
+
+        /// <summary>Choosing starts once this share of the room around the player is scanned, after at least
+        /// <see cref="LookAroundSeconds"/>, or after <see cref="LookAroundMaxSeconds"/> whatever the scan shows.</summary>
+        public const float CoverageToChoose = 0.75f, LookAroundMaxSeconds = 45f;
+        float m_NextCoverage, m_Coverage;
+        /// <summary>The scan's coverage of the room around the player now (0..1).</summary>
+        public float ScanCoverage => m_Coverage;
+
+        void LookingAround()
+        {
+            float t = Time.time - m_ScanStart;
+            if (Time.time >= m_NextCoverage)
+            {
+                m_NextCoverage = Time.time + 0.5f;
+                var walls = RealWalls.Instance;
+                var centre = StageAnchor.Instance != null && StageAnchor.Instance.TryGetHeadPose(out var head) ? head.position : SeatFloor();
+                m_Coverage = walls != null ? walls.Coverage(centre) : 0f;
+            }
+            ScanProgressBar.Instance?.Show(m_Coverage);
+            bool enough = m_Coverage >= CoverageToChoose && t >= LookAroundSeconds;
+            if (!enough && t < (Application.isEditor ? LookAroundSeconds : LookAroundMaxSeconds)) return;
+            Debug.Log($"[RoomOrchestra] Real furniture: the room is {m_Coverage * 100f:F0}% scanned after {t:F0} s; choosing begins");
+            ScanProgressBar.Instance?.Done();
+            StartChoosing();
         }
 
         /// <summary>Choose places again (Menu): the saved places are forgotten and Flutter asks again.</summary>
@@ -400,8 +532,11 @@ namespace RoomOrchestra
             }
             var top = new Vector3(m_PreviewBox.center.x, m_PreviewBox.max.y, m_PreviewBox.center.z);
             if (cursor != null)
+            {
                 cursor.Show(top, new Vector2(Mathf.Min(m_PreviewBox.size.x, CursorSide * 2f), Mathf.Min(m_PreviewBox.size.z, CursorSide * 2f)),
-                    UiText.Get(TermFor(target.Instrument), Localization.Current), tappable: false);
+                    UiText.Name(target.Instrument, Localization.Current), tappable: false);
+                cursor.ShowIcon(target.Instrument); // its picture above its name (owner, 2026-11-11)
+            }
         }
 
         /// <summary>The real object at a point on the room's surface, as a box in scene space.</summary>
@@ -451,6 +586,7 @@ namespace RoomOrchestra
         /// <summary>The pointer left the room's surface.</summary>
         public void HidePreview()
         {
+            SpotAt(0)?.ShowIcon(null);
             SpotAt(0)?.Hide();
             m_HasPreview = false;
             if (m_PreviewShape != null) m_PreviewShape.SetActive(false);
@@ -463,6 +599,7 @@ namespace RoomOrchestra
             if (s == null) return;
             var box = m_HasPreview && (m_PreviewBox.Contains(point) || (point - m_PreviewPoint).sqrMagnitude < 0.04f * 0.04f) ? m_PreviewBox : ObjectAt(point);
             LiveOn(s, new Pose(box.center, Quaternion.identity), box.size, withShape: true);
+            UiSounds.Play(UiSound.Place, box.center);
             MatchedCount++;
             RealHomeStore.Remember(s.Name, s.Home);
             Physics.SyncTransforms();
@@ -617,6 +754,7 @@ namespace RoomOrchestra
             if (wasMatched) MatchedCount = Mathf.Max(0, MatchedCount - 1);
             RealHomeStore.Forget(s.Name);
             PoofCloud.PoofAt(where, 0.5f);
+            UiSounds.Play(UiSound.Cancel, where);
             HidePreview();
             m_Phase = Phase.Choosing;
             RealWalls.ShowScan = true;
@@ -631,7 +769,10 @@ namespace RoomOrchestra
             m_Phase = Phase.Placed;
             RealWalls.ShowScan = false;
             Debug.Log($"[RoomOrchestra] Real furniture: {MatchedCount} of {m_Stations.Count} instruments on real places the player chose");
-            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.PlaceDone, SayResultSeconds);
+            // a virtual piece kept: say how to move it (owner, headset 2026-11-12: "include instructions ... if the
+            // player chooses to use a virtual version of the instrument"), and give it longer to read
+            bool kept = m_Stations.Exists(st => !st.Removed && st.Home != null);
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(kept ? UiTerm.PlaceDoneMovable : UiTerm.PlaceDone, kept ? SayResultSeconds * 2f : SayResultSeconds);
         }
 
         /// <summary>Every real piece an instrument could live on, biggest first (the scan's order).</summary>

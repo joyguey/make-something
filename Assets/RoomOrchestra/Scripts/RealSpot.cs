@@ -54,6 +54,26 @@ namespace RoomOrchestra
             SetText(text);
         }
 
+        InstrumentIcon m_Icon;
+
+        /// <summary>The instrument's picture beside its name on the spot (choosing furniture), or none.</summary>
+        public void ShowIcon(InstrumentType? type)
+        {
+            if (type == null)
+            {
+                if (m_Icon != null) m_Icon.gameObject.SetActive(false);
+                return;
+            }
+            if (m_Icon == null && label != null)
+            {
+                m_Icon = InstrumentIcon.Create(label.transform.parent != null ? label.transform.parent : label.transform, "InstrumentIcon", 1.4f);
+                m_Icon.transform.localPosition = new Vector3(0f, 0.13f, 0f); // just above the name
+            }
+            if (m_Icon == null) return;
+            m_Icon.gameObject.SetActive(true);
+            m_Icon.Show(type.Value);
+        }
+
         public void SetText(string text)
         {
             m_Text = text;

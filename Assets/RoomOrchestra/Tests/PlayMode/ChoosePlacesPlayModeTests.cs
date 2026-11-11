@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -151,6 +152,9 @@ namespace RoomOrchestra.Tests
             Assert.Greater(preview.GetComponent<MeshFilter>().sharedMesh.vertexCount, 100, "in its own scanned shape");
             var cursor = placer.SpotAt(0);
             Assert.IsTrue(cursor.Shown, "with the instrument's name over it");
+            var spotIcon = cursor.GetComponentInChildren<InstrumentIcon>();
+            Assert.IsNotNull(spotIcon, "and its picture (owner, 2026-11-11)");
+            Assert.AreEqual(first.Instrument, spotIcon.Showing);
             Assert.AreEqual(first.Instrument.ToString().ToLowerInvariant(), cursor.Text.ToLowerInvariant());
 
             // a press: the mbira lives on the desk; the virtual chair is gone
@@ -192,6 +196,35 @@ namespace RoomOrchestra.Tests
             }
             Assert.AreEqual(RealFurniture.Phase.Placed, placer.State, "all three chosen");
             Assert.AreEqual(1, placer.MatchedCount, "one on the desk, two kept virtual");
+
+            // owner, headset 2026-11-12: a kept virtual piece can be picked up and moved somewhere easier to see
+            var kept = Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None).First(t => t != first && Drawn(t));
+            var keptFrom = kept.transform.position;
+            var grabAt = kept.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((x, y) => { x.Encapsulate(y); return x; }).center;
+            Assert.IsTrue(placer.TryBeginMove(grabAt), $"a hand on the {kept.name} takes hold of it");
+            var shift = new Vector3(0.6f, 0.3f, -0.4f);
+            placer.MoveTo(grabAt + shift);
+            yield return null;
+            Assert.AreEqual(keptFrom.x + shift.x, kept.transform.position.x, 0.02f, "it follows the hand across the floor");
+            Assert.AreEqual(keptFrom.z + shift.z, kept.transform.position.z, 0.02f);
+            Assert.AreEqual(keptFrom.y, kept.transform.position.y, 0.02f, "and stays on the floor");
+            placer.EndMove();
+            Assert.IsFalse(placer.Moving);
+            Assert.IsFalse(placer.TryBeginMove(new Vector3(9f, 1f, 9f)), "nothing to take far from any furniture");
+            // owner, headset 2026-11-12: "do I need to walk up to it?" no: point at it from the seat and drag
+            var seatEye = new Vector3(0f, 1.15f, 0f);
+            var keptMiddle = kept.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((x, y) => { x.Encapsulate(y); return x; }).center;
+            Assert.IsTrue(placer.TryBeginMoveByRay(new Ray(seatEye, keptMiddle - seatEye)), "pointed at from the seat, it is taken");
+            var floorTarget = new Vector3(-0.8f, 0f, 1.6f);
+            placer.MoveAlong(new Ray(seatEye, floorTarget - seatEye));
+            var firstSpot = kept.transform.position;
+            placer.MoveAlong(new Ray(seatEye, floorTarget + Vector3.right * 0.3f - seatEye));
+            yield return null;
+            Assert.AreEqual(0.3f, kept.transform.position.x - firstSpot.x, 0.05f, "it slides with the pointed spot on the floor");
+            Assert.AreEqual(0f, kept.transform.position.z - firstSpot.z, 0.05f);
+            placer.EndMove();
+            Assert.Less(Mathf.Abs(kept.transform.position.y - keptFrom.y), 0.02f, "still on the floor");
+            Assert.IsFalse(placer.TryBeginMoveByRay(new Ray(seatEye, Vector3.up)), "pointing at the sky takes nothing");
             Assert.IsFalse(RealWalls.ShowScan, "the room stops glowing");
             yield return null;
             Assert.IsTrue(RealWalls.Occlude, "and now real walls and furniture hide what is behind them");
@@ -205,6 +238,18 @@ namespace RoomOrchestra.Tests
             yield return null;
             int leftBand = home.Hover;
             Assert.IsTrue(home.BandsShown, "pointing shows the five bands");
+            Assert.IsTrue(home.Icon.gameObject.activeInHierarchy, "and the instrument's picture over the object");
+            yield return null;
+            Assert.AreEqual(home.Target.Instrument, home.Icon.Showing);
+            // owner, headset 2026-11-12: "where can I switch out an instrument?" a tap on the picture changes it
+            var was = home.Target.Instrument;
+            Assert.IsTrue(InstrumentInputRouter.Activate(home.Icon.gameObject), "the picture takes a tap");
+            yield return null;
+            Assert.AreEqual(InstrumentPacks.Next(was), home.Target.Instrument, "and the furniture plays the next instrument");
+            yield return null;
+            Assert.AreEqual(home.Target.Instrument, home.Icon.Showing, "the picture follows");
+            InstrumentPacks.Instance.Place(home.Target, was); // back, for the rest of the test
+            yield return new WaitForSeconds(0.3f);
             Point(hand, right, false);
             yield return null;
             int rightBand = home.Hover;

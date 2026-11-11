@@ -65,7 +65,9 @@ namespace RoomOrchestra
         }
 
         /// <summary>When a panel starts to go: its distance from the far wall's middle, at the ripple's speed.</summary>
-        public static float DelayFor(float distance) => Mathf.Max(0f, distance) / RippleSpeed;
+        public static float DelayFor(float distance) => Mathf.Min(MaxDelaySeconds, Mathf.Max(0f, distance) / RippleSpeed);
+        /// <summary>The meadow reaches the horizon: its farthest pieces still start going within this (s).</summary>
+        public const float MaxDelaySeconds = 3.2f;
 
         void OnEnable() => Instance = this;
 
@@ -127,8 +129,17 @@ namespace RoomOrchestra
             m_ParkedAt = park.position;
             panels[i].position = park.position;
             panels[i].localRotation = homeRotations[i];
-            panels[i].localScale = homeScales[i] * ParkedScale;
+            panels[i].localScale = ParkedScaleOf(homeScales[i]);
             if (panels[i].TryGetComponent<Collider>(out var solid)) solid.enabled = false; // nothing to hit in the cloud
+            // PICO XR mode draws only what is switched on: a gone piece of the meadow is not drawn at all
+            if (panels[i].TryGetComponent<Renderer>(out var look)) look.enabled = false;
+        }
+
+        /// <summary>A gone panel's scale: small enough to sit in the cloud whatever its own size.</summary>
+        public static Vector3 ParkedScaleOf(Vector3 home)
+        {
+            float biggest = Mathf.Max(1f, Mathf.Max(Mathf.Abs(home.x), Mathf.Max(Mathf.Abs(home.y), Mathf.Abs(home.z))));
+            return home * (ParkedScale / biggest);
         }
 
         void Update()

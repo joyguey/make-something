@@ -13,7 +13,7 @@ namespace RoomOrchestra.EditorTools
     {
         public static void Build()
         {
-            string path = "Builds/RoomOrchestra-dev.apk";
+            string path = "Builds/LittleEchoes-dev.apk";
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-apkPath") path = args[i + 1];

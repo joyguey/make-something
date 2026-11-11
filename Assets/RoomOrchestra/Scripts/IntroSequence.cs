@@ -44,6 +44,7 @@ namespace RoomOrchestra
         float m_Start = -1f;
         bool m_Done;
         int[] m_Bounce; // the bounce each character is on, for a squash at each take-off
+        bool[] m_Out;   // each character has popped out of the bush
 
         public static IntroSequence Instance { get; private set; }
         public bool Playing => m_Start >= 0f && !m_Done;
@@ -146,6 +147,7 @@ namespace RoomOrchestra
             if (m_Done || m_Start >= 0f) return;
             m_Start = Time.time;
             m_Bounce = new int[characters.Length];
+            m_Out = new bool[characters.Length];
             if (leaf != null)
             {
                 Pose(0f); // appears behind the player's head, in a poof
@@ -215,8 +217,13 @@ namespace RoomOrchestra
             if (c == null) return true;
             if (seconds <= 0f)
             {
-                PlaceOnFloor(i); // waits on the floor while the leaf moves over it
+                PlaceOnFloor(i); // waits hidden in the bush while the leaf flies in
                 return false;
+            }
+            if (m_Out != null && !m_Out[i])
+            {
+                m_Out[i] = true; // out of the bush with a puff of leaves
+                PoofCloud.PoofAt(leaf.parent.TransformPoint(floorSpots[i]) + Vector3.up * 0.15f, 0.45f);
             }
             var (blend, lift, landed) = IntroPath.HopAt(seconds);
             if (landed)

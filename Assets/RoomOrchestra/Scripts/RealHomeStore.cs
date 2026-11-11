@@ -158,8 +158,9 @@ namespace RoomOrchestra
                     var entry = homes.Find(e => Guid.TryParse(e.anchor, out var g) && g == uuid);
                     if (entry == null) continue;
                     if (ByteDance.PICO.XR.PXR_MixedReality.LocateAnchor(handle, out var position, out var rotation) != ByteDance.PICO.XR.PxrResult.SUCCESS) continue;
-                    // the anchor is in tracking space; the rig sits at the scene's origin, so that is scene space
-                    var upright = Quaternion.Euler(0f, rotation.eulerAngles.y, 0f); // furniture stands upright
+                    // the anchor is in tracking space: into the scene through the rig (XrRig.ToScene)
+                    position = XrRig.ToScene(position); // tracking -> scene (the headset may have been recentred)
+                    var upright = Quaternion.Euler(0f, XrRig.ToScene(rotation).eulerAngles.y, 0f); // furniture stands upright
                     found[entry.furniture] = (new Pose(position, upright), new Vector3(entry.sx, entry.sy, entry.sz));
                 }
             }
@@ -180,7 +181,7 @@ namespace RoomOrchestra
             {
                 if (!await StartAnchors()) return null;
                 using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
-                var (result, handle, uuid) = await ByteDance.PICO.XR.PXR_MixedReality.CreateSpatialAnchorAsync(pose.position, pose.rotation, cancel.Token);
+                var (result, handle, uuid) = await ByteDance.PICO.XR.PXR_MixedReality.CreateSpatialAnchorAsync(XrRig.FromScene(pose.position), XrRig.FromScene(pose.rotation), cancel.Token);
                 if (result != ByteDance.PICO.XR.PxrResult.SUCCESS)
                 {
                     Debug.LogWarning($"[RoomOrchestra] Saved places: no anchor ({result})");

@@ -51,6 +51,12 @@ namespace RoomOrchestra
         int m_Hover = -1;
 
         public InstrumentTarget Target => m_Target;
+        InstrumentIcon m_Icon;
+        TMP_Text m_Caption;
+        /// <summary>The picture's height above the object's top (m).</summary>
+        public const float IconLift = 0.3f;
+        /// <summary>The instrument's picture over the object while its notes show (tests).</summary>
+        public InstrumentIcon Icon => m_Icon;
         public string Furniture { get; private set; }
         /// <summary>The object's box in its own frame (centred on this transform).</summary>
         public Vector3 Size => m_Size;
@@ -159,6 +165,27 @@ namespace RoomOrchestra
                     }
                     label.SetActive(false);
                 }
+            // the instrument's picture floats over the object (owner, 2026-11-11), and a tap on it changes the
+            // instrument (owner, headset 2026-11-12: "where can I switch out an instrument?"), "Change" written under it
+            m_Icon = InstrumentIcon.Create(transform, "InstrumentIcon", 1.6f);
+            m_Icon.Configure(m_Target);
+            var tap = m_Icon.gameObject.AddComponent<SphereCollider>();
+            tap.radius = 0.07f; // the icon's own space: about 11 cm across in the room
+            tap.isTrigger = true; // takes taps; thrown balls fly through it
+            m_Icon.gameObject.AddComponent<IconChangeButton>().Configure(m_Target);
+            if (labelStyle != null)
+            {
+                var caption = new GameObject("ChangeCaption");
+                caption.transform.SetParent(transform, false);
+                m_Caption = caption.AddComponent<TextMeshPro>();
+                m_Caption.font = labelStyle.font;
+                m_Caption.fontSharedMaterial = labelStyle.fontSharedMaterial;
+                m_Caption.fontSize = labelStyle.fontSize * 0.55f;
+                m_Caption.alignment = TextAlignmentOptions.Center;
+                m_Caption.textWrappingMode = TextWrappingModes.NoWrap;
+                m_Caption.rectTransform.sizeDelta = new Vector2(1f, 0.25f);
+                m_Caption.color = SelectedLabel;
+            }
             WorldBounds = ComputeWorldBounds();
         }
 
@@ -173,6 +200,11 @@ namespace RoomOrchestra
         {
             InstrumentType.Udu => new Color(1f, 0.62f, 0.3f),
             InstrumentType.Mbira => new Color(0.55f, 0.9f, 0.55f),
+            InstrumentType.Ocarina => new Color(0.95f, 0.75f, 0.55f),
+            InstrumentType.Handpan => new Color(0.7f, 0.8f, 0.95f),
+            InstrumentType.Guzheng => new Color(0.95f, 0.55f, 0.6f),
+            InstrumentType.Balafon => new Color(0.85f, 0.7f, 0.45f),
+            InstrumentType.SlitDrum => new Color(0.75f, 0.55f, 0.4f),
             _ => new Color(0.75f, 0.6f, 1f)
         };
 
@@ -373,10 +405,30 @@ namespace RoomOrchestra
             if (!on)
                 foreach (var label in m_Labels)
                     if (label != null && label.gameObject.activeSelf) label.gameObject.SetActive(false);
+
+        }
+
+        // The picture (and "Change" under it) over the object, facing the player.
+        void PlaceIcon()
+        {
+            if (m_Icon == null) return;
+            var viewer = Viewer();
+            var at = Top + Vector3.up * IconLift;
+            if ((m_Icon.transform.position - at).sqrMagnitude > 1e-8f) m_Icon.transform.position = at;
+            var look = at - viewer;
+            look.y = 0f;
+            if (look.sqrMagnitude > 1e-4f) m_Icon.Facing = Quaternion.LookRotation(look);
+            if (m_Caption != null)
+            {
+                string text = UiText.Get(UiTerm.ChangeInstrument, Localization.Current);
+                if (m_Caption.text != text) m_Caption.text = text;
+                m_Caption.transform.SetPositionAndRotation(at + Vector3.down * 0.1f, m_Icon.Facing ?? Quaternion.identity);
+            }
         }
 
         void Update()
         {
+            PlaceIcon();
             if (m_ShowUntil > 0f && Time.time > m_ShowUntil)
             {
                 m_ShowUntil = -1f;

@@ -103,7 +103,7 @@ namespace RoomOrchestra
                     kinds = new FurnitureKind[verts.Length];
                     for (int i = 0; i < verts.Length; i++)
                     {
-                        points[i] = m.position + m.rotation * verts[i];
+                        points[i] = XrRig.ToScene(m.position + m.rotation * verts[i]);
                         kinds[i] = KindOf((int)labels[i]);
                     }
                 }
@@ -115,7 +115,7 @@ namespace RoomOrchestra
                     for (int t = 0; t < labels.Length; t++)
                     {
                         var c = (verts[m.indices[t * 3]] + verts[m.indices[t * 3 + 1]] + verts[m.indices[t * 3 + 2]]) / 3f;
-                        points[t] = m.position + m.rotation * c;
+                        points[t] = XrRig.ToScene(m.position + m.rotation * c);
                         kinds[t] = KindOf((int)labels[t]);
                     }
                 }

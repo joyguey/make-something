@@ -104,6 +104,11 @@ namespace RoomOrchestra
                     case 'U': type = InstrumentType.Udu; break;
                     case 'M': type = InstrumentType.Mbira; break;
                     case 'E': type = InstrumentType.Erhu; break;
+                    case 'O': type = InstrumentType.Ocarina; break;
+                    case 'H': type = InstrumentType.Handpan; break;
+                    case 'G': type = InstrumentType.Guzheng; break;
+                    case 'B': type = InstrumentType.Balafon; break;
+                    case 'S': type = InstrumentType.SlitDrum; break;
                     default: return false;
                 }
                 if (!int.TryParse(part.Substring(1, at - 1), out int note) || note < 0 || note >= NoteMapping.Count) return false;

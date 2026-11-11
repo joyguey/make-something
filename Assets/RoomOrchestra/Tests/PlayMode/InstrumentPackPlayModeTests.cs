@@ -83,14 +83,25 @@ namespace RoomOrchestra.Tests
             Assert.AreSame(lamp, InstrumentTarget.Find(InstrumentType.Mbira), "the mbira's echo now plays from the lamp");
             StringAssert.StartsWith("erhu", ColumnFor(chair).GetComponentsInChildren<TMP_Text>().First(t => t.transform.parent.name == "InstrumentLabel").text);
 
+            // then the V4 library (owner, 2026-11-11): five more, none on other furniture, and round to the drum
+            foreach (var next in Instruments.Library)
+            {
+                Assert.IsTrue(InstrumentInputRouter.Activate(ChangeFor(chair).gameObject), $"Change to the {next}");
+                yield return null;
+                yield return new WaitForSeconds(0.2f); // past the tap debounce
+                Assert.AreEqual(next, chair.Instrument);
+                Assert.AreSame(m_Packs.Current.For(next)[0], chair.Notes[0], $"with the {next}'s own sound");
+                StringAssert.StartsWith(UiText.Name(next, UiLanguage.English), ColumnFor(chair).GetComponentsInChildren<TMP_Text>().First(t => t.transform.parent.name == "InstrumentLabel").text);
+            }
+            Assert.AreEqual(InstrumentType.Mbira, lamp.Instrument, "the others keep theirs meanwhile");
             Assert.IsTrue(InstrumentInputRouter.Activate(ChangeFor(chair).gameObject), "Change again");
             yield return null;
             Assert.AreEqual(InstrumentType.Udu, chair.Instrument, "and then the drum");
-            Assert.AreEqual(InstrumentType.Erhu, table.Instrument);
+            Assert.AreEqual(InstrumentType.SlitDrum, table.Instrument, "the table takes the chair's last one");
             var tileWords = ColumnFor(chair).GetComponentsInChildren<LocalizedLabel>().Where(l => l.name.StartsWith("TileLabel")).Select(l => l.Text.text).ToArray();
             CollectionAssert.AreEquivalent(Enumerable.Range(0, NoteMapping.Count).Select(i => UiText.Tile(new MusicalNote(InstrumentType.Udu, i), UiLanguage.English)), tileWords, "the tiles name drum sounds");
 
-            Assert.AreEqual("Erhu,Udu,Mbira", PlayerPrefs.GetString(InstrumentPacks.PlacesPrefKey), "remembered left to right");
+            Assert.AreEqual("SlitDrum,Udu,Mbira", PlayerPrefs.GetString(InstrumentPacks.PlacesPrefKey), "remembered left to right");
         }
 
         [UnityTest]

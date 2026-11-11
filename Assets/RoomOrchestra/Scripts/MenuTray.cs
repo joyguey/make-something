@@ -60,6 +60,7 @@ namespace RoomOrchestra
             open = on;
             m_Animate = Time.time;
             Apply(instant: false);
+            UiSounds.Play(open ? UiSound.Open : UiSound.Close, this);
             Toggled?.Invoke(open);
             Debug.Log($"[RoomOrchestra] Menu: {(open ? "open" : "closed")}");
         }

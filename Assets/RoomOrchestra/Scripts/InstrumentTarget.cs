@@ -137,7 +137,7 @@ namespace RoomOrchestra
                 int sourceIndex = udu ? VoiceDesign.UduSourceIndex(articulation) : index;
                 var source = notes[sourceIndex];
                 float fundamental = NoteMapping.FrequencyHz(instrument, sourceIndex);
-                bool bowed = instrument == InstrumentType.Erhu;
+                bool bowed = Instruments.Sustained(instrument); // the erhu's bow, the ocarina's breath
                 float[] data = ReadMono(source);
                 if (data == null) continue;
                 var basis = udu ? VoiceDesign.ForUdu(articulation) : VoiceSpec.Plain;

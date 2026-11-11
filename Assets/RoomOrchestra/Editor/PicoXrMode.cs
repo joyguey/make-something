@@ -73,7 +73,8 @@ namespace RoomOrchestra.EditorTools
             config.spatialMesh = true;      // real walls for the balls, the scan glow, real objects' shapes
             config.sceneCapture = true;     // PICO's Room Capture: walls, tables, chairs, sofas
             config.spatialAnchor = true;    // the places the player picks, remembered between sessions
-            config.environmentDepth = true; // PICO's depth sensing: real things hide what is behind them
+            config.environmentDepth = false; // off: the scanned room mesh hides what is behind real things (EnvironmentOcclusion)
+            config.eyeTracking = true;       // look and pinch follows the eyes where the headset can (GazeSource)
             config.handTracking = true;     // point and pinch with the hands when the controllers are down
             config.handTrackingSupportType = HandTrackingSupport.ControllersAndHands;
             EditorUtility.SetDirty(config);

@@ -204,7 +204,9 @@ namespace RoomOrchestra.Tests
             var root = Object.FindFirstObjectByType<OrbSelector>();
             Assert.IsNotNull(root);
             var eye = new Vector3(0f, eyeHeight, 0f);
-            var renderers = root.GetComponentsInChildren<Renderer>();
+            var room = Object.FindFirstObjectByType<VirtualRoom>();
+            // the meadow surrounds everything (its sky domes over all): it is the backdrop, not a control in the way
+            var renderers = root.GetComponentsInChildren<Renderer>().Where(r => room == null || !r.transform.IsChildOf(room.transform)).ToArray();
             Assert.Greater(renderers.Length, 0);
             foreach (var target in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
             {
@@ -675,7 +677,7 @@ namespace RoomOrchestra.Tests
 
         // ---- The opening: the scene is saved in its first frame (PICO Spatial keeps startup poses) ----
         [Test]
-        public void TheSceneOpensWithTheLeafOutOfViewAndTheCharactersOnTheFloor()
+        public void TheSceneOpensWithTheLeafOutOfViewAndTheCharactersInTheirBush()
         {
             EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single); // as saved, without Finish()
             var intro = Object.FindFirstObjectByType<IntroSequence>();
@@ -698,8 +700,10 @@ namespace RoomOrchestra.Tests
                 var p = token.transform.position;
                 Assert.Less(p.y, 0.12f, $"{token.name} sits on the floor");
                 Assert.IsTrue(token.transform.IsChildOf(intro.Leaf), $"{token.name} belongs on the leaf");
-                var flat = new Vector3(p.x, 0f, p.z);
-                Assert.Less(Vector3.Angle(Vector3.forward, flat), 35f, $"{token.name} is in front of the player");
+                // owner, headset 2026-11-12: not on the floor in front of the player at the title, hidden in a bush
+                var bush = GameObject.Find("FriendsBush").GetComponent<Renderer>().bounds;
+                Assert.IsTrue(bush.Contains(token.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((x, y) => { x.Encapsulate(y); return x; }).center),
+                    $"{token.name} waits hidden in the friends' bush");
                 Assert.IsFalse(furniture.Any(c => c.bounds.Contains(p)), $"{token.name} is not inside furniture");
             }
 

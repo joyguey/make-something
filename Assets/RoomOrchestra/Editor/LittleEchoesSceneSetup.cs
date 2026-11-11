@@ -157,6 +157,18 @@ namespace RoomOrchestra.EditorTools
             CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
+            CreateScanProgressBar(root.transform);
+            root.AddComponent<InstrumentIconLibrary>().Configure(
+                ((InstrumentType[])System.Enum.GetValues(typeof(InstrumentType))).Select(InstrumentIconMesh).ToArray(), MeadowArt.Lit());
+            // the meadow theme (V3 review: background music), on the title, the opening and while the song is empty
+            var theme = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RoomOrchestra/Audio/Music/MeadowTheme.wav");
+            if (theme != null)
+            {
+                var music = new GameObject("BackgroundMusic");
+                music.transform.SetParent(root.transform, false);
+                music.AddComponent<AudioSource>();
+                music.AddComponent<BackgroundMusic>().Configure(theme);
+            }
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
             if (dispenser != null)
@@ -414,6 +426,10 @@ namespace RoomOrchestra.EditorTools
             var ceiling = Glow(Tone("RoomCeiling", new Color(0.98f, 0.95f, 0.9f)), new Color(0.5f, 0.48f, 0.45f)); // lit from below too
             var panels = new List<Transform>();
             var size = RoomMax - RoomMin;
+            // V3 review: "the room environment is just a box, what about a little meadow". The meadow's pieces are the
+            // panels now; the room's walls stay as invisible fences, so thrown balls still bounce back into play.
+            bool meadow = MeadowArt.Available;
+            if (meadow) panels.AddRange(MeadowArt.Build(room));
 
             // A wall: a grid of upright panels on the plane through 'at', spanning 'along' (one axis) and the height.
             void Wall(string name, Vector3 start, Vector3 along, float length)
@@ -425,6 +441,7 @@ namespace RoomOrchestra.EditorTools
                         var centre = start + along * (w * (c + 0.5f)) + Vector3.up * (h * (r + 0.5f));
                         var panel = Box($"{name}_{c}_{r}", room, centre, new Vector3(w - Seam, h - Seam, PanelDepth), (c + r) % 2 == 0 ? wallA : wallB, keepCollider: true);
                         panel.gameObject.AddComponent<BounceSurface>(); // thrown balls bounce off it with their own sound
+                        if (meadow) Object.DestroyImmediate(panel.GetComponent<MeshRenderer>()); // an invisible fence round the clearing
                         panel.rotation = Quaternion.LookRotation(Vector3.Cross(along, Vector3.up), Vector3.up);
                         panels.Add(panel);
                     }
@@ -433,8 +450,8 @@ namespace RoomOrchestra.EditorTools
             Wall("WallNear", new Vector3(RoomMax.x, 0f, RoomMin.z), Vector3.left, size.x);
             Wall("WallLeft", new Vector3(RoomMin.x, 0f, RoomMin.z), Vector3.forward, size.z);
             Wall("WallRight", new Vector3(RoomMax.x, 0f, RoomMax.z), Vector3.back, size.z);
-            // Floor and ceiling: flat grids.
-            for (int x = 0; x < RoomColumns; x++)
+            // Floor and ceiling: flat grids (the box room only; the meadow has grass and sky).
+            for (int x = 0; x < RoomColumns && !meadow; x++)
                 for (int z = 0; z < RoomColumns; z++)
                 {
                     float w = size.x / RoomColumns, d = size.z / RoomColumns;
@@ -445,7 +462,7 @@ namespace RoomOrchestra.EditorTools
                     panels.Add(top);
                 }
             // The ceiling must not shade the stage: the room casts no shadows.
-            foreach (var panel in panels) panel.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            foreach (var panel in panels) if (panel.TryGetComponent<MeshRenderer>(out var look)) look.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             var virtualRoom = room.gameObject.AddComponent<VirtualRoom>();
             var farMiddle = new Vector3(0f, size.y / 2f, RoomMax.z);
             virtualRoom.Configure(panels.ToArray(), room.InverseTransformPoint(farMiddle), room.InverseTransformPoint((RoomMin + RoomMax) / 2f), park);
@@ -779,14 +796,19 @@ namespace RoomOrchestra.EditorTools
         // characters sitting on the floor in front of the leaf's home, ready to bounce up onto it.
         const float IntroFloorZ = 1.0f;
 
+        /// <summary>The bush the three friends hide in until Start (stage space), left of where the leaf lands.</summary>
+        public static readonly Vector3 FriendsBushAt = new(-1.05f, 0f, 1.6f);
+
         static IntroSequence CreateIntro(GameObject root, Transform swoop, OrbToken[] tokens, LeafStalk stalk)
         {
             var cast = tokens.Select(t => t.transform).ToArray();
-            var floor = cast.Select(t =>
+            // Owner, headset 2026-11-12: not waiting on the floor at the title; they hide in a bush beside the leaf and
+            // pop out of it on Start, hopping up onto the leaf as it lands.
+            var floor = cast.Select((t, i) =>
             {
                 var body = t.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
                 float aboveFeet = t.position.y - body.min.y;
-                return new Vector3(t.position.x, aboveFeet + 0.003f, IntroFloorZ);
+                return FriendsBushAt + new Vector3(-0.1f + 0.1f * i, aboveFeet + 0.003f, 0.04f * (i % 2));
             }).ToArray();
             var intro = root.AddComponent<IntroSequence>();
             var title = CreateTitle(root, intro);
@@ -799,6 +821,8 @@ namespace RoomOrchestra.EditorTools
         // The title card (Version 1 feedback: "boot into a proper title screen"): in front of the player, the
         // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
         static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
+        /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
+        const float TitleRailTop = 0.398f; // the rail top (1.535 m in Blender x 1.173) less 2 mm: flush, no gap
         // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
         static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
 
@@ -843,6 +867,27 @@ namespace RoomOrchestra.EditorTools
             Localize(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, -0.045f), 0.034f), UiTerm.Quit);
             quit.gameObject.AddComponent<QuitButton>();
 
+            MeadowArt.TitleSign(card, TitleCardAt.y); // a wooden sign with a little vine around the card (V3 review: richer menu)
+            // Flutter, Bop and Boom hop along the sign's top rail in time with the title theme (V3 review: "your bouncy
+            // happy characters"); children of the card, so they fly into the cloud with it on Start
+            var friends = Holder("TitleFriends", card, new Vector3(0f, 0.375f, 0.03f));
+            var types = new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom };
+            for (int i = 0; i < types.Length; i++)
+            {
+                var friend = new GameObject($"TitleFriend_{types[i]}");
+                friend.transform.SetParent(friends, false);
+                friend.transform.localPosition = new Vector3(-0.32f + 0.32f * i, 0f, 0f);
+                friend.transform.localRotation = Quaternion.identity; // faces toward -Z, like the card: toward the player
+                friend.transform.localScale = Vector3.one * 0.16f;
+                var body = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Orb_{types[i]}.mat");
+                if (CharacterArt.Has(types[i])) CharacterArt.Dress(friend, types[i], body);
+                // standing on the top rail, above its leafy vine (owner, headset 2026-11-12: they sank into the post)
+                // the body itself (not its outline shell) sits flush on the rail (owner, headset 2026-11-12)
+                var bodyBox = friend.transform.Find("Visual").GetComponent<Renderer>().bounds;
+                friend.transform.position += Vector3.up * (TitleCardAt.y + TitleRailTop - bodyBox.min.y);
+                float aboveFeet = friend.transform.position.y - (TitleCardAt.y + TitleRailTop);
+                friend.AddComponent<TitleFriend>().Configure(i * 0.33f, aboveFeet / Mathf.Max(1e-4f, friend.transform.lossyScale.y) * friend.transform.localScale.y);
+            }
             var title = root.AddComponent<TitleScreen>();
             title.Configure(card, GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint"), intro);
             return title;
@@ -1297,8 +1342,14 @@ namespace RoomOrchestra.EditorTools
                 pack.udu = SoundSets.Clips(dir, "Udu");
                 pack.mbira = SoundSets.Clips(dir, "Mbira");
                 pack.erhu = SoundSets.Clips(dir, "Erhu");
-                pack.volumes = new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu }
-                    .Select(t => SoundSets.VolumeFor(dir, t.ToString())).ToArray();
+                // the V4 library: the same sounds in every pack, each matched to the first three's loudness
+                pack.ocarina = SoundSets.Clips(SoundSets.LibraryDir, "Ocarina");
+                pack.handpan = SoundSets.Clips(SoundSets.LibraryDir, "Handpan");
+                pack.guzheng = SoundSets.Clips(SoundSets.LibraryDir, "Guzheng");
+                pack.balafon = SoundSets.Clips(SoundSets.LibraryDir, "Balafon");
+                pack.slitDrum = SoundSets.Clips(SoundSets.LibraryDir, "SlitDrum");
+                pack.volumes = ((InstrumentType[])System.Enum.GetValues(typeof(InstrumentType)))
+                    .Select(t => System.Array.IndexOf(Instruments.Library, t) >= 0 ? SoundSets.LibraryVolume(t.ToString()) : SoundSets.VolumeFor(dir, t.ToString())).ToArray();
                 return pack;
             }
             var packs = root.AddComponent<InstrumentPacks>();
@@ -1814,6 +1865,14 @@ namespace RoomOrchestra.EditorTools
             caption.rotation = mixTile.rotation;
             var mix = mixTile.gameObject.AddComponent<MixButton>();
             mix.Configure(target, caption.GetComponentInChildren<TMP_Text>());
+            // a small picture of the instrument beside its name (owner, 2026-11-11: names people may never have heard)
+            var icon = InstrumentIcon.Create(go.transform, "InstrumentIcon", 0.9f);
+            icon.transform.position = mixTile.position - mixTile.right * 0.15f;
+            icon.transform.rotation = mixTile.rotation;
+            icon.GetComponent<MeshFilter>().sharedMesh = InstrumentIconMesh(target.Instrument);
+            icon.GetComponent<MeshRenderer>().sharedMaterial = MeadowArt.Lit();
+            icon.Configure(target);
+            EditorUtility.SetDirty(icon);
             EditorUtility.SetDirty(mix);
 
             // Under the name: Change gives this furniture the next instrument (InstrumentPacks).
@@ -1919,6 +1978,44 @@ namespace RoomOrchestra.EditorTools
                 .Select(o => AssetDatabase.LoadAssetAtPath<AudioClip>($"Assets/RoomOrchestra/Audio/Effects/Bounce_{o}.wav")).ToArray();
             if (clips.Any(c => c == null)) Debug.LogWarning("[RoomOrchestra] Bounce sounds missing: run ArtSource/Audio/gen_bounce.py");
             return clips;
+        }
+
+        // The room-scan progress bar (owner, headset 2026-11-12): a dark track, a green fill, the percentage above and
+        // a hint below. It places itself in front of the player while the room is scanned.
+        static void CreateScanProgressBar(Transform root)
+        {
+            var bar = Holder("ScanProgress", root, new Vector3(0f, 0.15f, -1.3f)); // saved low behind the seat, hidden; it places itself
+            bar.rotation = FacePlayer(bar.position);
+            var plate = EnsureMaterial("ScanBarPlate", "Ball", new Color(0.16f, 0.09f, 0.22f));
+            var track = EnsureMaterial("ScanBarTrack", "Ball", new Color(0.3f, 0.24f, 0.36f));
+            var fillLook = Glow(EnsureMaterial("ScanBarFill", "Ball", new Color(0.45f, 0.86f, 0.5f)), new Color(0.2f, 0.45f, 0.22f));
+            Box("ScanPlate", bar, new Vector3(0f, 0f, 0.012f), new Vector3(0.5f, 0.2f, 0.015f), plate, keepCollider: false);
+            var meter = Holder("ScanMeter", bar, new Vector3(0f, -0.005f, 0f));
+            meter.localRotation = Quaternion.identity;
+            meter.localScale = new Vector3(ScanProgressBar.BarWidth, 0.035f, 0.012f);
+            Box("ScanTrack", meter, Vector3.zero, Vector3.one, track, keepCollider: false);
+            var fill = Box("ScanFill", meter, new Vector3(0f, 0f, -0.25f), new Vector3(1f, 1.05f, 1f), fillLook, keepCollider: false); // saved full; it shows the progress
+            var percent = Label("ScanLabel", "Scanning your room: 0%", bar, new Vector3(0f, 0.055f, -0.006f), 0.032f);
+            percent.localRotation = Quaternion.identity;
+            var help = Label("ScanHint", "Look all around: walls, floor, furniture", bar, new Vector3(0f, -0.06f, -0.006f), 0.022f);
+            help.localRotation = Quaternion.identity;
+            foreach (var r in bar.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var view = bar.gameObject.AddComponent<ScanProgressBar>();
+            view.Configure(fill, percent.GetComponentInChildren<TMP_Text>(), help.GetComponentInChildren<TMP_Text>());
+            EditorUtility.SetDirty(view);
+        }
+
+        const string InstrumentIconsFbx = "Assets/RoomOrchestra/Art/Icons/InstrumentIcons.fbx";
+
+        static Mesh InstrumentIconMesh(InstrumentType type)
+        {
+            if (AssetImporter.GetAtPath(InstrumentIconsFbx) is ModelImporter importer && importer.materialImportMode != ModelImporterMaterialImportMode.None)
+            {
+                importer.materialImportMode = ModelImporterMaterialImportMode.None;
+                importer.importAnimation = false;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAllAssetsAtPath(InstrumentIconsFbx).OfType<Mesh>().FirstOrDefault(m => m.name == $"Icon_{type}");
         }
 
         static Material EnsureMaterial(string name, string template, Color color)

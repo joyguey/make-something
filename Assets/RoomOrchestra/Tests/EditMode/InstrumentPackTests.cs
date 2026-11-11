@@ -25,9 +25,30 @@ namespace RoomOrchestra.Tests
         [Test]
         public void ChangeCyclesThroughEveryInstrument()
         {
-            Assert.AreEqual(InstrumentType.Mbira, InstrumentPacks.Next(InstrumentType.Udu));
-            Assert.AreEqual(InstrumentType.Erhu, InstrumentPacks.Next(InstrumentType.Mbira));
-            Assert.AreEqual(InstrumentType.Udu, InstrumentPacks.Next(InstrumentType.Erhu));
+            // the first three, then the V4 library (owner, 2026-11-11), and round again
+            var order = new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu, InstrumentType.Ocarina, InstrumentType.Handpan,
+                                InstrumentType.Guzheng, InstrumentType.Balafon, InstrumentType.SlitDrum };
+            for (int i = 0; i < order.Length; i++)
+                Assert.AreEqual(order[(i + 1) % order.Length], InstrumentPacks.Next(order[i]));
+            Assert.AreEqual(8, Instruments.Count);
+        }
+
+        // owner, 2026-11-11: a small picture of every instrument, for names people may never have heard
+        [Test]
+        public void EveryInstrumentHasAnIconAndEveryColumnShowsOne()
+        {
+            EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var library = Object.FindFirstObjectByType<InstrumentIconLibrary>();
+            Assert.IsNotNull(library);
+            foreach (InstrumentType type in System.Enum.GetValues(typeof(InstrumentType)))
+            {
+                var mesh = library.MeshFor(type);
+                Assert.IsNotNull(mesh, $"{type} has an icon");
+                Assert.Less(mesh.bounds.size.magnitude, 0.25f, $"{type}'s icon is small");
+                Assert.AreEqual(mesh.vertexCount, mesh.colors32.Length, $"{type}'s icon carries its colours and baked AO");
+            }
+            foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
+                Assert.IsNotNull(column.GetComponentInChildren<InstrumentIcon>(), $"{column.name} shows its instrument's picture");
         }
 
         [Test]

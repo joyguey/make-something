@@ -23,7 +23,7 @@ namespace RoomOrchestra
         /// <summary>Total notes added at which each toadstool sprouts, in order.</summary>
         public static readonly int[] MushroomAt = { 3, 4, 6, 8, 10, 13, 16 };
 
-        readonly int[] m_Notes = new int[3];
+        readonly int[] m_Notes = new int[System.Enum.GetValues(typeof(InstrumentType)).Length];
 
         public int TotalNotes { get; private set; }
 

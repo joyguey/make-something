@@ -130,7 +130,18 @@ namespace RoomOrchestra
         BattleGone,
         BattleFinishLesson,
         ConfirmAgain,
-        Quit
+        Quit,
+        /// <summary>The V4 instrument library's names (appended: terms are stored by number).</summary>
+        Ocarina,
+        Handpan,
+        Guzheng,
+        Balafon,
+        SlitDrum,
+        /// <summary>The room-scan progress bar (owner, headset 2026-11-12).</summary>
+        ScanProgress,
+        ScanProgressHint,
+        /// <summary>Furniture chosen with a virtual piece kept: how to change and move it (owner, headset 2026-11-12).</summary>
+        PlaceDoneMovable
     }
 
     /// <summary>
@@ -158,6 +169,14 @@ namespace RoomOrchestra
             { UiTerm.Udu, ("udu", "乌杜鼓") },
             { UiTerm.Mbira, ("mbira", "拇指琴") },
             { UiTerm.Erhu, ("erhu", "二胡") },
+            { UiTerm.Ocarina, ("ocarina", "陶笛") },
+            { UiTerm.Handpan, ("handpan", "手碟") },
+            { UiTerm.Guzheng, ("guzheng", "古筝") },
+            { UiTerm.Balafon, ("balafon", "巴拉风木琴") },
+            { UiTerm.SlitDrum, ("slit drum", "木鼓") },
+            { UiTerm.ScanProgress, ("Scanning your room: {0}%", "正在扫描房间：{0}%") },
+            { UiTerm.PlaceDoneMovable, ("All set! Tap the picture above any furniture to change its instrument. To move a virtual one, point at it and hold the grip button (or look at it and make a fist), then drag it.", "好啦！点家具上面的小图可以换乐器。要移动虚拟家具，指着它按住握把键（或看着它握拳），然后拖动。") },
+            { UiTerm.ScanProgressHint, ("Look all around: walls, floor, furniture", "看一圈：墙、地板、家具") },
             { UiTerm.Muted, ("Muted", "静音") },
             { UiTerm.Open, ("Deep", "开音") },
             { UiTerm.MutedHit, ("Soft", "闷音") },
@@ -187,7 +206,7 @@ namespace RoomOrchestra
             { UiTerm.PlaceUdu, ("Last, the udu drum: point at a real table and press. Or press the table to keep it here.", "最后是乌杜鼓：指向一张真的桌子，按一下。或者按桌子，让它留在这里。") },
             { UiTerm.PlaceMbira, ("The glow is your room. Where should the mbira live? Point at a real chair or sofa and press. Or press the chair to keep it here.", "发光的就是你的房间。拇指琴要住在哪里？指向一把真的椅子或沙发，按一下。或者按椅子，让它留在这里。") },
             { UiTerm.PlaceErhu, ("Now the erhu: point at a real lamp or light and press. Or press the lamp to keep it here.", "现在是二胡：指向一盏真的灯，按一下。或者按台灯，让它留在这里。") },
-            { UiTerm.PlaceDone, ("All set! Point at your furniture to see its five notes, then press to play, or throw us at it!", "好啦！指向你的家具，看看它的五个音，然后按一下来弹，或者把我们扔过去！") },
+            { UiTerm.PlaceDone, ("All set! Point at your furniture to see its five notes, then press to play, or throw us at it! Tap the picture above it to change the instrument.", "好啦！指向你的家具，看看它的五个音，然后按一下来弹，或者把我们扔过去！点它上面的小图可以换乐器。") },
             { UiTerm.PlaceWelcomeBack, ("Welcome back! Your instruments are where you left them.", "欢迎回来！乐器都还在你上次放的地方。") },
             { UiTerm.ConfirmQuit, ("Quit Little Echoes?", "退出游戏吗？") },
             { UiTerm.ConfirmClear, ("Clear your whole song?", "清除整首歌吗？") },
@@ -268,6 +287,11 @@ namespace RoomOrchestra
         {
             InstrumentType.Udu => UiTerm.Udu,
             InstrumentType.Mbira => UiTerm.Mbira,
+            InstrumentType.Ocarina => UiTerm.Ocarina,
+            InstrumentType.Handpan => UiTerm.Handpan,
+            InstrumentType.Guzheng => UiTerm.Guzheng,
+            InstrumentType.Balafon => UiTerm.Balafon,
+            InstrumentType.SlitDrum => UiTerm.SlitDrum,
             _ => UiTerm.Erhu,
         }, language);
 

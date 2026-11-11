@@ -72,6 +72,8 @@ namespace RoomOrchestra.EditorTools
                     if (part.name == p && part.TryGetComponent<MeshFilter>(out var filter))
                     {
                         filter.sharedMesh = mesh;
+                        // its ambient occlusion, baked in Blender (V3 review), darkens it through its own material's copy
+                        if (part.TryGetComponent<MeshRenderer>(out var look)) look.sharedMaterial = BakedAO.For(mesh, look.sharedMaterial);
                         placed++;
                     }
             }

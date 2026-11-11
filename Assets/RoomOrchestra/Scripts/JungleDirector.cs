@@ -102,7 +102,15 @@ namespace RoomOrchestra
             m_Chorus = false;
         }
 
-        void OnNoteAdded(EchoEvent echo) => NoteAdded(echo.Target);
+        // the rainforest grows by the furniture: a note on the ocarina the lamp plays now grows the lamp's vine (V4 library)
+        void OnNoteAdded(EchoEvent echo)
+        {
+            // Owner, headset 2026-11-12: "for the tutorial, there shouldn't be anything growing, I'd like it to be a
+            // surprise in the real thing". The lesson's notes grow nothing; the rainforest first appears in the room.
+            var lesson = TutorialDirector.Instance;
+            if (lesson != null && lesson.Active) return;
+            NoteAdded(InstrumentPacks.Instance != null ? InstrumentPacks.Instance.HomeOf(echo.Target) : echo.Target);
+        }
 
         /// <summary>A note was added to the song on <paramref name="instrument"/>: the jungle grows a little.</summary>
         public void NoteAdded(InstrumentType instrument)
@@ -125,7 +133,8 @@ namespace RoomOrchestra
                 for (int i = 0; i < m_Growth.MushroomsSprouted && i < toadstools.Length; i++)
                     if (toadstools[i] != null && !toadstools[i].Sprouted)
                     {
-                        if (realRoom) PlaceOnRealSurface(toadstools[i]);
+                        if (realRoom && PlaceOnRealSurface(toadstools[i]))
+                            toadstools[i].transform.position += Vector3.up * ToadstoolLift; // its foot on, not in, a bumpy scan
                         toadstools[i].Sprout();
                     }
             if (flowers != null)
@@ -139,12 +148,19 @@ namespace RoomOrchestra
 
         // With a room scan, a flower grows on a flat, clear real surface near its own place (George, 2026-11-03),
         // moved while it is still an unseen speck; without one it keeps the place it was given.
-        static void PlaceOnRealSurface(FloorSprout flower)
+        /// <summary>
+        /// A toadstool on a real surface sits this much above the scanned point (m): the scan is bumpy farther away, and
+        /// the room hides whatever is below its surface (owner, headset 2026-11-12: "mushrooms clipping into the floor").
+        /// </summary>
+        public const float ToadstoolLift = 0.025f;
+
+        static bool PlaceOnRealSurface(FloorSprout flower)
         {
             var walls = RealWalls.Instance;
-            if (walls == null || !walls.TryTakeFlowerSpot(flower.transform.position, out var spot)) return;
+            if (walls == null || !walls.TryTakeFlowerSpot(flower.transform.position, out var spot)) return false;
             flower.transform.position = spot;
             Debug.Log($"[RoomOrchestra] Jungle: {flower.name} grows on a real surface at {spot:F2}");
+            return true;
         }
 
         VineGrowth VineFor(InstrumentType instrument) => instrument switch

@@ -97,8 +97,9 @@ namespace RoomOrchestra.EditorTools
         {
             var visual = new GameObject("Visual").transform;
             visual.SetParent(root, false);
-            visual.gameObject.AddComponent<MeshFilter>().sharedMesh = Part(type, bodyPart);
-            visual.gameObject.AddComponent<MeshRenderer>().sharedMaterial = body;
+            var mesh = Part(type, bodyPart);
+            visual.gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
+            visual.gameObject.AddComponent<MeshRenderer>().sharedMaterial = BakedAO.For(mesh, body); // AO baked in Blender
             return visual;
         }
 
@@ -174,8 +175,9 @@ namespace RoomOrchestra.EditorTools
             var go = new GameObject(part);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPosition;
-            go.AddComponent<MeshFilter>().sharedMesh = Part(type, part);
-            go.AddComponent<MeshRenderer>().sharedMaterial = material;
+            var mesh = Part(type, part);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = BakedAO.For(mesh, material); // AO baked in Blender
             return go.transform;
         }
     }

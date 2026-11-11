@@ -69,6 +69,16 @@ namespace RoomOrchestra.EditorTools
 
         /// <summary>Average RMS-to-peak ratio over the clips: how loud they sound once rendered to one peak level.</summary>
         /// <summary>An instrument's volume with the set in <paramref name="dir"/>, trimmed to the approved set's balance.</summary>
+        public const string LibraryDir = "Assets/RoomOrchestra/Audio/Library";
+
+        /// <summary>A V4 library instrument's volume: as loud as the first three are on average (the approved mix).</summary>
+        public static float LibraryVolume(string instrument)
+        {
+            float original = (Loudness(Clips(OriginalDir, "Udu")) + Loudness(Clips(OriginalDir, "Mbira")) + Loudness(Clips(OriginalDir, "Erhu"))) / 3f;
+            float trim = Mathf.Clamp(original / Loudness(Clips(LibraryDir, instrument)), 0.2f, 1.5f);
+            return Mathf.Min(1f, BaseVolume * trim); // never past full: the source itself is a touch quieter
+        }
+
         public static float VolumeFor(string dir, string instrument)
         {
             if (dir == OriginalDir) return BaseVolume;
