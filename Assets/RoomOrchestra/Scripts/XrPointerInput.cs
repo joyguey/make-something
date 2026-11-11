@@ -17,6 +17,14 @@ namespace RoomOrchestra
         public bool Grip;
         /// <summary>Where the grab is (rig space): the controller, or the palm.</summary>
         public Vector3 GripPosition;
+        /// <summary>
+        /// Hands: the pointer is the player's gaze (V3 review: "use eye tracking to determine where the UI should
+        /// interact and pinch to confirm"): Position/Rotation are the eyes' ray, Select is this hand's pinch, and
+        /// HandPosition/HandRotation are the hand itself (a pinched ball moves with the hand).
+        /// </summary>
+        public bool Gaze;
+        public Vector3 HandPosition;
+        public Quaternion HandRotation;
     }
 
     /// <summary>Source of per-hand pointer frames; swapped for a fake in tests.</summary>
@@ -94,6 +102,15 @@ namespace RoomOrchestra
                 Rotation = aim.aimRayPose.Orientation.ToQuat(),
                 Select = (status & (ByteDance.PICO.XR.HandAimStatus.AimRayTouched | ByteDance.PICO.XR.HandAimStatus.AimIndexPinching)) != 0,
             };
+            // look and pinch: the ray is the eyes' (or the head's, without eye tracking); the hand only pinches
+            frame.HandPosition = frame.Position;
+            frame.HandRotation = frame.Rotation;
+            if (GazeSource.TryGetGaze(out var eyes, out var look))
+            {
+                frame.Position = eyes;
+                frame.Rotation = look;
+                frame.Gaze = true;
+            }
             // a fist (the whole hand closed) grabs: the index, middle and ring fingertips all near the palm
             var joints = new ByteDance.PICO.XR.HandJointLocations { jointLocations = new ByteDance.PICO.XR.HandJointLocation[(int)ByteDance.PICO.XR.HandJoint.JointMax] };
             if (ByteDance.PICO.XR.PXR_HandTracking.GetJointLocations(hand == 0 ? ByteDance.PICO.XR.HandType.HandLeft : ByteDance.PICO.XR.HandType.HandRight, ref joints)

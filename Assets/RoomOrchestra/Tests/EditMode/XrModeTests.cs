@@ -30,7 +30,8 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(config.spatialMesh, "real walls and the scan grid");
             Assert.IsTrue(config.sceneCapture, "PICO's Room Capture");
             Assert.IsTrue(config.spatialAnchor, "places the player picks");
-            Assert.IsTrue(config.environmentDepth, "PICO's depth sensing hides what is behind real things");
+            Assert.IsFalse(config.environmentDepth, "the scanned room mesh does the hiding; PICO depth is off");
+            Assert.IsTrue(config.eyeTracking, "look and pinch follows the eyes (V3 review)");
             Assert.IsFalse(System.IO.File.Exists("Assets/Plugins/Android/AndroidManifest.xml"), "PICO Spatial's launcher manifest is gone");
             Assert.IsFalse(System.IO.File.ReadAllText("Packages/manifest.json").Contains("com.bytedance.pico.spatialadapter"), "the PICO Spatial package is removed");
         }

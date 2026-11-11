@@ -94,6 +94,9 @@ namespace RoomOrchestra
             }
             var origin = rig != null ? rig.TransformPoint(frame.Position) : frame.Position;
             var dir = (rig != null ? rig.rotation * frame.Rotation : frame.Rotation) * Vector3.forward;
+            // look and pinch (hands): the ray is the gaze; a pinched ball moves with the hand itself
+            m_Gaze[hand] = frame.Gaze;
+            var handAt = frame.Gaze ? (rig != null ? rig.TransformPoint(frame.HandPosition) : frame.HandPosition) : origin;
             var ray = new Ray(origin, dir);
             bool pressed = frame.Select && !m_WasSelect[hand];
             bool released = !frame.Select && m_WasSelect[hand];
@@ -101,7 +104,7 @@ namespace RoomOrchestra
 
             if (m_Grabbing[hand])
             {
-                var held = origin + dir * m_GrabDistance[hand];
+                var held = frame.Gaze ? handAt : origin + dir * m_GrabDistance[hand];
                 if (released)
                 {
                     m_Grabbing[hand] = false;
@@ -119,6 +122,13 @@ namespace RoomOrchestra
             bool ball = launcher != null && launcher.IsReadyBall(target);
             var owner = target != null ? PressableOwner(target) : null;
             bool tappable = ball || owner != null;
+            // a soft tick as the pointer comes onto something new to press (not the instruments' own notes)
+            var hoverOn = tappable && !(owner is InstrumentTarget) ? (owner != null ? (Component)owner : hit.collider) : null;
+            if (hoverOn != m_Hovering[hand])
+            {
+                m_Hovering[hand] = hoverOn;
+                if (hoverOn != null) UiSounds.Play(UiSound.Hover, hit.point);
+            }
             ShowRay(hand, true, origin, touching ? hit.point : origin + dir * RayIdleLength, touching, tappable);
             // on an instrument's real object: its five note bands show, the one under the pointer lit (owner, 2026-11-08)
             if (owner is InstrumentTarget instrument && instrument.Home != null) instrument.Home.Point(hit.point);
@@ -128,12 +138,14 @@ namespace RoomOrchestra
             {
                 m_Grabbing[hand] = true;
                 m_GrabDistance[hand] = hit.distance;
-                launcher.BeginGrab(GrabId(hand), hit.point);
+                launcher.BeginGrab(GrabId(hand), frame.Gaze ? handAt : hit.point);
             }
             else if (!IsDuplicateTap(target)) Activate(target);
         }
 
         static int GrabId(int hand) => 100 + hand;
+        readonly bool[] m_Gaze = new bool[2];
+        readonly Component[] m_Hovering = new Component[2];
 
         // After the lesson the player chooses where each instrument lives (owner, headset 2026-11-08): the ray touches
         // the scanned room, a glowing spot previews the place, and a press puts the instrument there. A press on that
@@ -183,6 +195,8 @@ namespace RoomOrchestra
         void ShowRay(int hand, bool on, Vector3 from, Vector3 to, bool touching, bool hot)
         {
             var line = rays != null && hand < rays.Length ? rays[hand] : null;
+            if (m_Gaze[hand] && line != null && line.enabled) line.enabled = false; // look and pinch: a dot where you look, no beam
+            if (m_Gaze[hand]) line = null;
             var dot = reticles != null && hand < reticles.Length ? reticles[hand] : null;
             if (line != null)
             {
@@ -265,6 +279,7 @@ namespace RoomOrchestra
                 var card = ConfirmCard.Instance;
                 var pending = card != null ? card.Pending : null;
                 Acknowledge(choice);
+                UiSounds.Play(choice.Yes ? UiSound.Confirm : UiSound.Cancel, choice);
                 s_Confirm.Cancel();
                 AskOn(null);
                 if (choice.Yes && pending != null)
@@ -356,6 +371,8 @@ namespace RoomOrchestra
         {
             if (owner == null || owner is InstrumentTarget || owner is EchoMini) return;
             PressJiggle.Play(owner, swell: !(owner is OrbToken));
+            // the menu and the confirm card play their own sounds; everything else pops (V3 review: UI sound effects)
+            if (!(owner is MenuButton) && !(owner is ConfirmChoice)) UiSounds.Play(UiSound.Press, owner);
         }
 
         static bool Dispatch(GameObject hit)

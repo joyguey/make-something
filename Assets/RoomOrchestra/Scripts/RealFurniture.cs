@@ -463,6 +463,7 @@ namespace RoomOrchestra
             if (s == null) return;
             var box = m_HasPreview && (m_PreviewBox.Contains(point) || (point - m_PreviewPoint).sqrMagnitude < 0.04f * 0.04f) ? m_PreviewBox : ObjectAt(point);
             LiveOn(s, new Pose(box.center, Quaternion.identity), box.size, withShape: true);
+            UiSounds.Play(UiSound.Place, box.center);
             MatchedCount++;
             RealHomeStore.Remember(s.Name, s.Home);
             Physics.SyncTransforms();
@@ -617,6 +618,7 @@ namespace RoomOrchestra
             if (wasMatched) MatchedCount = Mathf.Max(0, MatchedCount - 1);
             RealHomeStore.Forget(s.Name);
             PoofCloud.PoofAt(where, 0.5f);
+            UiSounds.Play(UiSound.Cancel, where);
             HidePreview();
             m_Phase = Phase.Choosing;
             RealWalls.ShowScan = true;

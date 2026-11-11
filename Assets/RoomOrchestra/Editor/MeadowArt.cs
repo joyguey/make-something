@@ -1,0 +1,184 @@
+using System.Collections.Generic;
+using System.Linq;
+using UnityEditor;
+using UnityEngine;
+
+namespace RoomOrchestra.EditorTools
+{
+    /// <summary>
+    /// The lesson's meadow (V3 review: "the room environment is just a box, what about a little meadow"): the pieces
+    /// modelled in Blender (ArtSource/Meadow/build_meadow.py, AO baked per piece into the vertex colours) laid out
+    /// around the stage: grass underfoot, flowers, grass tufts, bushes and rocks around the clearing, trees beyond,
+    /// rolling hills further out, clouds overhead and a painted sky. Every piece is a "panel" of the virtual room, so
+    /// the meadow comes apart after the lesson exactly as the room did, revealing the player's own room. Seeded: the
+    /// same meadow every time.
+    /// </summary>
+    public static class MeadowArt
+    {
+        public const string FbxPath = "Assets/RoomOrchestra/Art/Meadow/Meadow.fbx";
+        const string MaterialDir = "Assets/RoomOrchestra/Materials";
+        /// <summary>Kept clear for the lesson's furniture, the leaf and the seat (stage space, x and z).</summary>
+        static readonly Rect Clearing = new(-3.0f, -2.0f, 6.0f, 6.2f);
+        public const float GroundTile = 2f, GroundRadius = 11f, SkyScale = 0.7f;
+
+        static Dictionary<string, Mesh> s_Meshes;
+
+        public static bool Available => System.IO.File.Exists(FbxPath);
+
+        static Mesh M(string name)
+        {
+            if (s_Meshes == null)
+            {
+                if (AssetImporter.GetAtPath(FbxPath) is ModelImporter importer && (importer.materialImportMode != ModelImporterMaterialImportMode.None || importer.importAnimation))
+                {
+                    importer.materialImportMode = ModelImporterMaterialImportMode.None;
+                    importer.importAnimation = false;
+                    importer.importCameras = false;
+                    importer.importLights = false;
+                    importer.SaveAndReimport();
+                }
+                s_Meshes = AssetDatabase.LoadAllAssetsAtPath(FbxPath).OfType<Mesh>().ToDictionary(m => m.name);
+            }
+            return s_Meshes.TryGetValue(name, out var mesh) ? mesh : null;
+        }
+
+        public static Material Lit() => EnsureMaterial("MeadowBakedAO", "RoomOrchestra/LitBakedAO", Color.white);
+        static Material Sky() => EnsureMaterial("MeadowSky", "RoomOrchestra/UnlitVertexColor", Color.white);
+        // clouds glow softly so their undersides stay white, not storm grey
+        static Material CloudLook()
+        {
+            var m = EnsureMaterial("MeadowCloud", "RoomOrchestra/LitBakedAO", Color.white);
+            m.SetColor("_EmissionColor", new Color(0.45f, 0.47f, 0.5f));
+            return m;
+        }
+
+        static Material EnsureMaterial(string name, string shader, Color colour)
+        {
+            string path = $"{MaterialDir}/{name}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find(shader));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.shader = Shader.Find(shader);
+            material.SetColor("_BaseColor", colour);
+            material.enableInstancing = true;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        static Transform Piece(string mesh, Transform parent, Vector3 at, float yaw, float scale, Material material, List<Transform> panels)
+        {
+            var m = M(mesh);
+            if (m == null) return null;
+            var go = new GameObject(mesh.Replace("Meadow_", ""));
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = at;
+            go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            go.transform.localScale = Vector3.one * scale;
+            go.AddComponent<MeshFilter>().sharedMesh = m;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = material;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; // the meadow casts no shadows on the stage
+            panels.Add(go.transform);
+            return go.transform;
+        }
+
+        static bool InClearing(Vector3 p, float margin) =>
+            p.x > Clearing.xMin - margin && p.x < Clearing.xMax + margin && p.z > Clearing.yMin - margin && p.z < Clearing.yMax + margin;
+
+        static Vector3 Around(System.Random rng, float rMin, float rMax, Vector3 centre)
+        {
+            double a = rng.NextDouble() * Mathf.PI * 2;
+            double r = rMin + (rMax - rMin) * System.Math.Sqrt(rng.NextDouble());
+            return centre + new Vector3((float)(System.Math.Cos(a) * r), 0f, (float)(System.Math.Sin(a) * r));
+        }
+
+        /// <summary>Lays the meadow out under <paramref name="room"/>; returns its pieces (panels), nearest first not required.</summary>
+        public static List<Transform> Build(Transform room)
+        {
+            s_Meshes = null;
+            var panels = new List<Transform>();
+            if (!Available) return panels;
+            var lit = Lit();
+            var sky = Sky();
+            var rng = new System.Random(20261111);
+            var centre = new Vector3(0f, 0f, 1.2f);
+
+            // grass underfoot: 2 m tiles to the meadow's edge, three variants turned at random
+            for (float x = -GroundRadius; x <= GroundRadius; x += GroundTile)
+                for (float z = -GroundRadius; z <= GroundRadius; z += GroundTile)
+                {
+                    var at = centre + new Vector3(x, 0f, z);
+                    if (new Vector2(x, z).magnitude > GroundRadius) continue;
+                    Piece($"Meadow_Ground{rng.Next(3)}", room, at + Vector3.down * 0.005f, 90f * rng.Next(4), 1f, lit, panels);
+                }
+            // flowers and grass tufts, around the clearing
+            for (int i = 0; i < 16; i++)
+            {
+                var at = Around(rng, 3.2f, 8f, centre);
+                if (InClearing(at, 0.3f)) continue;
+                Piece($"Meadow_Flowers{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 1f, lit, panels);
+            }
+            for (int i = 0; i < 70; i++)
+            {
+                var at = Around(rng, 2.6f, 9.5f, centre);
+                if (InClearing(at, 0f)) continue;
+                Piece($"Meadow_Grass{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 0.8f + (float)rng.NextDouble() * 0.6f, lit, panels);
+            }
+            // bushes and rocks at the clearing's edge
+            for (int i = 0; i < 11; i++)
+            {
+                var at = Around(rng, 4.2f, 7f, centre);
+                if (InClearing(at, 0.6f)) continue;
+                Piece($"Meadow_Bush{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.4f, lit, panels);
+            }
+            for (int i = 0; i < 7; i++)
+            {
+                var at = Around(rng, 4f, 9f, centre);
+                if (InClearing(at, 0.5f)) continue;
+                Piece($"Meadow_Rock{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 0.8f + (float)rng.NextDouble() * 0.7f, lit, panels);
+            }
+            // trees beyond
+            string[] trees = { "Meadow_TreeRound0", "Meadow_TreeRound1", "Meadow_TreePine0", "Meadow_TreePine1", "Meadow_TreeBlossom0" };
+            for (int i = 0; i < 16; i++)
+            {
+                var at = Around(rng, 6.5f, 10.5f, centre);
+                Piece(trees[rng.Next(trees.Length)], room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.5f, lit, panels);
+            }
+            // rolling hills on the horizon
+            for (int i = 0; i < 10; i++)
+            {
+                float a = i / 10f * 360f + (float)rng.NextDouble() * 20f;
+                var at = centre + Quaternion.Euler(0f, a, 0f) * Vector3.forward * (14f + (float)rng.NextDouble() * 4f);
+                Piece($"Meadow_Hill{rng.Next(3)}", room, at, a + 90f, 1f, lit, panels);
+            }
+            // clouds overhead, and the sky
+            for (int i = 0; i < 7; i++)
+            {
+                var at = Around(rng, 11f, 20f, centre) + Vector3.up * (8f + (float)rng.NextDouble() * 4f); // high and far: never a blob overhead
+                Piece($"Meadow_Cloud{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 1.2f + (float)rng.NextDouble(), CloudLook(), panels);
+            }
+            for (int w = 0; w < 8; w++)
+                Piece("Meadow_SkyWedge", room, centre, w * 45f, SkyScale, sky, panels);
+            return panels;
+        }
+
+        /// <summary>The title's wooden sign around the card (a child of it, so it tucks into the cloud with it).</summary>
+        public static Transform TitleSign(Transform card, float cardCentreHeight)
+        {
+            var m = M("Meadow_TitleSign");
+            if (m == null) return null;
+            var go = new GameObject("TitleSign");
+            go.transform.SetParent(card, false);
+            // its top rail just above the card, the lower rail below it; stands on the ground behind the card
+            go.transform.localPosition = new Vector3(0f, -cardCentreHeight, 0.045f);
+            go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // the vine side toward the player
+            go.transform.localScale = new Vector3(1f, 1.173f, 1f);
+            go.AddComponent<MeshFilter>().sharedMesh = m;
+            go.AddComponent<MeshRenderer>().sharedMaterial = Lit();
+            return go.transform;
+        }
+    }
+}

@@ -337,7 +337,7 @@ namespace RoomOrchestra
                     Destroy(scratch);
                     return;
                 }
-                Apply(id, scratch, result.Position, result.Rotation, result.Scale);
+                Apply(id, scratch, XrRig.ToScene(result.Position), XrRig.ToScene(result.Rotation), result.Scale); // tracking -> scene
             });
         }
 

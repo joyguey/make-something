@@ -204,7 +204,9 @@ namespace RoomOrchestra.Tests
             var root = Object.FindFirstObjectByType<OrbSelector>();
             Assert.IsNotNull(root);
             var eye = new Vector3(0f, eyeHeight, 0f);
-            var renderers = root.GetComponentsInChildren<Renderer>();
+            var room = Object.FindFirstObjectByType<VirtualRoom>();
+            // the meadow surrounds everything (its sky domes over all): it is the backdrop, not a control in the way
+            var renderers = root.GetComponentsInChildren<Renderer>().Where(r => room == null || !r.transform.IsChildOf(room.transform)).ToArray();
             Assert.Greater(renderers.Length, 0);
             foreach (var target in Object.FindObjectsByType<InstrumentTarget>(FindObjectsSortMode.None))
             {

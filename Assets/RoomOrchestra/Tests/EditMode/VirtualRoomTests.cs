@@ -37,7 +37,11 @@ namespace RoomOrchestra.Tests
             foreach (var r in stage)
                 Assert.IsTrue(inside.Contains(r.bounds.center), $"{r.name} at {r.bounds.center} is outside the virtual room");
             Assert.IsTrue(inside.Contains(new Vector3(0f, 1.15f, 0f)), "the seat is inside");
-            Assert.AreEqual(90, room.Panels.Count, "4 walls of 10, floor and ceiling of 25");
+            // V3 review: a meadow instead of a box: grass, flowers, trees, hills, clouds and sky, inside invisible fences
+            Assert.AreEqual(40, room.Panels.Count(p => p.name.StartsWith("Wall")), "4 invisible fences of 10");
+            Assert.Greater(room.Panels.Count(p => p.name.StartsWith("Ground")), 60, "grass underfoot");
+            foreach (var kind in new[] { "Tree", "Hill", "Flowers", "Bush", "Cloud", "SkyWedge" })
+                Assert.IsTrue(room.Panels.Any(p => p.name.StartsWith(kind)), $"the meadow has {kind}");
         }
 
         [Test]
@@ -45,12 +49,13 @@ namespace RoomOrchestra.Tests
         {
             foreach (var panel in Room.Panels)
             {
-                bool floor = panel.name.StartsWith("Floor");
-                Assert.AreEqual(!floor, panel.GetComponent<Collider>() != null, $"{panel.name}: walls and ceiling stop balls, the floor is the real one");
-                Assert.AreEqual(!floor, panel.GetComponent<BounceSurface>() != null, $"{panel.name}: a ball bounces off it with its own sound");
+                bool fence = panel.name.StartsWith("Wall");
+                Assert.AreEqual(fence, panel.GetComponent<Collider>() != null, $"{panel.name}: only the invisible fences stop balls");
+                Assert.AreEqual(fence, panel.GetComponent<BounceSurface>() != null, $"{panel.name}: a ball bounces off a fence with its own sound");
+                Assert.AreEqual(!fence, panel.GetComponent<MeshRenderer>() != null, $"{panel.name}: the fences are not drawn; the meadow is");
                 Assert.IsFalse(InstrumentInputRouter.Activate(panel.gameObject), $"a tap on {panel.name} does nothing");
                 Assert.IsNull(InstrumentInputRouter.PressableOwner(panel.gameObject), $"{panel.name}: the pointer's ray stays plain over it");
-                Assert.AreEqual(UnityEngine.Rendering.ShadowCastingMode.Off, panel.GetComponent<MeshRenderer>().shadowCastingMode, panel.name);
+                if (panel.TryGetComponent<MeshRenderer>(out var look)) Assert.AreEqual(UnityEngine.Rendering.ShadowCastingMode.Off, look.shadowCastingMode, panel.name);
             }
         }
 
@@ -75,6 +80,7 @@ namespace RoomOrchestra.Tests
                 var s = panel.lossyScale;
                 Assert.Greater(Mathf.Min(s.x, Mathf.Min(s.y, s.z)), 0.001f, $"{panel.name} is not at near-zero scale");
                 Assert.Less(Mathf.Max(s.x, Mathf.Max(s.y, s.z)), 0.06f, $"{panel.name} fits inside the cloud");
+                if (panel.TryGetComponent<Renderer>(out var look)) Assert.IsFalse(look.enabled, $"{panel.name} is not drawn once gone");
                 Assert.IsFalse(panel.TryGetComponent<Collider>(out var c) && c.enabled, $"{panel.name} catches nothing in the cloud");
             }
         }

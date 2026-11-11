@@ -157,6 +157,15 @@ namespace RoomOrchestra.EditorTools
             CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
+            // the meadow theme (V3 review: background music), on the title, the opening and while the song is empty
+            var theme = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/RoomOrchestra/Audio/Music/MeadowTheme.wav");
+            if (theme != null)
+            {
+                var music = new GameObject("BackgroundMusic");
+                music.transform.SetParent(root.transform, false);
+                music.AddComponent<AudioSource>();
+                music.AddComponent<BackgroundMusic>().Configure(theme);
+            }
             // The ball stand sits right of and behind the front row (clear of every pointer line).
             var dispenser = parent != null ? parent.transform.Find("BallDispenser") : null;
             if (dispenser != null)
@@ -414,6 +423,10 @@ namespace RoomOrchestra.EditorTools
             var ceiling = Glow(Tone("RoomCeiling", new Color(0.98f, 0.95f, 0.9f)), new Color(0.5f, 0.48f, 0.45f)); // lit from below too
             var panels = new List<Transform>();
             var size = RoomMax - RoomMin;
+            // V3 review: "the room environment is just a box, what about a little meadow". The meadow's pieces are the
+            // panels now; the room's walls stay as invisible fences, so thrown balls still bounce back into play.
+            bool meadow = MeadowArt.Available;
+            if (meadow) panels.AddRange(MeadowArt.Build(room));
 
             // A wall: a grid of upright panels on the plane through 'at', spanning 'along' (one axis) and the height.
             void Wall(string name, Vector3 start, Vector3 along, float length)
@@ -425,6 +438,7 @@ namespace RoomOrchestra.EditorTools
                         var centre = start + along * (w * (c + 0.5f)) + Vector3.up * (h * (r + 0.5f));
                         var panel = Box($"{name}_{c}_{r}", room, centre, new Vector3(w - Seam, h - Seam, PanelDepth), (c + r) % 2 == 0 ? wallA : wallB, keepCollider: true);
                         panel.gameObject.AddComponent<BounceSurface>(); // thrown balls bounce off it with their own sound
+                        if (meadow) Object.DestroyImmediate(panel.GetComponent<MeshRenderer>()); // an invisible fence round the clearing
                         panel.rotation = Quaternion.LookRotation(Vector3.Cross(along, Vector3.up), Vector3.up);
                         panels.Add(panel);
                     }
@@ -433,8 +447,8 @@ namespace RoomOrchestra.EditorTools
             Wall("WallNear", new Vector3(RoomMax.x, 0f, RoomMin.z), Vector3.left, size.x);
             Wall("WallLeft", new Vector3(RoomMin.x, 0f, RoomMin.z), Vector3.forward, size.z);
             Wall("WallRight", new Vector3(RoomMax.x, 0f, RoomMax.z), Vector3.back, size.z);
-            // Floor and ceiling: flat grids.
-            for (int x = 0; x < RoomColumns; x++)
+            // Floor and ceiling: flat grids (the box room only; the meadow has grass and sky).
+            for (int x = 0; x < RoomColumns && !meadow; x++)
                 for (int z = 0; z < RoomColumns; z++)
                 {
                     float w = size.x / RoomColumns, d = size.z / RoomColumns;
@@ -445,7 +459,7 @@ namespace RoomOrchestra.EditorTools
                     panels.Add(top);
                 }
             // The ceiling must not shade the stage: the room casts no shadows.
-            foreach (var panel in panels) panel.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            foreach (var panel in panels) if (panel.TryGetComponent<MeshRenderer>(out var look)) look.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             var virtualRoom = room.gameObject.AddComponent<VirtualRoom>();
             var farMiddle = new Vector3(0f, size.y / 2f, RoomMax.z);
             virtualRoom.Configure(panels.ToArray(), room.InverseTransformPoint(farMiddle), room.InverseTransformPoint((RoomMin + RoomMax) / 2f), park);
@@ -843,6 +857,22 @@ namespace RoomOrchestra.EditorTools
             Localize(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, -0.045f), 0.034f), UiTerm.Quit);
             quit.gameObject.AddComponent<QuitButton>();
 
+            MeadowArt.TitleSign(card, TitleCardAt.y); // a wooden sign with a little vine around the card (V3 review: richer menu)
+            // Flutter, Bop and Boom hop along the sign's top rail in time with the title theme (V3 review: "your bouncy
+            // happy characters"); children of the card, so they fly into the cloud with it on Start
+            var friends = Holder("TitleFriends", card, new Vector3(0f, 0.375f, 0.03f));
+            var types = new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom };
+            for (int i = 0; i < types.Length; i++)
+            {
+                var friend = new GameObject($"TitleFriend_{types[i]}");
+                friend.transform.SetParent(friends, false);
+                friend.transform.localPosition = new Vector3(-0.32f + 0.32f * i, 0f, 0f);
+                friend.transform.localRotation = Quaternion.identity; // faces toward -Z, like the card: toward the player
+                friend.transform.localScale = Vector3.one * 0.16f;
+                var body = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Orb_{types[i]}.mat");
+                if (CharacterArt.Has(types[i])) CharacterArt.Dress(friend, types[i], body);
+                friend.AddComponent<TitleFriend>().Configure(i * 0.33f);
+            }
             var title = root.AddComponent<TitleScreen>();
             title.Configure(card, GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint"), intro);
             return title;
