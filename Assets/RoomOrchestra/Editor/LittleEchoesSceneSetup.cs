@@ -631,13 +631,13 @@ namespace RoomOrchestra.EditorTools
             holder.position = CountdownAt;
             holder.rotation = FacePlayer(CountdownAt);
             var data = JsonUtility.FromJson<CountPieces>(System.IO.File.ReadAllText(CountdownMeshData));
-            var rim = EnsureMaterial("CountRim", "Ball", new Color(0.23f, 0.14f, 0.31f));
+            var rim = EnsureMaterial("CountRim", "Ball", new Color(0.165f, 0.122f, 0.239f));
             var pieces = new Transform[data.pieces.Length];
             for (int i = 0; i < pieces.Length; i++)
             {
                 var piece = data.pieces[i];
                 var colour = TutorialDirector.CountColours[Mathf.Min(i, TutorialDirector.CountColours.Length - 1)];
-                var face = Glow(EnsureMaterial($"Count{Mathf.Min(i, 3)}Face", "Ball", colour), colour * 0.5f);
+                var face = Glow(EnsureMaterial($"Count{Mathf.Min(i, 3)}Face", "Ball", colour), colour * 0.3f);
                 var side = EnsureMaterial($"Count{Mathf.Min(i, 3)}Side", "Ball", colour * 0.6f + new Color(0f, 0f, 0f, 0.4f));
                 var word = Holder(piece.name, holder, Vector3.zero);
                 var solid = MeshPart("Solid", word, SaveSolidMesh(piece.name, piece.faces, piece.sides), Vector3.zero, face);
@@ -740,8 +740,8 @@ namespace RoomOrchestra.EditorTools
             var bubble = Holder("TutorialBubble", pad, Vector3.zero);
             bubble.position = BubbleAt;
             bubble.rotation = FacePlayer(BubbleAt);
-            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
-            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(0.949f, 0.910f, 0.847f));
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.165f, 0.122f, 0.239f));
             Box("BubbleRim", bubble, new Vector3(0f, 0f, 0.006f), BubbleSize + new Vector3(0.024f, 0.024f, 0f), cream, keepCollider: false);
             Box("BubblePanel", bubble, Vector3.zero, BubbleSize, plum, keepCollider: false);
             var tailRim = Box("BubbleTailRim", bubble, new Vector3(0.06f, -BubbleSize.y / 2f - 0.004f, 0.006f), new Vector3(0.066f, 0.066f, BubbleSize.z), cream, keepCollider: false);
@@ -764,7 +764,7 @@ namespace RoomOrchestra.EditorTools
 
             // The Skip leaf on the bubble's left end (left of every sight line to the tiles).
             var skip = Holder("SkipButton", bubble, new Vector3(-BubbleSize.x / 2f + 0.06f, 0f, -BubbleSize.z / 2f - 0.012f));
-            var leaf = Primitive(PrimitiveType.Sphere, "SkipLeaf", skip, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
+            var leaf = Primitive(PrimitiveType.Cube, "SkipLeaf", skip, EnsureMaterial("TitleStart", "Ball", new Color(0.184f, 0.490f, 0.290f)), keepCollider: false);
             leaf.localScale = new Vector3(0.1f, 0.07f, 0.03f);
             leaf.gameObject.AddComponent<BoxCollider>();
             Hoverable(leaf.gameObject);
@@ -1637,8 +1637,8 @@ namespace RoomOrchestra.EditorTools
             var card = Holder("ConfirmCard", root, Vector3.zero);
             card.position = new Vector3(0f, 1.0f, 0.6f);
             card.rotation = Quaternion.identity; // faces +z, away from the seat; ConfirmCard turns it to the player
-            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
-            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(0.949f, 0.910f, 0.847f));
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.165f, 0.122f, 0.239f));
             Box("ConfirmRim", card, new Vector3(0f, 0f, 0.006f), ConfirmSize + new Vector3(0.02f, 0.02f, 0f), cream, keepCollider: false);
             Box("ConfirmPanel", card, Vector3.zero, ConfirmSize, plum, keepCollider: false);
             var words = Label("ConfirmQuestion", "Ag", card, new Vector3(0f, 0.045f, -ConfirmSize.z / 2f - 0.006f), 0.028f);
