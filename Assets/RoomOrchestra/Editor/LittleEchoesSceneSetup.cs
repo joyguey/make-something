@@ -1790,7 +1790,8 @@ namespace RoomOrchestra.EditorTools
             tray.position = new Vector3(LeafCenter.x, ButtonY + MenuLift, LeafCenter.z + 0.04f);
             tray.localRotation = Quaternion.Euler(-MenuTilt, 0f, 0f);
             CreateMenuButton(LeafRow(1), leafRoot, AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Pedestal.mat"), mark, "MenuCloseButton", UiTerm.MenuClose);
-            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            var plum = EnsureMaterial("MenuPlate", "Ball", // navy #1E2A47 (owner, Fable refinement 2026-11-11)
+                new Color(0.118f, 0.165f, 0.278f));
             // two level steps, the far row higher (like stadium seats) so a pointer from the lap clears the near row
             Box("MenuPlate", tray, new Vector3(0f, -0.016f, -MenuRowGap / 2f + 0.01f), new Vector3(MenuPlate.x, MenuPlate.y, MenuPlate.z / 2f + 0.02f), plum, keepCollider: false);
             Box("MenuPlateBack", tray, new Vector3(0f, MenuFarStep - 0.016f, MenuRowGap / 2f + 0.01f), new Vector3(MenuPlate.x, MenuPlate.y, MenuPlate.z / 2f), plum, keepCollider: false);
@@ -1887,8 +1888,8 @@ namespace RoomOrchestra.EditorTools
         // The leaf palette itself: a flat green leaf with a pale midrib, on a stalk. Decoration only: no colliders, so it never takes a tap from the buttons on it.
         static LeafStalk CreateLeaf(Transform leafHolder, Transform pad, Material vein)
         {
-            // terracotta set (owner-approved Fable refinement 2026-11-11): a sage leaf beside the clay-toned furniture
-            var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.416f, 0.561f, 0.333f));
+            // the bright leaf green under navy menu plates (owner, Fable refinement 2026-11-11: option 1)
+            var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.42f, 0.74f, 0.4f));
             var leaf = Primitive(PrimitiveType.Sphere, "Leaf", leafHolder, leafMaterial, keepCollider: false);
             leaf.position = LeafCenter;
             leaf.localScale = LeafSize;
