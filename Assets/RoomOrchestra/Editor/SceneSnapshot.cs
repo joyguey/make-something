@@ -14,12 +14,15 @@ namespace RoomOrchestra.EditorTools
     /// </summary>
     public static class SceneSnapshot
     {
-        // The scene, with the meadow at dusk when the command line says -dusk (golden hour otherwise; the scene's own).
+        // The scene, with the meadow at dusk when the command line says -dusk (golden hour otherwise; the scene's own),
+        // and the title's handprint Start with -hands.
         static void OpenScene()
         {
             EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
             if (System.Environment.GetCommandLineArgs().Contains("-dusk"))
                 Object.FindFirstObjectByType<MeadowTimeOfDay>()?.Apply(true);
+            if (System.Environment.GetCommandLineArgs().Contains("-hands")) // as a bare-handed player sees it
+                Object.FindFirstObjectByType<HandprintStart>(FindObjectsInactive.Include)?.Apply(true);
         }
 
         public static void Capture()
@@ -78,7 +81,8 @@ namespace RoomOrchestra.EditorTools
         }
 
         /// <summary>The title card on its sign with the friends on the rail, from the seated eye (-snapshotPath out.png;
-        /// -dusk for the night meadow). Unity's renderer; never saved.</summary>
+        /// -dusk for the night meadow, -hands for the handprint Start, -tilt degrees to show it mid-swing, -side to look
+        /// from the side). Unity's renderer; never saved.</summary>
         public static void CaptureTitle()
         {
             string path = "docs/evidence/title.png";
@@ -87,7 +91,14 @@ namespace RoomOrchestra.EditorTools
                 if (args[i] == "-snapshotPath") path = args[i + 1];
             OpenScene();
             var card = GameObject.Find("TitleCard").transform;
-            CaptureCloseUp(path, new Vector3(0f, 1.25f, 0.1f), card.position + Vector3.up * 0.05f, 42f);
+            var eye = new Vector3(0f, 1.25f, 0.1f);
+            float fov = 42f;
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (args[i] == "-tilt") card.Find("Hanging").localRotation = Quaternion.Euler(float.Parse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture), 0f, 0f);
+                if (args[i] == "-side") { eye = card.position + new Vector3(1.3f, 0.25f, -0.55f); fov = 38f; }
+            }
+            CaptureCloseUp(path, eye, card.position + Vector3.up * 0.05f, fov);
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 

@@ -762,7 +762,7 @@ namespace RoomOrchestra.Tests
             var texts = title.Card.GetComponentsInChildren<LocalizedLabel>().Select(l => l.TextFor(UiLanguage.English)).ToArray();
             CollectionAssert.Contains(texts, "Start");
             CollectionAssert.Contains(texts, "A mixed-reality musical playground");
-            var letters = title.Card.Find("TitleLettering").GetComponentsInChildren<MeshFilter>();
+            var letters = title.Card.Find("Hanging/TitleLettering").GetComponentsInChildren<MeshFilter>();
             Assert.AreEqual(2, letters.Length, "the key-art lettering: cream letters on a plum outline");
             Assert.IsTrue(letters.All(f => f.sharedMesh.triangles.Length / 3 > 100), "traced shapes, not a textured quad (PICO Spatial did not draw that)");
 

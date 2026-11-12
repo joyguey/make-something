@@ -823,6 +823,11 @@ namespace RoomOrchestra.EditorTools
         static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
         /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
         const float TitleRailTop = 0.398f; // the rail top (1.535 m in Blender x 1.173) less 2 mm: flush, no gap
+        /// <summary>The rail's middle in the card's space: the hanging card swings about it (1.5 m in Blender x 1.173,
+        /// less the card's 1.4 m; the rail is 4.5 cm behind the card).</summary>
+        static readonly Vector3 TitleHangFrom = new Vector3(0f, 0.3595f, 0.045f);
+        const float TitleRingX = 0.2f, TitleRingRadius = 0.062f, TitleRingThickness = 0.0065f;
+        static readonly Vector2 HandprintHalf = new Vector2(0.085f, 0.1f);
         // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
         static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
 
@@ -839,34 +844,55 @@ namespace RoomOrchestra.EditorTools
             var rimCream = new Color(0.949f, 0.910f, 0.847f); // #F2E8D8
             var startGreen = new Color(0.184f, 0.490f, 0.290f); // #2F7D4A
             var quitGrey = new Color(0.290f, 0.255f, 0.341f);   // #4A4157
+            // The card hangs from the sign's top rail on two steel rings and rocks about the rail (owner, Fable
+            // refinement 2026-11-11): everything on the card is under "Hanging", whose origin is the rail's middle.
+            var hanging = Holder("Hanging", card, TitleHangFrom);
+            Vector3 On(Vector3 cardLocal) => cardLocal - TitleHangFrom;
+            var steel = EnsureMaterial("SteelRing", "Ball", new Color(0.655f, 0.678f, 0.71f)); // #A7ADB5
+            if (steel.HasProperty("_Smoothness")) steel.SetFloat("_Smoothness", 0.8f);
+            if (steel.HasProperty("_Metallic")) steel.SetFloat("_Metallic", 0.6f);
+            foreach (float x in new[] { -TitleRingX, TitleRingX })
+                MeshPart(x < 0f ? "RingLeft" : "RingRight", hanging, SteelRingMesh(), new Vector3(x, 0f, 0f), steel);
             // 3 cm deep, so even parked at TitleScreen.ParkedScale nothing is under the near-zero scale limit.
-            Box("TitleRim", card, new Vector3(0f, 0f, 0.02f), new Vector3(0.95f, 0.59f, 0.03f), EnsureMaterial("TitleRim", "Ball", rimCream), keepCollider: false);
-            Box("TitlePanel", card, new Vector3(0f, 0f, 0.012f), new Vector3(0.92f, 0.56f, 0.03f), EnsureMaterial("TitlePanel", "Ball", plum), keepCollider: false);
+            Box("TitleRim", hanging, On(new Vector3(0f, 0f, 0.02f)), new Vector3(0.95f, 0.59f, 0.03f), EnsureMaterial("TitleRim", "Ball", rimCream), keepCollider: false);
+            Box("TitlePanel", hanging, On(new Vector3(0f, 0f, 0.012f)), new Vector3(0.92f, 0.56f, 0.03f), EnsureMaterial("TitlePanel", "Ball", plum), keepCollider: false);
+            hanging.gameObject.AddComponent<TitleSwing>().Configure(new Vector2(0.475f, 0.295f), TitleHangFrom.y, -TitleHangFrom.z);
 
             // The key-art lettering as two flat meshes (cream letters on the icon's plum outline): PICO Spatial did
             // not draw it as a textured quad on the emulator (ArtSource/Icon/lettering_mesh.py explains).
             var (fill, outline) = TitleLetteringMeshes();
-            var letters = Holder("TitleLettering", card, new Vector3(0f, 0.1f, 0f));
+            var letters = Holder("TitleLettering", hanging, On(new Vector3(0f, 0.1f, 0f)));
             MeshPart("LetteringOutline", letters, outline, new Vector3(0f, 0f, -0.005f), EnsureMaterial("TitleLetterOutline", "Ball", new Color(0.23f, 0.14f, 0.31f)));
             MeshPart("LetteringFill", letters, fill, new Vector3(0f, 0f, -0.007f), EnsureMaterial("TitleLetterFill", "Ball", new Color(1f, 0.965f, 0.92f)));
 
-            Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), card, new Vector3(0f, -0.055f, -0.004f), 0.036f), UiTerm.TitleSubtitle);
+            Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), hanging, On(new Vector3(0f, -0.055f, -0.004f)), 0.036f), UiTerm.TitleSubtitle);
 
             // Bottom right, off the centre line: PICO draws its own window handle (the round grabber that opens
             // Back / Close / Minimize) on the app's centre line, and centred it covered Start (owner, emulator).
-            var button = Holder("StartButton", card, new Vector3(0.27f, -0.18f, -0.02f));
-            var leaf = Primitive(PrimitiveType.Cube, "StartLeaf", button, EnsureMaterial("TitleStart", "Ball", startGreen), keepCollider: false);
+            var button = Holder("StartButton", hanging, On(new Vector3(0.27f, -0.18f, -0.02f)));
+            var buttonLook = Holder("ButtonLook", button, Vector3.zero);
+            var leaf = Primitive(PrimitiveType.Cube, "StartLeaf", buttonLook, EnsureMaterial("TitleStart", "Ball", startGreen), keepCollider: false);
             leaf.localScale = new Vector3(0.26f, 0.1f, 0.035f); // its depth parks above the near-zero limit too
             leaf.gameObject.AddComponent<BoxCollider>(); // the unit box inside the scaled leaf: its tap area
             Hoverable(leaf.gameObject);
             // Well clear of the leaf's curved face: off-centre, the label turns to face the player and its near
             // edge dipped behind the leaf ("tart" on the emulator).
-            Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), button, new Vector3(0f, 0f, -0.045f), 0.04f), UiTerm.Start);
-            button.gameObject.AddComponent<TitleStartButton>();
+            Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), buttonLook, new Vector3(0f, 0f, -0.045f), 0.04f), UiTerm.Start);
+            // With bare hands, a green handprint with a pale green outline instead (owner, Fable refinement 2026-11-11)
+            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.005f, 0.01f)); // just in front of the card's face
+            var (printFill, printOutline) = HandprintMeshes();
+            MeshPart("HandprintOutline", handLook, printOutline, new Vector3(0f, 0f, 0.002f), EnsureMaterial("HandprintOutline", "Ball", new Color(0.804f, 0.922f, 0.827f))); // #CDEBD3
+            var printShape = MeshPart("HandprintFill", handLook, printFill, Vector3.zero, EnsureMaterial("TitleStart", "Ball", startGreen));
+            var printBox = printShape.gameObject.AddComponent<BoxCollider>(); // on the visible print: its tap area
+            printBox.size = new Vector3(HandprintHalf.x * 2f, HandprintHalf.y * 2f, 0.03f);
+            Localize(Label("HandprintLabel", UiText.Get(UiTerm.Start, UiLanguage.English), handLook, new Vector3(0.006f, -0.03f, -0.004f), 0.034f), UiTerm.Start);
+            var startButton = button.gameObject.AddComponent<TitleStartButton>();
+            button.gameObject.AddComponent<HandprintStart>().Configure(buttonLook.gameObject, handLook.gameObject, startButton, HandprintHalf);
+            handLook.gameObject.SetActive(false); // controllers until hands are seen
 
             // Quit, bottom left (George, 2026-11-03: "a main menu with the app's name and a Quit button"): smaller and
             // quieter than Start, mirrored across PICO's window handle. It asks "Sure?" before it closes the app.
-            var quit = Holder("TitleQuitButton", card, new Vector3(-0.3f, -0.19f, -0.02f));
+            var quit = Holder("TitleQuitButton", hanging, On(new Vector3(-0.3f, -0.19f, -0.02f)));
             var quitLeaf = Primitive(PrimitiveType.Cube, "TitleQuitLeaf", quit, EnsureMaterial("QuitLeaf", "Ball", quitGrey), keepCollider: false);
             quitLeaf.localScale = new Vector3(0.19f, 0.08f, 0.035f);
             quitLeaf.gameObject.AddComponent<BoxCollider>();
@@ -910,6 +936,109 @@ namespace RoomOrchestra.EditorTools
         {
             var data = JsonUtility.FromJson<LetteringShapes>(System.IO.File.ReadAllText(TitleLetteringMeshData));
             return (SaveFlatMesh("TitleLetteringFill", data.fill), SaveFlatMesh("TitleLetteringOutline", data.outline));
+        }
+
+// A steel ring round the rail (the rail runs along X, so the ring lies across it, in the YZ plane).
+        static Mesh SteelRingMesh()
+        {
+            const string path = "Assets/RoomOrchestra/Meshes/SteelRing.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            bool created = mesh == null;
+            if (created) mesh = new Mesh { name = "SteelRing" };
+            const int around = 28, tube = 8;
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            for (int i = 0; i <= around; i++)
+            {
+                float u = i * Mathf.PI * 2f / around;
+                for (int j = 0; j <= tube; j++)
+                {
+                    float v = j * Mathf.PI * 2f / tube;
+                    float r = TitleRingRadius + TitleRingThickness * Mathf.Cos(v);
+                    vertices.Add(new Vector3(TitleRingThickness * Mathf.Sin(v), r * Mathf.Cos(u), r * Mathf.Sin(u)));
+                }
+            }
+            for (int i = 0; i < around; i++)
+                for (int j = 0; j < tube; j++)
+                {
+                    int a = i * (tube + 1) + j, b = a + tube + 1;
+                    triangles.AddRange(new[] { a, b, a + 1, a + 1, b, b + 1 });
+                }
+            mesh.Clear();
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            // outward normals: flip the winding if the first one points into the tube
+            var n = mesh.normals;
+            if (Vector3.Dot(n[0], vertices[0] - new Vector3(0f, TitleRingRadius, 0f)) < 0f)
+            {
+                for (int k = 0; k < triangles.Count; k += 3) (triangles[k + 1], triangles[k + 2]) = (triangles[k + 2], triangles[k + 1]);
+                mesh.SetTriangles(triangles, 0);
+                mesh.RecalculateNormals();
+            }
+            mesh.RecalculateBounds();
+            if (created) AssetDatabase.CreateAsset(mesh, path);
+            EditorUtility.SetDirty(mesh);
+            return mesh;
+        }
+
+        // A handprint (palm, four fingers and a thumb, as a right hand pressed flat leaves it), and its outline grown
+        // around it, flat and facing the player; about 17 cm wide and 20 cm tall.
+        static (Mesh fill, Mesh outline) HandprintMeshes() =>
+            (SaveFlatMesh("HandprintFill", HandShape(0f)), SaveFlatMesh("HandprintOutline", HandShape(0.006f)));
+
+        static FlatShape HandShape(float grow)
+        {
+            const float size = 1.3f;
+            var vertices = new List<float>();
+            var triangles = new List<int>();
+            void Polygon(List<Vector2> points)
+            {
+                var centre = Vector2.zero;
+                foreach (var p in points) centre += p;
+                centre /= points.Count;
+                int first = vertices.Count / 2;
+                vertices.Add(centre.x * size); vertices.Add(centre.y * size);
+                foreach (var p in points) { vertices.Add(p.x * size); vertices.Add(p.y * size); }
+                for (int i = 0; i < points.Count; i++) triangles.AddRange(new[] { first, first + 1 + i, first + 1 + (i + 1) % points.Count });
+            }
+            List<Vector2> Ellipse(Vector2 centre, float rx, float ry)
+            {
+                var pts = new List<Vector2>();
+                for (int i = 0; i < 32; i++)
+                {
+                    float a = i * Mathf.PI * 2f / 32;
+                    pts.Add(centre + new Vector2(Mathf.Cos(a) * (rx + grow), Mathf.Sin(a) * (ry + grow)));
+                }
+                return pts;
+            }
+            List<Vector2> Capsule(Vector2 from, float leanDegrees, float length, float halfWidth)
+            {
+                float a = leanDegrees * Mathf.Deg2Rad;
+                var up = new Vector2(-Mathf.Sin(a), Mathf.Cos(a));
+                var side = new Vector2(up.y, -up.x);
+                var to = from + up * length;
+                float w = halfWidth + grow;
+                var pts = new List<Vector2>();
+                for (int i = 0; i <= 10; i++) // the tip, round
+                {
+                    float t = Mathf.PI * i / 10;
+                    pts.Add(to + side * (w * Mathf.Cos(t)) + up * (w * Mathf.Sin(t)));
+                }
+                for (int i = 0; i <= 10; i++) // the base, round
+                {
+                    float t = Mathf.PI + Mathf.PI * i / 10;
+                    pts.Add(from + side * (w * Mathf.Cos(t)) + up * (w * Mathf.Sin(t)));
+                }
+                return pts;
+            }
+            Polygon(Ellipse(new Vector2(0f, -0.025f), 0.046f, 0.05f));                       // palm
+            Polygon(Capsule(new Vector2(-0.034f, 0.0f), 10f, 0.052f, 0.0105f));              // index
+            Polygon(Capsule(new Vector2(-0.012f, 0.005f), 3f, 0.062f, 0.011f));              // middle
+            Polygon(Capsule(new Vector2(0.011f, 0.003f), -3f, 0.058f, 0.0105f));             // ring
+            Polygon(Capsule(new Vector2(0.032f, -0.004f), -10f, 0.045f, 0.0095f));           // little
+            Polygon(Capsule(new Vector2(-0.036f, -0.035f), 55f, 0.05f, 0.012f));             // thumb
+            return new FlatShape { vertices = vertices.ToArray(), triangles = triangles.ToArray() };
         }
 
         static Mesh SaveFlatMesh(string name, FlatShape shape)
