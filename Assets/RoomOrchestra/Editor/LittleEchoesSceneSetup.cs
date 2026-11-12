@@ -827,7 +827,7 @@ namespace RoomOrchestra.EditorTools
         /// less the card's 1.4 m; the rail is 4.5 cm behind the card).</summary>
         static readonly Vector3 TitleHangFrom = new Vector3(0f, 0.3595f, 0.045f);
         const float TitleRingX = 0.2f, TitleRingRadius = 0.062f, TitleRingThickness = 0.0065f;
-        static readonly Vector2 HandprintHalf = new Vector2(0.085f, 0.1f);
+        static readonly Vector2 HandprintHalf = new Vector2(0.08f, 0.095f);
         // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
         static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
 
@@ -878,14 +878,14 @@ namespace RoomOrchestra.EditorTools
             // Well clear of the leaf's curved face: off-centre, the label turns to face the player and its near
             // edge dipped behind the leaf ("tart" on the emulator).
             Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), buttonLook, new Vector3(0f, 0f, -0.045f), 0.04f), UiTerm.Start);
-            // With bare hands, a green handprint with a pale green outline instead (owner, Fable refinement 2026-11-11)
-            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.005f, 0.01f)); // just in front of the card's face
-            var (printFill, printOutline) = HandprintMeshes();
-            MeshPart("HandprintOutline", handLook, printOutline, new Vector3(0f, 0f, 0.002f), EnsureMaterial("HandprintOutline", "Ball", new Color(0.804f, 0.922f, 0.827f))); // #CDEBD3
-            var printShape = MeshPart("HandprintFill", handLook, printFill, Vector3.zero, EnsureMaterial("TitleStart", "Ball", startGreen));
+            // With bare hands, a handprint in a thick green dashed line instead, leaning right like a hand raised for a high five
+            // (owner, Fable refinement 2026-11-11)
+            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.004f, 0.01f)); // just in front of the card's face
+            handLook.localRotation = Quaternion.Euler(0f, 0f, -15f); // leaning right: raised for a high five
+            var printShape = MeshPart("HandprintDashes", handLook, HandprintMesh(), Vector3.zero, EnsureMaterial("HandprintDashes", "Ball", new Color(0.361f, 0.722f, 0.380f))); // #5CB861
             var printBox = printShape.gameObject.AddComponent<BoxCollider>(); // on the visible print: its tap area
             printBox.size = new Vector3(HandprintHalf.x * 2f, HandprintHalf.y * 2f, 0.03f);
-            Localize(Label("HandprintLabel", UiText.Get(UiTerm.Start, UiLanguage.English), handLook, new Vector3(0.006f, -0.03f, -0.004f), 0.034f), UiTerm.Start);
+            Localize(Label("HandprintLabel", UiText.Get(UiTerm.Start, UiLanguage.English), handLook, new Vector3(0.002f, -0.034f, -0.004f), 0.032f), UiTerm.Start);
             var startButton = button.gameObject.AddComponent<TitleStartButton>();
             button.gameObject.AddComponent<HandprintStart>().Configure(buttonLook.gameObject, handLook.gameObject, startButton, HandprintHalf);
             handLook.gameObject.SetActive(false); // controllers until hands are seen
@@ -982,62 +982,144 @@ namespace RoomOrchestra.EditorTools
             return mesh;
         }
 
-        // A handprint (palm, four fingers and a thumb, as a right hand pressed flat leaves it), and its outline grown
-        // around it, flat and facing the player; about 17 cm wide and 20 cm tall.
-        static (Mesh fill, Mesh outline) HandprintMeshes() =>
-            (SaveFlatMesh("HandprintFill", HandShape(0f)), SaveFlatMesh("HandprintOutline", HandShape(0.006f)));
+        // A handprint's outline (palm, four fingers and a short thumb, as a right hand pressed flat leaves it), drawn
+        // as a thick dashed line, nothing filled in (owner, Fable refinement 2026-11-11), flat and facing the player;
+        // about 15 cm wide and 18 cm tall.
+        static Mesh HandprintMesh() => SaveFlatMesh("HandprintDashes", HandprintDashes());
 
-        static FlatShape HandShape(float grow)
+        // The hand as pieces: a palm (ellipse) and five capsules (a centre line and a half width), fingers spread so
+        // the outline runs cleanly between them.
+        struct HandPiece { public bool Ellipse; public Vector2 A, B; public float Rx, Ry, W; }
+
+        static HandPiece[] HandPieces()
         {
-            const float size = 1.3f;
-            var vertices = new List<float>();
-            var triangles = new List<int>();
-            void Polygon(List<Vector2> points)
-            {
-                var centre = Vector2.zero;
-                foreach (var p in points) centre += p;
-                centre /= points.Count;
-                int first = vertices.Count / 2;
-                vertices.Add(centre.x * size); vertices.Add(centre.y * size);
-                foreach (var p in points) { vertices.Add(p.x * size); vertices.Add(p.y * size); }
-                for (int i = 0; i < points.Count; i++) triangles.AddRange(new[] { first, first + 1 + i, first + 1 + (i + 1) % points.Count });
-            }
-            List<Vector2> Ellipse(Vector2 centre, float rx, float ry)
-            {
-                var pts = new List<Vector2>();
-                for (int i = 0; i < 32; i++)
-                {
-                    float a = i * Mathf.PI * 2f / 32;
-                    pts.Add(centre + new Vector2(Mathf.Cos(a) * (rx + grow), Mathf.Sin(a) * (ry + grow)));
-                }
-                return pts;
-            }
-            List<Vector2> Capsule(Vector2 from, float leanDegrees, float length, float halfWidth)
+            HandPiece Finger(Vector2 from, float leanDegrees, float length, float halfWidth)
             {
                 float a = leanDegrees * Mathf.Deg2Rad;
-                var up = new Vector2(-Mathf.Sin(a), Mathf.Cos(a));
-                var side = new Vector2(up.y, -up.x);
-                var to = from + up * length;
-                float w = halfWidth + grow;
-                var pts = new List<Vector2>();
-                for (int i = 0; i <= 10; i++) // the tip, round
-                {
-                    float t = Mathf.PI * i / 10;
-                    pts.Add(to + side * (w * Mathf.Cos(t)) + up * (w * Mathf.Sin(t)));
-                }
-                for (int i = 0; i <= 10; i++) // the base, round
-                {
-                    float t = Mathf.PI + Mathf.PI * i / 10;
-                    pts.Add(from + side * (w * Mathf.Cos(t)) + up * (w * Mathf.Sin(t)));
-                }
-                return pts;
+                return new HandPiece { A = from, B = from + new Vector2(-Mathf.Sin(a), Mathf.Cos(a)) * length, W = halfWidth };
             }
-            Polygon(Ellipse(new Vector2(0f, -0.025f), 0.046f, 0.05f));                       // palm
-            Polygon(Capsule(new Vector2(-0.034f, 0.0f), 10f, 0.052f, 0.0105f));              // index
-            Polygon(Capsule(new Vector2(-0.012f, 0.005f), 3f, 0.062f, 0.011f));              // middle
-            Polygon(Capsule(new Vector2(0.011f, 0.003f), -3f, 0.058f, 0.0105f));             // ring
-            Polygon(Capsule(new Vector2(0.032f, -0.004f), -10f, 0.045f, 0.0095f));           // little
-            Polygon(Capsule(new Vector2(-0.036f, -0.035f), 55f, 0.05f, 0.012f));             // thumb
+            return new[]
+            {
+                new HandPiece { Ellipse = true, A = new Vector2(0f, -0.026f), Rx = 0.045f, Ry = 0.047f }, // palm, small
+                Finger(new Vector2(-0.04f, 0.0f), 16f, 0.062f, 0.0095f),     // index
+                Finger(new Vector2(-0.013f, 0.008f), 5f, 0.072f, 0.0095f),   // middle
+                Finger(new Vector2(0.014f, 0.006f), -6f, 0.068f, 0.0095f),   // ring
+                Finger(new Vector2(0.039f, -0.004f), -18f, 0.052f, 0.009f),  // little
+                Finger(new Vector2(-0.038f, -0.036f), 58f, 0.042f, 0.011f),  // thumb
+            };
+        }
+
+        // Signed distance to the hand (negative inside): the pieces blended with a small rounding where they meet.
+        static float HandDistance(HandPiece[] pieces, Vector2 q)
+        {
+            const float k = 0.004f;
+            float d = float.MaxValue;
+            foreach (var p in pieces)
+            {
+                float di;
+                if (p.Ellipse) di = (new Vector2((q.x - p.A.x) / p.Rx, (q.y - p.A.y) / p.Ry).magnitude - 1f) * Mathf.Min(p.Rx, p.Ry);
+                else
+                {
+                    var ab = p.B - p.A;
+                    float t = Mathf.Clamp01(Vector2.Dot(q - p.A, ab) / ab.sqrMagnitude);
+                    di = Vector2.Distance(q, p.A + ab * t) - p.W;
+                }
+                if (d == float.MaxValue) { d = di; continue; }
+                float h = Mathf.Clamp01(0.5f + 0.5f * (di - d) / k); // smooth minimum
+                d = Mathf.Lerp(di, d, h) - k * h * (1f - h);
+            }
+            return d;
+        }
+
+        // The hand's silhouette (marching squares over its distance field), one closed line, cut into even dashes:
+        // quads of the line's width.
+        static FlatShape HandprintDashes()
+        {
+            const float size = 1.15f, width = 0.0075f, dashShare = 0.6f, period = 0.02f, cell = 0.0008f;
+            var pieces = HandPieces();
+            float x0 = -0.12f, y0 = -0.1f, x1 = 0.1f, y1 = 0.1f;
+            int nx = Mathf.CeilToInt((x1 - x0) / cell), ny = Mathf.CeilToInt((y1 - y0) / cell);
+            var field = new float[nx + 1, ny + 1];
+            for (int i = 0; i <= nx; i++)
+                for (int j = 0; j <= ny; j++) field[i, j] = HandDistance(pieces, new Vector2(x0 + i * cell, y0 + j * cell));
+            Vector2 Cross(int ia, int ja, int ib, int jb)
+            {
+                float a = field[ia, ja], b = field[ib, jb], t = a / (a - b);
+                return Vector2.Lerp(new Vector2(x0 + ia * cell, y0 + ja * cell), new Vector2(x0 + ib * cell, y0 + jb * cell), t);
+            }
+            // segments, keyed by the cell edge each end lies on, so they chain exactly
+            var links = new Dictionary<long, List<long>>();
+            var point = new Dictionary<long, Vector2>();
+            long Key(int i, int j, int side) => ((long)i * 4096 + j) * 2 + side; // side 0: the edge along x from (i,j); 1: along y
+            for (int i = 0; i < nx; i++)
+                for (int j = 0; j < ny; j++)
+                {
+                    var crossings = new List<(long key, Vector2 at)>();
+                    if ((field[i, j] < 0f) != (field[i + 1, j] < 0f)) crossings.Add((Key(i, j, 0), Cross(i, j, i + 1, j)));
+                    if ((field[i + 1, j] < 0f) != (field[i + 1, j + 1] < 0f)) crossings.Add((Key(i + 1, j, 1), Cross(i + 1, j, i + 1, j + 1)));
+                    if ((field[i, j + 1] < 0f) != (field[i + 1, j + 1] < 0f)) crossings.Add((Key(i, j + 1, 0), Cross(i, j + 1, i + 1, j + 1)));
+                    if ((field[i, j] < 0f) != (field[i, j + 1] < 0f)) crossings.Add((Key(i, j, 1), Cross(i, j, i, j + 1)));
+                    for (int c = 0; c + 1 < crossings.Count; c += 2)
+                    {
+                        var (a, at) = crossings[c];
+                        var (b, bt) = crossings[c + 1];
+                        point[a] = at;
+                        point[b] = bt;
+                        if (!links.TryGetValue(a, out var la)) links[a] = la = new List<long>();
+                        if (!links.TryGetValue(b, out var lb)) links[b] = lb = new List<long>();
+                        la.Add(b);
+                        lb.Add(a);
+                    }
+                }
+            // the longest loop is the hand's outline
+            var seen = new HashSet<long>();
+            List<Vector2> outline = null;
+            foreach (var start in links.Keys)
+            {
+                if (seen.Contains(start)) continue;
+                var loop = new List<Vector2>();
+                long k = start, previous = -1;
+                while (seen.Add(k))
+                {
+                    loop.Add(point[k] * size);
+                    long step = -1;
+                    foreach (var n in links[k]) if (n != previous && !seen.Contains(n)) { step = n; break; }
+                    if (step < 0) break;
+                    previous = k;
+                    k = step;
+                }
+                if (outline == null || loop.Count > outline.Count) outline = loop;
+            }
+            var vertices = new List<float>();
+            var triangles = new List<int>();
+            if (outline == null) return new FlatShape { vertices = vertices.ToArray(), triangles = triangles.ToArray() };
+            outline.Add(outline[0]);
+            float length = 0f;
+            for (int i = 1; i < outline.Count; i++) length += Vector2.Distance(outline[i - 1], outline[i]);
+            int count = Mathf.Max(8, Mathf.RoundToInt(length / period));
+            float even = length / count; // a whole number of dashes round the hand: no short one where it closes
+            var dashPoints = new List<Vector2>();
+            void Flush()
+            {
+                if (dashPoints.Count >= 2)
+                    for (int i = 0; i < dashPoints.Count; i++)
+                    {
+                        var tangent = (dashPoints[Mathf.Min(i + 1, dashPoints.Count - 1)] - dashPoints[Mathf.Max(i - 1, 0)]).normalized;
+                        var normal = new Vector2(-tangent.y, tangent.x) * (width / 2f);
+                        int v = vertices.Count / 2;
+                        vertices.Add(dashPoints[i].x + normal.x); vertices.Add(dashPoints[i].y + normal.y);
+                        vertices.Add(dashPoints[i].x - normal.x); vertices.Add(dashPoints[i].y - normal.y);
+                        if (i > 0) triangles.AddRange(new[] { v - 2, v, v - 1, v - 1, v, v + 1 });
+                    }
+                dashPoints.Clear();
+            }
+            float along = 0f;
+            for (int i = 0; i < outline.Count; i++)
+            {
+                if (i > 0) along += Vector2.Distance(outline[i - 1], outline[i]);
+                if ((along % even) < even * dashShare) dashPoints.Add(outline[i]); else Flush();
+            }
+            Flush();
             return new FlatShape { vertices = vertices.ToArray(), triangles = triangles.ToArray() };
         }
 
@@ -1805,7 +1887,8 @@ namespace RoomOrchestra.EditorTools
         // The leaf palette itself: a flat green leaf with a pale midrib, on a stalk. Decoration only: no colliders, so it never takes a tap from the buttons on it.
         static LeafStalk CreateLeaf(Transform leafHolder, Transform pad, Material vein)
         {
-            var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.42f, 0.74f, 0.4f));
+            // terracotta set (owner-approved Fable refinement 2026-11-11): a sage leaf beside the clay-toned furniture
+            var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.416f, 0.561f, 0.333f));
             var leaf = Primitive(PrimitiveType.Sphere, "Leaf", leafHolder, leafMaterial, keepCollider: false);
             leaf.position = LeafCenter;
             leaf.localScale = LeafSize;
