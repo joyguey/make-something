@@ -77,6 +77,20 @@ namespace RoomOrchestra.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>The title card on its sign with the friends on the rail, from the seated eye (-snapshotPath out.png;
+        /// -dusk for the night meadow). Unity's renderer; never saved.</summary>
+        public static void CaptureTitle()
+        {
+            string path = "docs/evidence/title.png";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            OpenScene();
+            var card = GameObject.Find("TitleCard").transform;
+            CaptureCloseUp(path, new Vector3(0f, 1.25f, 0.1f), card.position + Vector3.up * 0.05f, 42f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>
         /// Close-up of part of the open scene (e.g. the blob tray) from <paramref name="eye"/>, with a
         /// temporary camera that is destroyed afterwards (never saved). Unity's renderer, not PICO's.

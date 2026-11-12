@@ -832,9 +832,16 @@ namespace RoomOrchestra.EditorTools
             card.position = TitleCardAt;
             card.rotation = FacePlayer(TitleCardAt);
             var cream = new Color(1f, 0.96f, 0.92f);
+            // The grown-up title (owner, Fable refinement 2026-11-11: "option A with the square buttons from option C
+            // and change the start button to a green background with white text"): a deep plum card with a cream rim,
+            // the key-art lettering unchanged, rounded square buttons. Start's green keeps white text at 5:1.
+            var plum = new Color(0.165f, 0.122f, 0.239f);    // #2A1F3D, the menu plates' family
+            var rimCream = new Color(0.949f, 0.910f, 0.847f); // #F2E8D8
+            var startGreen = new Color(0.184f, 0.490f, 0.290f); // #2F7D4A
+            var quitGrey = new Color(0.290f, 0.255f, 0.341f);   // #4A4157
             // 3 cm deep, so even parked at TitleScreen.ParkedScale nothing is under the near-zero scale limit.
-            Box("TitleRim", card, new Vector3(0f, 0f, 0.02f), new Vector3(0.95f, 0.59f, 0.03f), EnsureMaterial("TitleRim", "Ball", cream), keepCollider: false);
-            Box("TitlePanel", card, new Vector3(0f, 0f, 0.012f), new Vector3(0.92f, 0.56f, 0.03f), EnsureMaterial("TitlePanel", "Ball", new Color(1f, 0.56f, 0.48f)), keepCollider: false);
+            Box("TitleRim", card, new Vector3(0f, 0f, 0.02f), new Vector3(0.95f, 0.59f, 0.03f), EnsureMaterial("TitleRim", "Ball", rimCream), keepCollider: false);
+            Box("TitlePanel", card, new Vector3(0f, 0f, 0.012f), new Vector3(0.92f, 0.56f, 0.03f), EnsureMaterial("TitlePanel", "Ball", plum), keepCollider: false);
 
             // The key-art lettering as two flat meshes (cream letters on the icon's plum outline): PICO Spatial did
             // not draw it as a textured quad on the emulator (ArtSource/Icon/lettering_mesh.py explains).
@@ -843,12 +850,12 @@ namespace RoomOrchestra.EditorTools
             MeshPart("LetteringOutline", letters, outline, new Vector3(0f, 0f, -0.005f), EnsureMaterial("TitleLetterOutline", "Ball", new Color(0.23f, 0.14f, 0.31f)));
             MeshPart("LetteringFill", letters, fill, new Vector3(0f, 0f, -0.007f), EnsureMaterial("TitleLetterFill", "Ball", new Color(1f, 0.965f, 0.92f)));
 
-            Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), card, new Vector3(0f, -0.055f, -0.004f), 0.045f), UiTerm.TitleSubtitle);
+            Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), card, new Vector3(0f, -0.055f, -0.004f), 0.036f), UiTerm.TitleSubtitle);
 
             // Bottom right, off the centre line: PICO draws its own window handle (the round grabber that opens
             // Back / Close / Minimize) on the app's centre line, and centred it covered Start (owner, emulator).
             var button = Holder("StartButton", card, new Vector3(0.27f, -0.18f, -0.02f));
-            var leaf = Primitive(PrimitiveType.Sphere, "StartLeaf", button, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
+            var leaf = Primitive(PrimitiveType.Cube, "StartLeaf", button, EnsureMaterial("TitleStart", "Ball", startGreen), keepCollider: false);
             leaf.localScale = new Vector3(0.26f, 0.1f, 0.035f); // its depth parks above the near-zero limit too
             leaf.gameObject.AddComponent<BoxCollider>(); // the unit box inside the scaled leaf: its tap area
             Hoverable(leaf.gameObject);
@@ -860,7 +867,7 @@ namespace RoomOrchestra.EditorTools
             // Quit, bottom left (George, 2026-11-03: "a main menu with the app's name and a Quit button"): smaller and
             // quieter than Start, mirrored across PICO's window handle. It asks "Sure?" before it closes the app.
             var quit = Holder("TitleQuitButton", card, new Vector3(-0.3f, -0.19f, -0.02f));
-            var quitLeaf = Primitive(PrimitiveType.Sphere, "TitleQuitLeaf", quit, EnsureMaterial("QuitLeaf", "Ball", new Color(0.42f, 0.33f, 0.5f)), keepCollider: false);
+            var quitLeaf = Primitive(PrimitiveType.Cube, "TitleQuitLeaf", quit, EnsureMaterial("QuitLeaf", "Ball", quitGrey), keepCollider: false);
             quitLeaf.localScale = new Vector3(0.19f, 0.08f, 0.035f);
             quitLeaf.gameObject.AddComponent<BoxCollider>();
             Hoverable(quitLeaf.gameObject);
