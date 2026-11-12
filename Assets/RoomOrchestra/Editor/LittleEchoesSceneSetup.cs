@@ -430,6 +430,13 @@ namespace RoomOrchestra.EditorTools
             // panels now; the room's walls stay as invisible fences, so thrown balls still bounce back into play.
             bool meadow = MeadowArt.Available;
             if (meadow) panels.AddRange(MeadowArt.Build(room));
+            // The painted look and the haze on the far meadow (owner, Fable refinement 2026-11-11, option B)
+            if (!room.TryGetComponent<LookSettings>(out _)) room.gameObject.AddComponent<LookSettings>();
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogStartDistance = LookSettings.HazeStart;
+            RenderSettings.fogEndDistance = LookSettings.HazeEnd;
+            RenderSettings.fogColor = MeadowTimeOfDay.DayHaze;
 
             // A wall: a grid of upright panels on the plane through 'at', spanning 'along' (one axis) and the height.
             void Wall(string name, Vector3 start, Vector3 along, float length)

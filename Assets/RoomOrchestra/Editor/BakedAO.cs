@@ -16,12 +16,18 @@ namespace RoomOrchestra.EditorTools
 
         public static bool HasBake(Mesh mesh) => mesh != null && mesh.colors32 != null && mesh.colors32.Length == mesh.vertexCount && mesh.vertexCount > 0;
 
-        /// <summary>The baked-AO copy of <paramref name="source"/> (made once, kept in step with it).</summary>
+        /// <summary>The baked-AO copy of <paramref name="source"/> (made once, kept in step with it). Only furniture and characters
+        /// come here, so each catches the rim light.</summary>
         public static Material Variant(Material source)
         {
             if (source == null) return null;
             var shader = Shader.Find(ShaderName);
-            if (shader == null || source.shader == shader) return source;
+            if (shader == null) return source;
+            if (source.shader == shader) // already a baked-AO material (a part built before): it still catches the rim light
+            {
+                if (source.HasProperty("_RimAmount") && source.GetFloat("_RimAmount") != 1f) { source.SetFloat("_RimAmount", 1f); EditorUtility.SetDirty(source); }
+                return source;
+            }
             string path = $"{MaterialDir}/{source.name}_AO.mat";
             var variant = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (variant == null)
@@ -34,6 +40,7 @@ namespace RoomOrchestra.EditorTools
             if (source.HasProperty("_Smoothness")) variant.SetFloat("_Smoothness", source.GetFloat("_Smoothness"));
             bool glow = source.IsKeywordEnabled("_EMISSION") && source.HasProperty("_EmissionColor");
             variant.SetColor("_EmissionColor", glow ? source.GetColor("_EmissionColor") : Color.black);
+            variant.SetFloat("_RimAmount", 1f); // furniture and characters catch the rim light (LookSettings); the meadow does not
             variant.enableInstancing = true;
             EditorUtility.SetDirty(variant);
             return variant;

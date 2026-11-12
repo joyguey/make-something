@@ -66,6 +66,19 @@ namespace RoomOrchestra.EditorTools
         }
 
         public static Material Lit() => EnsureMaterial("MeadowBakedAO", "RoomOrchestra/LitBakedAO", Color.white);
+
+        // The same look, swaying in the wind (owner, Fable refinement 2026-11-11): how far the top moves (m) and how tall
+        // the piece is (m). Grass and flowers, bushes, and trees each have their own.
+        static Material Swaying(string name, float amount, float height)
+        {
+            var m = EnsureMaterial(name, "RoomOrchestra/LitBakedAO", Color.white);
+            m.SetFloat("_SwayAmount", amount);
+            m.SetFloat("_SwayHeight", height);
+            return m;
+        }
+        static Material Grass() => Swaying("MeadowSwayGrass", 0.035f, 0.35f);
+        static Material Shrub() => Swaying("MeadowSwayBush", 0.025f, 0.9f);
+        static Material Tree() => Swaying("MeadowSwayTree", 0.06f, 4f);
         static Material Sky() => EnsureMaterial("MeadowSky", "RoomOrchestra/UnlitVertexColor", Color.white);
         // clouds glow softly so their undersides stay light, not storm grey (less at dusk, so they sit in the evening sky)
         static Material CloudLook(bool dusk = false)
@@ -188,13 +201,13 @@ namespace RoomOrchestra.EditorTools
             {
                 var at = Around(rng, 3.2f, 8f, centre);
                 if (InClearing(at, 0.3f)) continue;
-                Piece($"Meadow_Flowers{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 1f, lit, panels);
+                Piece($"Meadow_Flowers{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 1f, Grass(), panels);
             }
             for (int i = 0; i < 70; i++)
             {
                 var at = Around(rng, 2.6f, 9.5f, centre);
                 if (InClearing(at, 0f)) continue;
-                Piece($"Meadow_Grass{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 0.8f + (float)rng.NextDouble() * 0.6f, lit, panels);
+                Piece($"Meadow_Grass{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 0.8f + (float)rng.NextDouble() * 0.6f, Grass(), panels);
             }
             // the bush the friends hide in until Start, beside the leaf (LittleEchoesSceneSetup.FriendsBushAt)
             var hide = Piece("Meadow_Bush2", room, LittleEchoesSceneSetup.FriendsBushAt, 20f, 1.15f, lit, panels);
@@ -204,7 +217,7 @@ namespace RoomOrchestra.EditorTools
             {
                 var at = Around(rng, 4.2f, 7f, centre);
                 if (InClearing(at, 0.6f)) continue;
-                Piece($"Meadow_Bush{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.4f, lit, panels);
+                Piece($"Meadow_Bush{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.4f, Shrub(), panels);
             }
             for (int i = 0; i < 7; i++)
             {
@@ -217,7 +230,7 @@ namespace RoomOrchestra.EditorTools
             for (int i = 0; i < 16; i++)
             {
                 var at = Around(rng, 6.5f, 10.5f, centre);
-                Piece(trees[rng.Next(trees.Length)], room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.5f, lit, panels);
+                Piece(trees[rng.Next(trees.Length)], room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.5f, Tree(), panels);
             }
             // rolling hills on the horizon
             for (int i = 0; i < 10; i++)

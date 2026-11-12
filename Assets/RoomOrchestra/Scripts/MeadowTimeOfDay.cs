@@ -12,6 +12,8 @@ namespace RoomOrchestra
     public class MeadowTimeOfDay : MonoBehaviour
     {
         public const int DayStartsAt = 6, DuskStartsAt = 18;
+        /// <summary>The haze on the far meadow takes the sky's horizon colour (golden hour, dusk).</summary>
+        public static readonly Color DayHaze = new Color(0.949f, 0.851f, 0.722f), DuskHaze = new Color(0.878f, 0.604f, 0.478f);
 
         [SerializeField] MeshFilter[] pieces = Array.Empty<MeshFilter>();
         [SerializeField] Mesh[] dayMeshes = Array.Empty<Mesh>();
@@ -46,6 +48,7 @@ namespace RoomOrchestra
         public void Apply(bool dusk)
         {
             IsDusk = dusk;
+            RenderSettings.fogColor = dusk ? DuskHaze : DayHaze;
             var meshes = dusk ? duskMeshes : dayMeshes;
             for (int i = 0; i < pieces.Length && i < meshes.Length; i++)
                 if (pieces[i] != null && meshes[i] != null) pieces[i].sharedMesh = meshes[i];

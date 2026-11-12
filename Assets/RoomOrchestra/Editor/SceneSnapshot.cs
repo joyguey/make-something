@@ -21,6 +21,23 @@ namespace RoomOrchestra.EditorTools
             EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
             if (System.Environment.GetCommandLineArgs().Contains("-dusk"))
                 Object.FindFirstObjectByType<MeadowTimeOfDay>()?.Apply(true);
+            // look trials: -toon 0..1, -rim 0..1 (warm), -haze start end (m) in the sky's horizon colour
+            var look = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < look.Length - 1; i++)
+            {
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                if (look[i] == "-toon") Shader.SetGlobalFloat("_RO_Toon", float.Parse(look[i + 1], inv));
+                if (look[i] == "-rim") { Shader.SetGlobalFloat("_RO_Rim", float.Parse(look[i + 1], inv)); Shader.SetGlobalColor("_RO_RimColor", new Color(1f, 0.93f, 0.8f)); }
+                if (look[i] == "-haze" && i + 2 < look.Length)
+                {
+                    RenderSettings.fog = true;
+                    RenderSettings.fogMode = FogMode.Linear;
+                    RenderSettings.fogStartDistance = float.Parse(look[i + 1], inv);
+                    RenderSettings.fogEndDistance = float.Parse(look[i + 2], inv);
+                    bool dusk = look.Contains("-dusk");
+                    RenderSettings.fogColor = dusk ? new Color(0.878f, 0.604f, 0.478f) : new Color(0.949f, 0.851f, 0.722f);
+                }
+            }
             if (System.Environment.GetCommandLineArgs().Contains("-hands")) // as a bare-handed player sees it
                 Object.FindFirstObjectByType<HandprintStart>(FindObjectsInactive.Include)?.Apply(true);
         }
@@ -44,6 +61,7 @@ namespace RoomOrchestra.EditorTools
             const int width = 1600, height = 900;
             var rt = new RenderTexture(width, height, 24);
             camera.targetTexture = rt;
+            camera.Render(); // a first frame sets up the lighting; the second is the picture
             camera.Render();
             RenderTexture.active = rt;
             var image = new Texture2D(width, height, TextureFormat.RGB24, false);
@@ -108,6 +126,7 @@ namespace RoomOrchestra.EditorTools
         /// </summary>
         public static void CaptureCloseUp(string path, Vector3 eye, Vector3 lookAt, float fieldOfView = 30f)
         {
+            ShaderUtil.allowAsyncCompilation = false; // a single frame: compile every shader now, never a placeholder
             var go = new GameObject("SnapshotCloseUpCamera") { hideFlags = HideFlags.HideAndDontSave };
             try
             {
@@ -120,6 +139,7 @@ namespace RoomOrchestra.EditorTools
                 const int width = 1200, height = 800;
                 var rt = new RenderTexture(width, height, 24);
                 camera.targetTexture = rt;
+                camera.Render(); // a first frame sets up the lighting; the second is the picture
                 camera.Render();
                 RenderTexture.active = rt;
                 var image = new Texture2D(width, height, TextureFormat.RGB24, false);
