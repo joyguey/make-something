@@ -125,6 +125,8 @@ namespace RoomOrchestra
                 if (m_Grabbing[hand] && launcher != null) launcher.EndGrab(GrabId(hand), Vector3.zero); // lost: let go
                 m_Grabbing[hand] = false;
                 m_WasSelect[hand] = false;
+                m_Hovering[hand] = null;
+                HoverLight.Set(hand, null);
                 ShowRay(hand, false, default, default, false, false);
                 return;
             }
@@ -140,6 +142,8 @@ namespace RoomOrchestra
 
             if (m_Grabbing[hand])
             {
+                m_Hovering[hand] = null; // the held ball is no longer "under the pointer"
+                HoverLight.Set(hand, null);
                 var held = frame.Gaze ? handAt : origin + dir * m_GrabDistance[hand];
                 if (released)
                 {
@@ -165,6 +169,7 @@ namespace RoomOrchestra
             {
                 m_Hovering[hand] = hoverOn;
                 if (hoverOn != null) UiSounds.Play(UiSound.Hover, hit.point);
+                HoverLight.Set(hand, hoverOn != null ? HoverLight.RendererOf(hit.collider) : null); // and it lights up
             }
             ShowRay(hand, true, origin, touching ? hit.point : origin + dir * RayIdleLength, touching, tappable);
             // on an instrument's real object: its five note bands show, the one under the pointer lit (owner, 2026-11-08)
