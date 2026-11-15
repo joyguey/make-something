@@ -325,7 +325,7 @@ def ground_sectors(radius=12.0, rings=(0.0, 3.0, 6.0, 9.0, 12.0)):
 def sky_wedge(name, radius=40.0, wedges=8):
     """One of the sky's wedges: a dome slice, inside facing, blue overhead to pale at the horizon."""
     p = Piece(name)
-    rings, steps = 8, 4
+    rings, steps = 12, 4
     verts = []
     for r in range(rings + 1):
         el = r / rings * (math.pi / 2)
@@ -341,8 +341,105 @@ def sky_wedge(name, radius=40.0, wedges=8):
             horizon, zenith = SKY_HORIZON, SKY_ZENITH
             p.colours[f] = tuple(horizon[i] + (zenith[i] - horizon[i]) * t ** 0.8 for i in range(3))
     obj = finish(p)
+    # one smooth gradient: each corner takes the sky's colour at its own height (the per-face colours showed as bands)
+    col = obj.data.color_attributes["Col"]
+    for loop in obj.data.loops:
+        z = obj.data.vertices[loop.vertex_index].co.z
+        el = math.asin(max(-1.0, min(1.0, (z + 2.0) / radius)))
+        rgb = sky_colour(el)
+        col.data[loop.index].color = (rgb[0], rgb[1], rgb[2], 1.0)
     obj.data.flip_normals()  # seen from inside
     return obj
+
+
+def sky_colour(elevation):
+    """The sky's colour at an elevation (radians): the horizon colour rising to the zenith colour."""
+    t = max(0.0, min(1.0, elevation / (math.pi / 2)))
+    return tuple(SKY_HORIZON[i] + (SKY_ZENITH[i] - SKY_HORIZON[i]) * t ** 0.8 for i in range(3))
+
+
+def sky_disc(p, direction, distance, radius, rgb, segments=28):
+    """A flat disc on the sky facing the middle of the meadow, at 'distance' along 'direction' (a unit vector)."""
+    d = Vector(direction).normalized()
+    side = d.cross(Vector((0, 0, 1))).normalized()
+    up = side.cross(d).normalized()
+    centre = d * distance - Vector((0, 0, 2.0))
+    middle = p.bm.verts.new(centre)
+    rim = [p.bm.verts.new(centre + (side * math.cos(a) + up * math.sin(a)) * radius)
+           for a in (k * math.tau / segments for k in range(segments))]
+    for k in range(segments):
+        f = p.bm.faces.new((middle, rim[k], rim[(k + 1) % segments]))
+        p.colours[f] = rgb
+
+
+def face_inward(obj):
+    """Turns every face toward the middle of the meadow: the sky is seen from inside."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.normal_update()
+    outward = [f for f in bm.faces if f.normal.dot(f.calc_center_median() + Vector((0, 0, 2.0))) > 0]
+    bmesh.ops.reverse_faces(bm, faces=outward)
+    bm.to_mesh(obj.data)
+    bm.free()
+    return obj
+
+
+def mix(a, b, t):
+    return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
+
+
+SUN_DIRECTION = (0.0, 1.0, 1.19)  # 50 degrees up (the scene light's height); Unity turns the piece toward the light
+
+
+def sun_or_moon(name):
+    """By day a low-poly sun with two soft rings of glow; at dusk a crescent moon. Unity turns it to where the scene's
+    light comes from, so the light on every shape agrees with it."""
+    p = Piece(name)
+    el = math.atan2(SUN_DIRECTION[2], SUN_DIRECTION[1])
+    sky = sky_colour(el)
+    if PALETTE == "day":
+        sun = hexes("#FFF3D0")[0]
+        sky_disc(p, SUN_DIRECTION, 37.6, 5.2, mix(sky, sun, 0.22))
+        sky_disc(p, SUN_DIRECTION, 37.3, 3.6, mix(sky, sun, 0.5))
+        sky_disc(p, SUN_DIRECTION, 37.0, 2.3, sun)
+    else:
+        moon = hexes("#F4ECDA")[0]
+        sky_disc(p, SUN_DIRECTION, 37.6, 4.6, mix(sky, moon, 0.12))
+        sky_disc(p, SUN_DIRECTION, 37.3, 2.0, moon)
+        d = Vector(SUN_DIRECTION).normalized()
+        side = d.cross(Vector((0, 0, 1))).normalized()
+        sky_disc(p, tuple(d * 37.0 + side * 0.85 + Vector((0, 0, 0.45))), 37.0, 1.75, mix(sky, moon, 0.12))  # the crescent's shade
+    return face_inward(finish(p))
+
+
+def stars(name, count=90):
+    """Small four-point stars over the whole sky (dusk). By day the piece is one tiny speck under the horizon, so both
+    palettes have the same pieces. Its own seeded random: the meadow's choices never depend on it."""
+    p = Piece(name)
+    dice = random.Random(77)
+    if PALETTE == "day":
+        sky_disc(p, (0.0, 1.0, -0.2), 37.0, 0.01, SKY_HORIZON, segments=3)
+        return face_inward(finish(p))
+    for _ in range(count):
+        az = dice.uniform(0.0, math.tau)
+        el = math.asin(dice.uniform(math.sin(math.radians(14)), math.sin(math.radians(86))))  # even over the dome
+        d = Vector((math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)))
+        size = dice.choice((0.12, 0.12, 0.16, 0.16, 0.2, 0.28))  # 3 to 8 pixels across in the headset
+        bright = dice.uniform(0.55, 1.0)
+        rgb = mix(sky_colour(el), hexes("#FBF4E2")[0], bright)
+        side = d.cross(Vector((0, 0, 1))).normalized()
+        up = side.cross(d).normalized()
+        centre = d * 37.0 - Vector((0, 0, 2.0))
+        middle = p.bm.verts.new(centre)
+        points = []
+        for k in range(8):  # a four-point star: long points up, down and to the sides, short ones between
+            a = k * math.tau / 8
+            r = size if k % 2 == 0 else size * 0.32
+            points.append(p.bm.verts.new(centre + (side * math.cos(a) + up * math.sin(a)) * r))
+        for k in range(8):
+            f = p.bm.faces.new((middle, points[k], points[(k + 1) % 8]))
+            p.colours[f] = rgb
+    return face_inward(finish(p))
 
 
 def sign(name):
@@ -413,6 +510,8 @@ def main():
     for g in ground_sectors():
         built.append((g, None))
     built.append((sky_wedge("Meadow_SkyWedge"), None))
+    built.append((sun_or_moon("Meadow_Sun"), None))
+    built.append((stars("Meadow_Stars"), None))
     built.append((sign("Meadow_TitleSign"), 0.3))
 
     # each piece apart from the others while baking, then home at the origin

@@ -247,6 +247,15 @@ namespace RoomOrchestra.EditorTools
             }
             for (int w = 0; w < 8; w++)
                 Piece("Meadow_SkyWedge", room, centre, w * 45f, SkyScale, sky, panels);
+            // the sun (the moon at dusk), turned to where the scene's light comes from, and the dusk's stars
+            var sun = Piece("Meadow_Sun", room, centre, 0f, SkyScale * 0.99f, sky, panels);
+            var light = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).FirstOrDefault(l => l.type == LightType.Directional);
+            if (sun != null && light != null)
+            {
+                var drawn = sun.GetComponent<MeshFilter>().sharedMesh.bounds.center + Vector3.up * 2f; // built 2 m under the dome's middle
+                sun.rotation = Quaternion.FromToRotation(room.TransformDirection(drawn.normalized), -light.transform.forward) * sun.rotation;
+            }
+            Piece("Meadow_Stars", room, centre, 0f, SkyScale * 0.99f, sky, panels);
 
             var clock = room.GetComponent<MeadowTimeOfDay>();
             if (clock == null) clock = room.gameObject.AddComponent<MeadowTimeOfDay>();

@@ -69,6 +69,10 @@ namespace RoomOrchestra
             rayHot = hot;
         }
 
+        void OnEnable() => MusicalHitPipeline.Committed += FeelHit;
+        void OnDisable() => MusicalHitPipeline.Committed -= FeelHit;
+        static void FeelHit(MusicalHitEvent hit) => Haptics.Hit(hit.Orb);
+
         void Update()
         {
 #if UNITY_EDITOR
@@ -134,6 +138,7 @@ namespace RoomOrchestra
                 {
                     m_Grabbing[hand] = false;
                     launcher.EndGrab(GrabId(hand), dir);
+                    if (!frame.Gaze) Haptics.Pulse(hand, Haptics.ThrowStrength, Haptics.ThrowMs);
                 }
                 else launcher.UpdateGrab(GrabId(hand), held, dir);
                 ShowRay(hand, true, origin, held, true, true);
@@ -164,8 +169,13 @@ namespace RoomOrchestra
                 m_Grabbing[hand] = true;
                 m_GrabDistance[hand] = hit.distance;
                 launcher.BeginGrab(GrabId(hand), frame.Gaze ? handAt : hit.point);
+                if (!frame.Gaze) Haptics.Pulse(hand, Haptics.GrabStrength, Haptics.GrabMs);
             }
-            else if (!IsDuplicateTap(target)) Activate(target);
+            else if (!IsDuplicateTap(target))
+            {
+                if (!frame.Gaze) Haptics.Pulse(hand, Haptics.PressStrength, Haptics.PressMs); // the press landed
+                Activate(target);
+            }
         }
 
         static int GrabId(int hand) => 100 + hand;

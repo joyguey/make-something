@@ -35,6 +35,7 @@ namespace RoomOrchestra.Tests
                 foreach (var f in filters)
                 {
                     Assert.AreNotSame(day[f], f.sharedMesh, $"{f.name} changes at dusk");
+                    if (f.name == "Sun" || f.name == "Stars") continue; // the sun becomes the moon, and the stars come out: other shapes
                     // the same shape (the vertex count can differ: Unity splits vertices where face colours differ)
                     Assert.Less(Vector3.Distance(day[f].bounds.size, f.sharedMesh.bounds.size), 0.01f, $"{f.name} keeps its shape");
                     Assert.AreEqual(day[f].triangles.Length, f.sharedMesh.triangles.Length, $"{f.name} keeps its faces");

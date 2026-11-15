@@ -98,6 +98,22 @@ namespace RoomOrchestra.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>The sky from the seat: ahead and up (-snapshotPath folder/name: writes -ahead.png), and back toward
+        /// the sun or moon (-back.png). -dusk for the night sky. Unity's renderer; never saved.</summary>
+        public static void CaptureSky()
+        {
+            string path = "docs/evidence/sky";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            OpenScene();
+            var eye = new Vector3(0f, 1.15f, 0f);
+            CaptureCloseUp($"{path}-ahead.png", eye, eye + new Vector3(0f, 0.45f, 1f), 80f);
+            var light = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
+            CaptureCloseUp($"{path}-back.png", eye, eye - light.transform.forward + Vector3.down * 0.25f, 70f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>The title card on its sign with the friends on the rail, from the seated eye (-snapshotPath out.png;
         /// -dusk for the night meadow, -hands for the handprint Start, -tilt degrees to show it mid-swing, -side to look
         /// from the side). Unity's renderer; never saved.</summary>
