@@ -1,6 +1,6 @@
 # Little Echoes v4.2
 
-App 4.2.0, build 35, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
+App 4.2.0, build 36, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
 A design refinement on top of v4.1: the game now looks and sounds made for teenagers and adults who want to let their
 inner kid out, rather than for small children. Every change was chosen by the owner from rendered options.
 
@@ -31,13 +31,13 @@ inner kid out, rather than for small children. Every change was chosen by the ow
   your note sounds, stronger for heavier balls. Controllers only. There is no menu switch for it yet.
 
 ## Evidence
-- Unity tests: EditMode 256 of 256, PlayMode 114 of 114.
+- Unity tests: EditMode 257 of 257, PlayMode 114 of 114.
 - On a PICO headset (build 32, the owner playing, 2026-11-14): 85 to 90 fps with the painted light, haze and wind
   (session log, 10-second averages).
 - Rendered in Unity's editor renderer (not the headset) for every change.
 
 ## Not yet verified on a headset
-- Builds 33 to 35's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the
+- Builds 33 to 36's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the
   bush, the light on what you aim at.
 - How the sign's swing, the push and the handprint feel with real hands.
 - The new interface sounds have been measured (pitch, level) but not listened to.

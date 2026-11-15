@@ -832,7 +832,7 @@ namespace RoomOrchestra.EditorTools
         // start"): at arm's reach, a little smaller than life so it fits the view, its feet on the ground. It never moves
         // until Start sends it into the cloud.
         const float TitleScale = 0.85f, TitleCardHeight = 1.4f; // the card's middle above the ground at full size (m)
-        static readonly Vector3 TitleCardAt = new Vector3(0f, TitleCardHeight * TitleScale, 0.65f);
+        static readonly Vector3 TitleCardAt = new Vector3(0f, TitleCardHeight * TitleScale, 0.74f); // 0.65 was "a little bit too close"
         /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
         const float TitleRailTop = 0.398f; // the rail top (1.535 m in Blender x 1.173) less 2 mm: flush, no gap
         /// <summary>The rail's middle in the card's space: the hanging card swings about it (1.5 m in Blender x 1.173,
@@ -879,7 +879,12 @@ namespace RoomOrchestra.EditorTools
             MeshPart("LetteringOutline", letters, outline, new Vector3(0f, 0f, -0.005f), EnsureMaterial("TitleLetterOutline", "Ball", new Color(0.23f, 0.14f, 0.31f)));
             MeshPart("LetteringFill", letters, fill, new Vector3(0f, 0f, -0.007f), EnsureMaterial("TitleLetterFill", "Ball", new Color(1f, 0.965f, 0.92f)));
 
-            Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), hanging, On(new Vector3(0f, -0.055f, -0.004f)), 0.036f), UiTerm.TitleSubtitle);
+            // Every word lies flat on its plate or button, 2 mm proud (owner, headset 2026-11-14, with the sign now at arm's
+            // reach: "the quit and start word are not sitting flush to the sign and button"; they stood 3 cm off, turned
+            // toward the player).
+            Transform Flat(Transform label) { label.localRotation = Quaternion.identity; return label; }
+            const float OnButton = -0.0195f; // the buttons are 35 mm deep: their face is 17.5 mm in front of their middle
+            Localize(Flat(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), hanging, On(new Vector3(0f, -0.055f, -0.005f)), 0.036f)), UiTerm.TitleSubtitle);
 
             // Bottom right, off the centre line: PICO draws its own window handle (the round grabber that opens
             // Back / Close / Minimize) on the app's centre line, and centred it covered Start (owner, emulator).
@@ -891,15 +896,17 @@ namespace RoomOrchestra.EditorTools
             Hoverable(leaf.gameObject);
             // Well clear of the leaf's curved face: off-centre, the label turns to face the player and its near
             // edge dipped behind the leaf ("tart" on the emulator).
-            Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), buttonLook, new Vector3(0f, 0f, -0.045f), 0.04f), UiTerm.Start);
+            Localize(Flat(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), buttonLook, new Vector3(0f, 0f, OnButton), 0.04f)), UiTerm.Start);
             // With bare hands, a handprint in a thick green dashed line instead, leaning right like a hand raised for a high five
             // (owner, Fable refinement 2026-11-11)
-            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.004f, 0.01f)); // just in front of the card's face
+            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.004f, 0.015f)); // just in front of the card's face
             handLook.localRotation = Quaternion.Euler(0f, 0f, -15f); // leaning right: raised for a high five
             var printShape = MeshPart("HandprintDashes", handLook, HandprintMesh(), Vector3.zero, EnsureMaterial("HandprintDashes", "Ball", new Color(0.361f, 0.722f, 0.380f))); // #5CB861
             var printBox = printShape.gameObject.AddComponent<BoxCollider>(); // on the visible print: its tap area
             printBox.size = new Vector3(HandprintHalf.x * 2f, HandprintHalf.y * 2f, 0.03f);
-            Localize(Label("HandprintLabel", UiText.Get(UiTerm.Start, UiLanguage.English), handLook, new Vector3(0.002f, -0.034f, -0.004f), 0.032f), UiTerm.Start);
+            var printWord = Flat(Label("HandprintLabel", UiText.Get(UiTerm.Start, UiLanguage.English), handLook, new Vector3(0.002f, -0.034f, -0.0015f), 0.032f));
+            printWord.localRotation = Quaternion.Euler(0f, 0f, 15f); // level on the card, though the print leans
+            Localize(printWord, UiTerm.Start);
             var startButton = button.gameObject.AddComponent<TitleStartButton>();
             button.gameObject.AddComponent<HandprintStart>().Configure(buttonLook.gameObject, handLook.gameObject, startButton, HandprintHalf);
             handLook.gameObject.SetActive(false); // controllers until hands are seen
@@ -911,7 +918,7 @@ namespace RoomOrchestra.EditorTools
             quitLeaf.localScale = new Vector3(0.19f, 0.08f, 0.035f);
             quitLeaf.gameObject.AddComponent<BoxCollider>();
             Hoverable(quitLeaf.gameObject);
-            Localize(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, -0.045f), 0.034f), UiTerm.Quit);
+            Localize(Flat(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, OnButton), 0.034f)), UiTerm.Quit);
             quit.gameObject.AddComponent<QuitButton>();
 
             MeadowArt.TitleSign(card, TitleCardHeight); // a wooden sign with a little vine around the card (V3 review: richer menu)

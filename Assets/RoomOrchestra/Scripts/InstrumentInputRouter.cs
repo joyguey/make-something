@@ -113,12 +113,14 @@ namespace RoomOrchestra
         {
             var frame = Pointers.Read(hand);
             var rig = XrRig.Instance != null ? XrRig.Instance.transform : null;
-            s_PalmTracked[hand] = frame.Tracked;
-            s_BareHand[hand] = frame.Gaze;
-            if (frame.Tracked)
+            // the palm is followed even while the hand's aim ray is not valid (an open palm pushing or slapping the sign)
+            bool palm = frame.Tracked || frame.BarePalm;
+            s_PalmTracked[hand] = palm;
+            s_BareHand[hand] = frame.Gaze || frame.BarePalm;
+            if (palm)
             {
                 s_Palm[hand] = rig != null ? rig.TransformPoint(frame.GripPosition) : frame.GripPosition;
-                s_Hands = frame.Gaze;
+                s_Hands = s_BareHand[hand];
             }
             if (!frame.Tracked)
             {

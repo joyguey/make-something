@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -101,7 +102,7 @@ namespace RoomOrchestra.Tests
             var card = Title().Card;
             var flat = card.position;
             flat.y = 0f;
-            Assert.That(flat.magnitude, Is.InRange(0.55f, 0.7f), "a flat palm reaches it from the seat");
+            Assert.That(flat.magnitude, Is.InRange(0.6f, 0.8f), "an outstretched palm reaches it from the seat");
             var frame = card.Find("TitleSign").GetComponent<Renderer>().bounds;
             Assert.Less(Mathf.Abs(frame.min.y), 0.02f, "its feet are on the ground");
             var print = card.GetComponentInChildren<HandprintStart>(true).transform.position;
@@ -110,6 +111,31 @@ namespace RoomOrchestra.Tests
             foreach (var mover in card.GetComponents<MonoBehaviour>()) Assert.Fail($"{mover.GetType().Name} on the title card");
             var stand = GameObject.Find("BallDispenser").transform.position;
             Assert.Greater(Mathf.Abs(stand.x), frame.extents.x, "the ball's cloud stands beside the sign, not behind it");
+        }
+
+        [Test]
+        public void ASlapThroughThePrintCountsAndTheWordsLieFlushOnTheirButtons()
+        {
+            var card = Title().Card;
+            var start = card.GetComponentInChildren<HandprintStart>(true);
+            start.Apply(true);
+            var print = start.transform.Find("HandprintLook");
+            var toPlayer = -print.forward;
+            // a fast slap: 12 cm in front of the print one frame, 12 cm behind it the next
+            Assert.IsTrue(start.Crossed(print.position + toPlayer * 0.12f, print.position - toPlayer * 0.12f), "through the print");
+            Assert.IsFalse(start.Crossed(print.position - toPlayer * 0.12f, print.position + toPlayer * 0.12f), "from behind does not count");
+            Assert.IsFalse(start.Crossed(print.position + toPlayer * 0.12f + print.right * 0.4f, print.position - toPlayer * 0.12f + print.right * 0.4f), "beside the print does not count");
+            start.Apply(false);
+
+            // each word sits on its button's face: within 5 mm of it, never 3 cm off as it did
+            foreach (var (button, label) in new[] { ("StartLeaf", "StartLabel"), ("TitleQuitLeaf", "TitleQuitLabel") })
+            {
+                var face = card.GetComponentsInChildren<Transform>(true).First(t => t.name == button);
+                var word = card.GetComponentsInChildren<Transform>(true).First(t => t.name == label);
+                float faceFront = face.GetComponent<Renderer>().bounds.center.z - face.GetComponent<Renderer>().bounds.extents.z; // toward the player (-Z)
+                Assert.That(faceFront - word.position.z, Is.InRange(0f, 0.005f), $"{label} lies on {button}");
+                Assert.Less(Quaternion.Angle(word.rotation, card.rotation), 0.5f, $"{label} is flat on the card");
+            }
         }
     }
 }

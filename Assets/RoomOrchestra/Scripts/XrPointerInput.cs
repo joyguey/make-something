@@ -25,6 +25,12 @@ namespace RoomOrchestra
         public bool Gaze;
         public Vector3 HandPosition;
         public Quaternion HandRotation;
+        /// <summary>
+        /// A bare hand whose palm is tracked (GripPosition), even when its aim ray is not: an open palm held up to push
+        /// the title sign or slap its Start print points nowhere, so PICO reports no valid ray for it (owner, headset
+        /// 2026-11-14: "when I slap the start sign with my hand, it doesn't start the game").
+        /// </summary>
+        public bool BarePalm;
     }
 
     /// <summary>Source of per-hand pointer frames; swapped for a fake in tests.</summary>
@@ -124,6 +130,7 @@ namespace RoomOrchestra
                             && Vector3.Distance(At(ByteDance.PICO.XR.HandJoint.JointRingTip), palm) < reach;
                 frame.Grip = fist;
                 frame.GripPosition = palm;
+                frame.BarePalm = true;
             }
             return frame;
         }
