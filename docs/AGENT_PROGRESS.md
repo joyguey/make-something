@@ -643,6 +643,14 @@ Owner played `RoomOrchestra-test.apk` on their own PICO (OS 6.2.0, model B3110) 
 - **NOT verified:** anything on the headset; controller and hand input (the emulator has none); the odd light patches seen with occlusion on the emulator.
 - **Launch for testing:** `am start -n com.roomorchestra.app/com.unity3d.player.UnityPlayerActivity --ez le_freeplay true --ef le_autoquit N`. Grant `SPATIAL_DATA` and `HAND_TRACKING` first.
 
+## 2026-11-11 to 2026-11-14 | v4.2: the Fable design refinement (branch feat/v4)
+- Brief: "it looks like a kids game, it needs to be geared towards teenagers and adults who want to unleash their inner kid". The owner approves every change from rendered options before it goes in.
+- **Approved and committed:** day/dusk meadow by the headset's clock, round cumulus clouds (2e59b2b); plum title plate with square buttons and a green Start (7c43c4f); card hangs on two steel rings and rocks in gusts or when pushed, handprint Start for bare hands (e3d350a, 07bcdc3); terracotta furniture (07bcdc3); green leaf with navy plates (c0060e8); yellow countdown with green GO, plum bubble (c61b860); painted light, rim on characters and furniture only, haze, wind sway (a3f6d81); interface sounds an octave lower (33ec548).
+- **Tests:** EditMode 251/251, PlayMode 114/114. `docs/RELEASE_NOTES_v4.2.md`.
+- **NOT verified on the headset:** frame rate with the new look, the swing and handprint with real hands, the new sounds by ear.
+- **Pending the owner's answer:** a smooth sky gradient with a sun, a moon and dusk stars (git stash "sky-polish-pending-approval"), controller haptics, a press animation on buttons.
+- Snapshot tool: single-frame captures need a warm-up frame (the first came out unlit); `SceneSnapshot` now renders twice.
+
 ## Resume here (next session)
 0. **2026-11-07 evening:** real-furniture build committed locally (not pushed). Headset shows "unauthorized" to adb until the owner accepts the prompt inside it. Next: owner's headset checks (`docs/OWNER_CHECKLIST.md` top section); owner decisions: occlusion route, voice notes, in-play menu.
 0. **2026-11-07:** all nine of George's items have changes (section above), committed locally, not pushed. Owner's list: `docs/OWNER_CHECKLIST.md`. First: confirm the latest test build draws on the emulator (screen was locked).
