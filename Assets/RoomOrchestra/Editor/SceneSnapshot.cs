@@ -38,6 +38,28 @@ namespace RoomOrchestra.EditorTools
                     RenderSettings.fogColor = dusk ? new Color(0.878f, 0.604f, 0.478f) : new Color(0.949f, 0.851f, 0.722f);
                 }
             }
+            if (look.Contains("-ghosthand")) // an open right hand held up to the Start print, to see how hands are drawn
+            {
+                var wrist = new Vector3(0.2f, 0.93f, 0.52f);
+                var up = Vector3.up; var right = Vector3.right;
+                var j = new Vector3[HandPose.JointCount];
+                j[1] = wrist; j[0] = wrist + up * 0.055f;
+                Vector3 thumbDir = (up * 0.7f - right).normalized;
+                j[2] = wrist + up * 0.02f - right * 0.02f; j[3] = j[2] + thumbDir * 0.04f; j[4] = j[3] + thumbDir * 0.032f; j[5] = j[4] + thumbDir * 0.026f;
+                float[] across = { -0.028f, -0.007f, 0.013f, 0.031f }, reach = { 0.94f, 1f, 0.95f, 0.8f };
+                for (int f = 0; f < 4; f++)
+                {
+                    int b0 = 6 + f * 5;
+                    var dir = (up + right * across[f] * 4f).normalized;
+                    j[b0] = wrist + up * 0.03f + right * across[f] * 0.6f;
+                    j[b0 + 1] = wrist + up * 0.095f + right * across[f];
+                    j[b0 + 2] = j[b0 + 1] + dir * 0.042f * reach[f];
+                    j[b0 + 3] = j[b0 + 2] + dir * 0.026f * reach[f];
+                    j[b0 + 4] = j[b0 + 3] + dir * 0.022f * reach[f];
+                }
+                HandPose.Report(1, i => j[i]);
+                Object.FindFirstObjectByType<HandOutline>()?.Refresh();
+            }
             if (System.Environment.GetCommandLineArgs().Contains("-hands")) // as a bare-handed player sees it
                 Object.FindFirstObjectByType<HandprintStart>(FindObjectsInactive.Include)?.Apply(true);
         }

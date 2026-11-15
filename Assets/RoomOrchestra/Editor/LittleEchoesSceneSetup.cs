@@ -1747,6 +1747,31 @@ namespace RoomOrchestra.EditorTools
                 dot.gameObject.SetActive(false);
                 dots[hand] = dot;
             }
+            // The player's own hands, as pale shapes, while the meadow hides the real ones (owner, headset 2026-11-15)
+            var mint = new Color(0.804f, 0.922f, 0.827f); // #CDEBD3, the handprint's family
+            var handLook = Glow(EnsureMaterial("HandOutline", "Ball", mint), mint * 1.2f); // bright against the plum sign and the meadow alike
+            var handLines = new LineRenderer[2 * HandOutline.LinesPerHand];
+            var hands = new GameObject("HandOutlines");
+            hands.transform.SetParent(rig.transform, false);
+            for (int i = 0; i < handLines.Length; i++)
+            {
+                int k = i % HandOutline.LinesPerHand;
+                var part = new GameObject((i < HandOutline.LinesPerHand ? "Left" : "Right") + k);
+                part.transform.SetParent(hands.transform, false);
+                var line = part.AddComponent<LineRenderer>();
+                line.useWorldSpace = true;
+                line.positionCount = HandOutline.JointsIn(k);
+                line.widthMultiplier = HandOutline.WidthOf(k);
+                line.numCapVertices = 5;
+                line.numCornerVertices = 4;
+                line.sharedMaterial = handLook;
+                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                line.receiveShadows = false;
+                line.enabled = false;
+                handLines[i] = line;
+            }
+            hands.AddComponent<HandOutline>().Configure(handLines);
+
             var router = Object.FindFirstObjectByType<InstrumentInputRouter>();
             if (router != null)
             {

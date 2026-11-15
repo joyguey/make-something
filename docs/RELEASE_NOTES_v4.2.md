@@ -1,6 +1,6 @@
 # Little Echoes v4.2
 
-App 4.2.0, build 36, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
+App 4.2.0, build 37, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
 A design refinement on top of v4.1: the game now looks and sounds made for teenagers and adults who want to let their
 inner kid out, rather than for small children. Every change was chosen by the owner from rendered options.
 
@@ -16,6 +16,8 @@ inner kid out, rather than for small children. Every change was chosen by the ow
   tilted like a hand raised for a high five: look and pinch, or put your palm on it. The sign stands at arm's
   reach from the first frame and never moves toward the player, so nobody has to step forward to touch it; the
   ball's cloud waits beside it.
+- **Your hands, drawn in the meadow.** The meadow covers the camera's view of the room, so with bare hands each
+  hand is drawn as a pale shape while the meadow stands; it goes once your real room (and real hands) show.
 - **The three friends stay hidden** in the bush until they hop out onto the leaf, from any angle.
 - **Terracotta furniture** (burnt-orange chair, dark wood table, tan lamp shade) and **navy menu plates** on the
   green leaf.
@@ -31,13 +33,13 @@ inner kid out, rather than for small children. Every change was chosen by the ow
   your note sounds, stronger for heavier balls. Controllers only. There is no menu switch for it yet.
 
 ## Evidence
-- Unity tests: EditMode 257 of 257, PlayMode 114 of 114.
+- Unity tests: EditMode 258 of 258, PlayMode 114 of 114.
 - On a PICO headset (build 32, the owner playing, 2026-11-14): 85 to 90 fps with the painted light, haze and wind
   (session log, 10-second averages).
 - Rendered in Unity's editor renderer (not the headset) for every change.
 
 ## Not yet verified on a headset
-- Builds 33 to 36's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the
+- Builds 33 to 37's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the
   bush, the light on what you aim at.
 - How the sign's swing, the push and the handprint feel with real hands.
 - The new interface sounds have been measured (pitch, level) but not listened to.

@@ -131,6 +131,7 @@ namespace RoomOrchestra
                 frame.Grip = fist;
                 frame.GripPosition = palm;
                 frame.BarePalm = true;
+                HandPose.Report(hand, i => joints.jointLocations[i].pose.Position.ToVector3()); // drawn while the meadow hides the real hand
             }
             return frame;
         }
