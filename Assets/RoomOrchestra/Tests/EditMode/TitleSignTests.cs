@@ -95,28 +95,21 @@ namespace RoomOrchestra.Tests
             start.Apply(false);
         }
 
-        [TestCase(1.15f, TitleReach.SeatedScale)]
-        [TestCase(1.65f, TitleReach.StandingScale)]
-        public void WithHandsTheSignStandsWithinReachOnTheGround(float eyeHeight, float size)
-        {
-            var eyes = new Vector3(0.3f, eyeHeight, 0.4f);
-            var home = new Vector3(0f, 1.4f, 1.8f);
-            var (position, rotation, scale) = TitleReach.NearPose(eyes, home, 0f, 1.4f, Vector3.forward);
-            Assert.AreEqual(size, scale, 1e-4f);
-            var flat = position - eyes;
-            flat.y = 0f;
-            Assert.AreEqual(TitleReach.Distance, flat.magnitude, 1e-4f, "at arm's reach");
-            Assert.AreEqual(1.4f * scale, position.y, 1e-4f, "its feet stay on the ground");
-            Assert.Greater(Vector3.Dot(rotation * Vector3.forward, flat.normalized), 0.999f, "facing the player");
-            Assert.Less(Mathf.Abs(position.y - eyeHeight), 0.4f, "and near eye height");
-        }
-
         [Test]
-        public void TheTitleCardComesToHandsOnly()
+        public void TheSignStandsStillWithinReachFromTheStart()
         {
             var card = Title().Card;
-            Assert.IsNotNull(card.GetComponent<TitleReach>());
-            Assert.AreEqual(new Vector3(0f, 1.4f, 1.8f), card.localPosition, "it starts where the controllers' rays reach it");
+            var flat = card.position;
+            flat.y = 0f;
+            Assert.That(flat.magnitude, Is.InRange(0.55f, 0.7f), "a flat palm reaches it from the seat");
+            var frame = card.Find("TitleSign").GetComponent<Renderer>().bounds;
+            Assert.Less(Mathf.Abs(frame.min.y), 0.02f, "its feet are on the ground");
+            var print = card.GetComponentInChildren<HandprintStart>(true).transform.position;
+            Assert.That(print.y, Is.InRange(0.85f, 1.25f), "the Start print is between a seated shoulder and a standing elbow");
+            // nothing on the card moves it about: only the hanging plate swings, and Start sends it into the cloud
+            foreach (var mover in card.GetComponents<MonoBehaviour>()) Assert.Fail($"{mover.GetType().Name} on the title card");
+            var stand = GameObject.Find("BallDispenser").transform.position;
+            Assert.Greater(Mathf.Abs(stand.x), frame.extents.x, "the ball's cloud stands beside the sign, not behind it");
         }
     }
 }

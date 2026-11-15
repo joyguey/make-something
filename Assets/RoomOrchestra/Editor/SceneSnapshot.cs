@@ -125,14 +125,16 @@ namespace RoomOrchestra.EditorTools
                 if (args[i] == "-snapshotPath") path = args[i + 1];
             OpenScene();
             var card = GameObject.Find("TitleCard").transform;
-            var eye = new Vector3(0f, 1.25f, 0.1f);
-            float fov = 42f;
+            // the sign is at arm's reach: seen from the seat (or standing with -standing) with the headset's wide view
+            var eye = new Vector3(0f, args.Contains("-standing") ? 1.65f : 1.15f, 0f);
+            float fov = 85f;
             for (int i = 0; i < args.Length - 1; i++)
             {
                 if (args[i] == "-tilt") card.Find("Hanging").localRotation = Quaternion.Euler(float.Parse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture), 0f, 0f);
                 if (args[i] == "-side") { eye = card.position + new Vector3(1.3f, 0.25f, -0.55f); fov = 38f; }
+                if (args[i] == "-eye") { eye = new Vector3(0f, 1.15f, 0f) + Vector3.right * float.Parse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture) + Vector3.forward * 0.9f; }
             }
-            CaptureCloseUp(path, eye, card.position + Vector3.up * 0.05f, fov);
+            CaptureCloseUp(path, eye, args.Contains("-side") ? card.position + Vector3.up * 0.05f : new Vector3(0.12f, card.position.y - 0.1f, card.position.z), fov);
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 

@@ -1,6 +1,6 @@
 # Little Echoes v4.2
 
-App 4.2.0, build 33, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
+App 4.2.0, build 34, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
 A design refinement on top of v4.1: the game now looks and sounds made for teenagers and adults who want to let their
 inner kid out, rather than for small children. Every change was chosen by the owner from rendered options.
 
@@ -13,8 +13,9 @@ inner kid out, rather than for small children. Every change was chosen by the ow
 - **A hanging title sign.** The title card is a deep plum plate that hangs from the wooden frame on two steel rings.
   A soft gust rocks it every so often, and it swings when you push it with a hand or a controller.
 - **Start for hands.** With controllers, Start is a green button. With bare hands it becomes a dashed green handprint,
-  tilted like a hand raised for a high five: look and pinch, or put your palm on it. With hands, the sign glides
-  to arm's reach and stands a little smaller, so nobody has to step forward; with controllers it stays where it was.
+  tilted like a hand raised for a high five: look and pinch, or put your palm on it. The sign stands at arm's
+  reach from the first frame and never moves toward the player, so nobody has to step forward to touch it; the
+  ball's cloud waits beside it.
 - **The three friends stay hidden** in the bush until they hop out onto the leaf, from any angle.
 - **Terracotta furniture** (burnt-orange chair, dark wood table, tan lamp shade) and **navy menu plates** on the
   green leaf.
@@ -34,7 +35,7 @@ inner kid out, rather than for small children. Every change was chosen by the ow
 - Rendered in Unity's editor renderer (not the headset) for every change.
 
 ## Not yet verified on a headset
-- Build 33's additions: the sky, the vibration, the sign coming to hands, the friends hidden in the bush.
+- Build 34's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the bush.
 - How the sign's swing, the push and the handprint feel with real hands.
 - The new interface sounds have been measured (pitch, level) but not listened to.
 

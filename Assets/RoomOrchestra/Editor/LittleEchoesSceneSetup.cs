@@ -827,7 +827,12 @@ namespace RoomOrchestra.EditorTools
 
         // The title card (Version 1 feedback: "boot into a proper title screen"): in front of the player, the
         // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
-        static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
+        // Close and still from the first frame (owner, headset 2026-11-14: "the sign needs to be closer for me to put my
+        // hand on it"; then, of a sign that glided up to hands: "that was scary... it should be static but close at the
+        // start"): at arm's reach, a little smaller than life so it fits the view, its feet on the ground. It never moves
+        // until Start sends it into the cloud.
+        const float TitleScale = 0.85f, TitleCardHeight = 1.4f; // the card's middle above the ground at full size (m)
+        static readonly Vector3 TitleCardAt = new Vector3(0f, TitleCardHeight * TitleScale, 0.65f);
         /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
         const float TitleRailTop = 0.398f; // the rail top (1.535 m in Blender x 1.173) less 2 mm: flush, no gap
         /// <summary>The rail's middle in the card's space: the hanging card swings about it (1.5 m in Blender x 1.173,
@@ -835,14 +840,16 @@ namespace RoomOrchestra.EditorTools
         static readonly Vector3 TitleHangFrom = new Vector3(0f, 0.3595f, 0.045f);
         const float TitleRingX = 0.2f, TitleRingRadius = 0.062f, TitleRingThickness = 0.0065f;
         static readonly Vector2 HandprintHalf = new Vector2(0.08f, 0.095f);
-        // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
-        static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
+        // From the stand's home (right of the leaf) to beside the title sign's right post, where Flutter on the cloud
+        // greets the player without standing between them and the sign.
+        static readonly Vector3 StandFrontOffset = new Vector3(0.16f, 0f, -0.35f);
 
         static TitleScreen CreateTitle(GameObject root, IntroSequence intro)
         {
             var card = Holder("TitleCard", root.transform, Vector3.zero);
             card.position = TitleCardAt;
             card.rotation = FacePlayer(TitleCardAt);
+            card.localScale = Vector3.one * TitleScale;
             var cream = new Color(1f, 0.96f, 0.92f);
             // The grown-up title (owner, Fable refinement 2026-11-11: "option A with the square buttons from option C
             // and change the start button to a green background with white text"): a deep plum card with a cream rim,
@@ -907,7 +914,7 @@ namespace RoomOrchestra.EditorTools
             Localize(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, -0.045f), 0.034f), UiTerm.Quit);
             quit.gameObject.AddComponent<QuitButton>();
 
-            MeadowArt.TitleSign(card, TitleCardAt.y); // a wooden sign with a little vine around the card (V3 review: richer menu)
+            MeadowArt.TitleSign(card, TitleCardHeight); // a wooden sign with a little vine around the card (V3 review: richer menu)
             // Flutter, Bop and Boom hop along the sign's top rail in time with the title theme (V3 review: "your bouncy
             // happy characters"); children of the card, so they fly into the cloud with it on Start
             var friends = Holder("TitleFriends", card, new Vector3(0f, 0.375f, 0.03f));
@@ -924,11 +931,11 @@ namespace RoomOrchestra.EditorTools
                 // standing on the top rail, above its leafy vine (owner, headset 2026-11-12: they sank into the post)
                 // the body itself (not its outline shell) sits flush on the rail (owner, headset 2026-11-12)
                 var bodyBox = friend.transform.Find("Visual").GetComponent<Renderer>().bounds;
-                friend.transform.position += Vector3.up * (TitleCardAt.y + TitleRailTop - bodyBox.min.y);
-                float aboveFeet = friend.transform.position.y - (TitleCardAt.y + TitleRailTop);
+                float rail = TitleCardAt.y + TitleRailTop * TitleScale; // the rail's top, in the room
+                friend.transform.position += Vector3.up * (rail - bodyBox.min.y);
+                float aboveFeet = friend.transform.position.y - rail;
                 friend.AddComponent<TitleFriend>().Configure(i * 0.33f, aboveFeet / Mathf.Max(1e-4f, friend.transform.lossyScale.y) * friend.transform.localScale.y);
             }
-            card.gameObject.AddComponent<TitleReach>().Configure(TitleCardAt.y); // with bare hands the sign comes within reach
             var title = root.AddComponent<TitleScreen>();
             title.Configure(card, GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint"), intro);
             return title;
