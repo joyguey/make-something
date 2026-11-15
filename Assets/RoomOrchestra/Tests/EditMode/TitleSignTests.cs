@@ -94,5 +94,29 @@ namespace RoomOrchestra.Tests
             Assert.IsFalse(start.Touches(print.transform.position - print.transform.forward * 0.2f), "a hand 20 cm away does not");
             start.Apply(false);
         }
+
+        [TestCase(1.15f, TitleReach.SeatedScale)]
+        [TestCase(1.65f, TitleReach.StandingScale)]
+        public void WithHandsTheSignStandsWithinReachOnTheGround(float eyeHeight, float size)
+        {
+            var eyes = new Vector3(0.3f, eyeHeight, 0.4f);
+            var home = new Vector3(0f, 1.4f, 1.8f);
+            var (position, rotation, scale) = TitleReach.NearPose(eyes, home, 0f, 1.4f, Vector3.forward);
+            Assert.AreEqual(size, scale, 1e-4f);
+            var flat = position - eyes;
+            flat.y = 0f;
+            Assert.AreEqual(TitleReach.Distance, flat.magnitude, 1e-4f, "at arm's reach");
+            Assert.AreEqual(1.4f * scale, position.y, 1e-4f, "its feet stay on the ground");
+            Assert.Greater(Vector3.Dot(rotation * Vector3.forward, flat.normalized), 0.999f, "facing the player");
+            Assert.Less(Mathf.Abs(position.y - eyeHeight), 0.4f, "and near eye height");
+        }
+
+        [Test]
+        public void TheTitleCardComesToHandsOnly()
+        {
+            var card = Title().Card;
+            Assert.IsNotNull(card.GetComponent<TitleReach>());
+            Assert.AreEqual(new Vector3(0f, 1.4f, 1.8f), card.localPosition, "it starts where the controllers' rays reach it");
+        }
     }
 }

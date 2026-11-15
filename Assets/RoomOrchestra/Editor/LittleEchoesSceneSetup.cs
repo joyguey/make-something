@@ -928,6 +928,7 @@ namespace RoomOrchestra.EditorTools
                 float aboveFeet = friend.transform.position.y - (TitleCardAt.y + TitleRailTop);
                 friend.AddComponent<TitleFriend>().Configure(i * 0.33f, aboveFeet / Mathf.Max(1e-4f, friend.transform.lossyScale.y) * friend.transform.localScale.y);
             }
+            card.gameObject.AddComponent<TitleReach>().Configure(TitleCardAt.y); // with bare hands the sign comes within reach
             var title = root.AddComponent<TitleScreen>();
             title.Configure(card, GameObject.Find("RoomOrchestra")?.transform.Find("BallDispenser/ParkPoint"), intro);
             return title;

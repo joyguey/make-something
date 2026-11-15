@@ -38,6 +38,7 @@ namespace RoomOrchestra
 
         static readonly Vector3[] s_Palm = new Vector3[2];
         static readonly bool[] s_PalmTracked = new bool[2], s_BareHand = new bool[2];
+        static bool s_Hands; // the last kind of input seen: bare hands, or controllers
 
         /// <summary>
         /// Where each hand is this frame (scene space): the palm of a bare hand, or the controller in it. Things you can
@@ -49,13 +50,15 @@ namespace RoomOrchestra
             return s_PalmTracked[hand];
         }
 
-        /// <summary>The player is playing with bare hands (look and pinch) rather than controllers.</summary>
-        public static bool UsingHands => (s_PalmTracked[0] && s_BareHand[0]) || (s_PalmTracked[1] && s_BareHand[1]);
+        /// <summary>The player is playing with bare hands (look and pinch) rather than controllers. It holds while the
+        /// hands are out of the cameras' sight (resting in the lap, behind the back): only a tracked controller ends it.</summary>
+        public static bool UsingHands => s_Hands;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetPalms()
         {
             for (int i = 0; i < 2; i++) s_PalmTracked[i] = s_BareHand[i] = false;
+            s_Hands = false;
         }
         readonly bool[] m_WasSelect = new bool[2];
         readonly bool[] m_Grabbing = new bool[2];
@@ -112,7 +115,11 @@ namespace RoomOrchestra
             var rig = XrRig.Instance != null ? XrRig.Instance.transform : null;
             s_PalmTracked[hand] = frame.Tracked;
             s_BareHand[hand] = frame.Gaze;
-            if (frame.Tracked) s_Palm[hand] = rig != null ? rig.TransformPoint(frame.GripPosition) : frame.GripPosition;
+            if (frame.Tracked)
+            {
+                s_Palm[hand] = rig != null ? rig.TransformPoint(frame.GripPosition) : frame.GripPosition;
+                s_Hands = frame.Gaze;
+            }
             if (!frame.Tracked)
             {
                 if (m_Grabbing[hand] && launcher != null) launcher.EndGrab(GrabId(hand), Vector3.zero); // lost: let go

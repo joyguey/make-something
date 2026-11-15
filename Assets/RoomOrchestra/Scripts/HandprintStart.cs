@@ -20,6 +20,7 @@ namespace RoomOrchestra
 
         bool m_Hands;
         bool m_Applied;
+        float m_QuietUntil;
 
         /// <summary>Show the handprint whatever is in use (snapshots); null follows the player's hands.</summary>
         public static bool? Force;
@@ -44,6 +45,9 @@ namespace RoomOrchestra
             bool hands = Force ?? InstrumentInputRouter.UsingHands;
             if (hands != m_Hands || !m_Applied) Apply(hands);
             if (!hands || TitleScreen.Instance == null || !TitleScreen.Instance.Showing) return;
+            // not while the sign is on its way to the player (a raised hand in its path is not a high five), nor just after
+            if (TitleReach.Moving) m_QuietUntil = Time.time + 0.6f;
+            if (Time.time < m_QuietUntil) return;
             for (int hand = 0; hand < 2; hand++)
                 if (InstrumentInputRouter.TryGetPalm(hand, out var palm) && Touches(palm))
                 {
