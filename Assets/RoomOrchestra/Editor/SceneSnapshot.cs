@@ -38,27 +38,15 @@ namespace RoomOrchestra.EditorTools
                     RenderSettings.fogColor = dusk ? new Color(0.878f, 0.604f, 0.478f) : new Color(0.949f, 0.851f, 0.722f);
                 }
             }
-            if (look.Contains("-ghosthand")) // an open right hand held up to the Start print, to see how hands are drawn
+            if (look.Contains("-ghosthand")) // PICO's hand model in the outline look, in its rest pose, by the Start print
             {
-                var wrist = new Vector3(0.2f, 0.93f, 0.52f);
-                var up = Vector3.up; var right = Vector3.right;
-                var j = new Vector3[HandPose.JointCount];
-                j[1] = wrist; j[0] = wrist + up * 0.055f;
-                Vector3 thumbDir = (up * 0.7f - right).normalized;
-                j[2] = wrist + up * 0.02f - right * 0.02f; j[3] = j[2] + thumbDir * 0.04f; j[4] = j[3] + thumbDir * 0.032f; j[5] = j[4] + thumbDir * 0.026f;
-                float[] across = { -0.028f, -0.007f, 0.013f, 0.031f }, reach = { 0.94f, 1f, 0.95f, 0.8f };
-                for (int f = 0; f < 4; f++)
+                var model = Object.FindFirstObjectByType<HandOutline>()?.Model(1);
+                if (model != null)
                 {
-                    int b0 = 6 + f * 5;
-                    var dir = (up + right * across[f] * 4f).normalized;
-                    j[b0] = wrist + up * 0.03f + right * across[f] * 0.6f;
-                    j[b0 + 1] = wrist + up * 0.095f + right * across[f];
-                    j[b0 + 2] = j[b0 + 1] + dir * 0.042f * reach[f];
-                    j[b0 + 3] = j[b0 + 2] + dir * 0.026f * reach[f];
-                    j[b0 + 4] = j[b0 + 3] + dir * 0.022f * reach[f];
+                    model.SetActive(true);
+                    model.transform.position = new Vector3(0.22f, 0.98f, 0.5f);
+                    model.transform.rotation = Quaternion.Euler(-80f, 0f, 0f);
                 }
-                HandPose.Report(1, i => j[i]);
-                Object.FindFirstObjectByType<HandOutline>()?.Refresh();
             }
             if (System.Environment.GetCommandLineArgs().Contains("-hands")) // as a bare-handed player sees it
                 Object.FindFirstObjectByType<HandprintStart>(FindObjectsInactive.Include)?.Apply(true);
@@ -133,6 +121,22 @@ namespace RoomOrchestra.EditorTools
             CaptureCloseUp($"{path}-ahead.png", eye, eye + new Vector3(0f, 0.45f, 1f), 80f);
             var light = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
             CaptureCloseUp($"{path}-back.png", eye, eye - light.transform.forward + Vector3.down * 0.25f, 70f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>The three friends' faces, close up (-snapshotPath out.png). Unity's renderer; never saved.</summary>
+        public static void CaptureFriends()
+        {
+            string path = "docs/evidence/friends.png";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            OpenScene();
+            // the same three characters as on the leaf (CharacterArt.Dress), where nothing stands in front of them:
+            // on the title sign's rail
+            var friends = GameObject.Find("TitleFriends").transform;
+            var middle = friends.GetChild(1).position;
+            CaptureCloseUp(path, middle + new Vector3(0f, 0.03f, -0.42f), middle + Vector3.up * 0.03f, 50f);
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 

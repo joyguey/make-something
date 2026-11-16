@@ -1,6 +1,6 @@
 # Little Echoes v4.2
 
-App 4.2.0, build 37, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
+App 4.2.0, build 38, package `com.littleechoes.app`, for PICO OS 6 in PICO XR mode (SDK 6.1.1) with Unity 6000.3.25f1.
 A design refinement on top of v4.1: the game now looks and sounds made for teenagers and adults who want to let their
 inner kid out, rather than for small children. Every change was chosen by the owner from rendered options.
 
@@ -17,7 +17,10 @@ inner kid out, rather than for small children. Every change was chosen by the ow
   reach from the first frame and never moves toward the player, so nobody has to step forward to touch it; the
   ball's cloud waits beside it.
 - **Your hands, drawn in the meadow.** The meadow covers the camera's view of the room, so with bare hands each
-  hand is drawn as a pale shape while the meadow stands; it goes once your real room (and real hands) show.
+  hand is shown as PICO's hand model in an outline look while the meadow stands; it goes once your real room (and
+  real hands) show.
+- **Clean faces.** The dark smudges round the characters' eyes and mouths are gone (each part's shading is now
+  baked on its own, and the small face features no longer catch the rim light).
 - **The three friends stay hidden** in the bush until they hop out onto the leaf, from any angle.
 - **Terracotta furniture** (burnt-orange chair, dark wood table, tan lamp shade) and **navy menu plates** on the
   green leaf.
@@ -39,7 +42,7 @@ inner kid out, rather than for small children. Every change was chosen by the ow
 - Rendered in Unity's editor renderer (not the headset) for every change.
 
 ## Not yet verified on a headset
-- Builds 33 to 37's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the
+- Builds 33 to 38's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the
   bush, the light on what you aim at.
 - How the sign's swing, the push and the handprint feel with real hands.
 - The new interface sounds have been measured (pitch, level) but not listened to.

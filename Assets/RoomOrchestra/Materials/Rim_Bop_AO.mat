@@ -26,7 +26,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _AOStrength: 0.65
-    - _RimAmount: 1
+    - _RimAmount: 0
     - _Smoothness: 0.4
     - _SwayAmount: 0
     - _SwayHeight: 1

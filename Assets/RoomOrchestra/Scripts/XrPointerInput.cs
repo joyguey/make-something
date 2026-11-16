@@ -130,8 +130,11 @@ namespace RoomOrchestra
                             && Vector3.Distance(At(ByteDance.PICO.XR.HandJoint.JointRingTip), palm) < reach;
                 frame.Grip = fist;
                 frame.GripPosition = palm;
-                frame.BarePalm = true;
-                HandPose.Report(hand, i => joints.jointLocations[i].pose.Position.ToVector3()); // drawn while the meadow hides the real hand
+                // only a palm PICO is tracking right now counts: a remembered or guessed place would push the sign, or
+                // press its Start print, with no hand there
+                var seen = ByteDance.PICO.XR.HandLocationStatus.PositionValid | ByteDance.PICO.XR.HandLocationStatus.PositionTracked;
+                frame.BarePalm = (joints.jointLocations[(int)ByteDance.PICO.XR.HandJoint.JointPalm].locationStatus & seen) == seen;
+                if (frame.BarePalm) HandPose.Report(hand); // its model is drawn while the meadow hides the real hand
             }
             return frame;
         }

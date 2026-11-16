@@ -3,9 +3,9 @@ Bakes ambient occlusion into the furniture's and characters' meshes (V3 review: 
 ambient occlusion on your objects individually for greater visuals"), then re-exports their FBX with the result in the
 vertex colours: white RGB, occlusion in alpha (the shader RoomOrchestra/LitBakedAO darkens by it).
 
-Each object is baked on its own: furniture parts with every other part hidden; a character part with only its own
-character's matching parts visible (the eyes shade the body a little where they sit; the small echo-mini parts are a
-separate set). Furniture parts are stored shrunk to their part's scale (FurnitureModels), so they are scaled back to
+Each object is baked on its own: furniture parts with every other part hidden, and every character part alone too.
+(The eyes and mouth used to shade the body where they sit; on a low-poly body that showed as dark smudges round the
+face: owner, headset 2026-11-15, "a little bit weird of a shading there".) Furniture parts are stored shrunk to their part's scale (FurnitureModels), so they are scaled back to
 real size while baking, for true occlusion distances.
 
   Blender -b ArtSource/Furniture/Furniture.blend -P ArtSource/bake_ao.py -- furniture
@@ -86,9 +86,7 @@ if mode == "furniture":
 else:
     name = args[1]
     for obj in meshes:
-        mini = "Mini" in obj.name
-        # the outline is a shell around the body: it would hide all the light, so it shades nothing (and is baked alone)
-        family = {o for o in meshes if ("Mini" in o.name) == mini and "Outline" not in o.name} | {obj}
+        family = {obj}  # alone: no part shades another (no smudges round the eyes and mouth)
         if "Outline" in obj.name:
             # an inside-out shell drawn as the dark rim: nothing to occlude, so it is plain white (no darkening)
             mesh = obj.data

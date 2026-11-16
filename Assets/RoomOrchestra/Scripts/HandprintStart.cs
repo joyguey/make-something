@@ -11,9 +11,13 @@ namespace RoomOrchestra
     /// </summary>
     public class HandprintStart : MonoBehaviour
     {
-        /// <summary>How close to the print a palm counts as placed on it (m), and how much wider than the drawn print the
-        /// touch area is (a slap is not aimed to the centimetre).</summary>
-        public const float TouchDepth = 0.05f, Generous = 1.3f;
+        /// <summary>A palm is on the print from this far in front of it (m: the tracked palm sits about 2 cm inside the
+        /// hand, so this is skin on the sign) to this far behind it (a hand that went through).</summary>
+        public const float ContactInFront = 0.03f, ContactBehind = 0.06f;
+        /// <summary>How much wider than the drawn print the touch area is (a slap is not aimed to the centimetre).</summary>
+        public const float Generous = 1.15f;
+        /// <summary>A palm that moved further than this in one frame was not a slap but a tracking jump (m).</summary>
+        public const float JumpBeyond = 0.3f;
 
         [SerializeField] GameObject buttonLook, handLook;
         [SerializeField] TitleStartButton start;
@@ -52,12 +56,16 @@ namespace RoomOrchestra
                     m_HadPalm[hand] = false;
                     continue;
                 }
-                // on the print, or through it since the last frame (a slap is faster than the frame rate)
-                bool touched = Touches(palm) || (m_HadPalm[hand] && Crossed(m_LastPalm[hand], palm));
+                bool had = m_HadPalm[hand];
+                var before = m_LastPalm[hand];
                 m_LastPalm[hand] = palm;
                 m_HadPalm[hand] = true;
-                if (!touched) continue;
-                Debug.Log("[RoomOrchestra] Title: high five on the Start print");
+                // a palm that jumped is tracking noise, not a hand (owner, headset 2026-11-15: "it triggered the start
+                // without me putting my hand on the sign"); it has to be seen two frames running, close together
+                if (!had || Vector3.Distance(before, palm) > JumpBeyond) continue;
+                // on the print, or through it since the last frame (a slap is faster than the frame rate)
+                if (!Touches(palm) && !Crossed(before, palm)) continue;
+                Debug.Log($"[RoomOrchestra] Title: high five on the Start print ({DepthOf(palm) * 100f:F1} cm from its face)");
                 start.Press();
                 return;
             }
@@ -65,6 +73,9 @@ namespace RoomOrchestra
 
         readonly Vector3[] m_LastPalm = new Vector3[2];
         readonly bool[] m_HadPalm = new bool[2];
+
+        // how far behind the print's face a point is (m); in front of it, on the player's side, is negative
+        float DepthOf(Vector3 point) => handLook.transform.InverseTransformPoint(point).z * Mathf.Max(1e-4f, handLook.transform.lossyScale.z);
 
         /// <summary>A palm that was in front of the print at <paramref name="before"/> and is behind it at
         /// <paramref name="now"/> went through it.</summary>
@@ -92,8 +103,9 @@ namespace RoomOrchestra
         {
             if (handLook == null) return false;
             var local = handLook.transform.InverseTransformPoint(palm);
-            float depth = Mathf.Abs(local.z) * Mathf.Max(1e-4f, handLook.transform.lossyScale.z);
-            return Mathf.Abs(local.x) <= printHalfSize.x * Generous && Mathf.Abs(local.y) <= printHalfSize.y * Generous && depth <= TouchDepth;
+            float depth = local.z * Mathf.Max(1e-4f, handLook.transform.lossyScale.z);
+            return Mathf.Abs(local.x) <= printHalfSize.x * Generous && Mathf.Abs(local.y) <= printHalfSize.y * Generous
+                   && depth >= -ContactInFront && depth <= ContactBehind;
         }
     }
 }

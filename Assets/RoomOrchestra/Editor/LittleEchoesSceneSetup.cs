@@ -1145,6 +1145,28 @@ namespace RoomOrchestra.EditorTools
             return new FlatShape { vertices = vertices.ToArray(), triangles = triangles.ToArray() };
         }
 
+// PICO's hand material (its fresnel shader: one colour facing the eye, another at the edge), copied into the project
+        // and coloured as an outline: nearly clear inside, solid mint at the edge.
+        static Material PlayerHandLook(Material source)
+        {
+            string path = $"{MaterialDir}/PlayerHand.mat";
+            var look = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (look == null)
+            {
+                look = new Material(source);
+                AssetDatabase.CreateAsset(look, path);
+            }
+            look.shader = source.shader;
+            look.CopyPropertiesFromMaterial(source);
+            if (look.HasProperty("_InnerColor")) look.SetColor("_InnerColor", new Color(0.804f, 0.922f, 0.827f, 0.3f));
+            if (look.HasProperty("_OutColor")) look.SetColor("_OutColor", new Color(0.804f, 0.922f, 0.827f, 1f));
+            if (look.HasProperty("_FresnelPower")) look.SetFloat("_FresnelPower", 1.2f);
+            if (look.HasProperty("_MainAlpha")) look.SetFloat("_MainAlpha", 1f);
+            if (look.HasProperty("_PressIntensity")) look.SetFloat("_PressIntensity", 0f); // no pinch glow
+            EditorUtility.SetDirty(look);
+            return look;
+        }
+
         static Mesh SaveFlatMesh(string name, FlatShape shape)
         {
             string path = $"Assets/RoomOrchestra/Meshes/{name}.asset";
@@ -1747,30 +1769,41 @@ namespace RoomOrchestra.EditorTools
                 dot.gameObject.SetActive(false);
                 dots[hand] = dot;
             }
-            // The player's own hands, as pale shapes, while the meadow hides the real ones (owner, headset 2026-11-15)
-            var mint = new Color(0.804f, 0.922f, 0.827f); // #CDEBD3, the handprint's family
-            var handLook = Glow(EnsureMaterial("HandOutline", "Ball", mint), mint * 1.2f); // bright against the plum sign and the meadow alike
-            var handLines = new LineRenderer[2 * HandOutline.LinesPerHand];
-            var hands = new GameObject("HandOutlines");
+            // The player's own hands while the meadow hides the real ones (owner, headset 2026-11-15): PICO's hand models
+            // (the SDK's HandLeft/HandRight prefabs follow every joint), without their pinch ray (the game points with the
+            // eyes), in an outline look: solid mint at the hand's edge, faint inside.
+            var hands = new GameObject("PlayerHands");
             hands.transform.SetParent(rig.transform, false);
-            for (int i = 0; i < handLines.Length; i++)
+            var models = new GameObject[2];
+            for (int hand = 0; hand < 2; hand++)
             {
-                int k = i % HandOutline.LinesPerHand;
-                var part = new GameObject((i < HandOutline.LinesPerHand ? "Left" : "Right") + k);
-                part.transform.SetParent(hands.transform, false);
-                var line = part.AddComponent<LineRenderer>();
-                line.useWorldSpace = true;
-                line.positionCount = HandOutline.JointsIn(k);
-                line.widthMultiplier = HandOutline.WidthOf(k);
-                line.numCapVertices = 5;
-                line.numCornerVertices = 4;
-                line.sharedMaterial = handLook;
-                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                line.receiveShadows = false;
-                line.enabled = false;
-                handLines[i] = line;
+                string side = hand == 0 ? "Left" : "Right";
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Packages/com.bytedance.pico.xr/Resources/Prefabs/Hand{side}.prefab");
+                if (prefab == null) { Debug.LogError($"[RoomOrchestra] PICO's Hand{side} prefab not found"); continue; }
+                var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, hands.transform);
+                PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                model.name = $"Hand{side}";
+                var follow = model.GetComponent("PXR_Hand");
+                var so = new SerializedObject(follow);
+                so.FindProperty("rayPose").objectReferenceValue = null;    // no ray: PXR_Hand leaves it alone when unset
+                so.FindProperty("defaultRay").objectReferenceValue = null;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                foreach (var name in new[] { "RayPose", "DefaultRay" })
+                {
+                    var ray = model.transform.Find(name);
+                    if (ray != null) Object.DestroyImmediate(ray.gameObject);
+                }
+                foreach (var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    skin.sharedMaterial = PlayerHandLook(skin.sharedMaterial);
+                    skin.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    skin.receiveShadows = false;
+                    skin.updateWhenOffscreen = true; // its bounds follow the tracked joints
+                }
+                model.SetActive(false); // shown when its hand is tracked (HandOutline)
+                models[hand] = model;
             }
-            hands.AddComponent<HandOutline>().Configure(handLines);
+            hands.AddComponent<HandOutline>().Configure(models[0], models[1]);
 
             var router = Object.FindFirstObjectByType<InstrumentInputRouter>();
             if (router != null)

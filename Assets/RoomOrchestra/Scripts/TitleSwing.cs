@@ -22,6 +22,10 @@ namespace RoomOrchestra
         public const float GustDegrees = 3f, GustGapMin = 7f, GustGapMax = 15f;
         /// <summary>How close to the card's face a hand counts as touching it (m), and the card's half size (m).</summary>
         public const float TouchDepth = 0.06f;
+        /// <summary>A palm pushes the card only once it is this close in front of its face (m): the tracked palm sits
+        /// about 2 cm inside the hand, so this is the palm's skin on the card. (At 6 cm the card ran ahead of the hand
+        /// and a slap never reached the Start print.)</summary>
+        public const float ContactInFront = 0.03f;
 
         [SerializeField] Vector2 halfSize = new Vector2(0.475f, 0.295f);
         [SerializeField] float cardCentreBelow = 0.3595f;
@@ -107,7 +111,8 @@ namespace RoomOrchestra
             // the card's face, in the hanging card's own space (its middle at the origin)
             var local = transform.InverseTransformPoint(palm) + new Vector3(0f, cardCentreBelow, -cardFaceZ);
             float scale = Mathf.Max(1e-4f, transform.lossyScale.y);
-            if (Mathf.Abs(local.x) > halfSize.x || Mathf.Abs(local.y) > halfSize.y || Mathf.Abs(local.z) * scale > TouchDepth) return false;
+            float depth = local.z * scale; // behind the face (+) or in front of it, on the player's side (-)
+            if (Mathf.Abs(local.x) > halfSize.x || Mathf.Abs(local.y) > halfSize.y || depth > TouchDepth || depth < -ContactInFront) return false;
             float below = Mathf.Max(0.05f, cardCentreBelow - local.y) * scale; // the touch's distance under the rail (m)
             float into = Vector3.Dot(velocity, transform.forward);             // toward +Z: away from the player
             float carried = -into / below;                                     // the swing speed that keeps up with the hand
