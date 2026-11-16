@@ -46,12 +46,14 @@ inner kid out, rather than for small children. Every change was chosen by the ow
   (session log, 10-second averages).
 - Rendered in Unity's editor renderer (not the headset) for every change.
 
-## Not yet verified on a headset
-- Builds 33 to 40's additions: the sky, the vibration, the sign standing at arm's reach, the friends hidden in the
-  bush, the light on what you aim at.
-- How the sign's swing, the push and the handprint feel with real hands.
-- The new interface sounds have been measured (pitch, level) but not listened to.
+## Confirmed on the headset by the owner (build 40, 2026-11-15)
+- The controller vibration, the hand models following the real hands, the sign and its handprint Start, the light
+  on what you aim at, the question cards and the scan bar: "all of it works".
+
+## Not verified
+- The new interface sounds were measured (pitch, level); nobody has reported on how they sound.
 
 ## Known limits
 - **Echo Battle** (the hidden two-headset mode) hasn't been tried on two headsets.
 - **Instrument sounds** are original synthesis, not recordings of the traditional instruments.
+- **Vibration** cannot be turned off in the menu yet.
