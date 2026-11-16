@@ -59,6 +59,9 @@ namespace RoomOrchestra
         {
             if (dt <= 0f) return;
             bool showing = TitleScreen.Instance == null || TitleScreen.Instance.Showing;
+            // while a question card stands in front of the sign, the sign hangs still: no gust and no push swings it
+            // into the card
+            if (ConfirmCard.Instance != null && ConfirmCard.Instance.Showing) showing = false;
             if (showing && !Still) Gusts();
             if (showing) Pushes(dt);
             // a hung sign: gravity pulls it back to hanging straight; the air slows it

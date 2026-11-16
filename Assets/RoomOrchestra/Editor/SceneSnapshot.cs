@@ -48,6 +48,11 @@ namespace RoomOrchestra.EditorTools
                     model.transform.rotation = Quaternion.Euler(-80f, 0f, 0f);
                 }
             }
+            if (look.Contains("-askquit")) // the title's Quit asks "Quit Little Echoes?"
+            {
+                var asker = Object.FindFirstObjectByType<TitleScreen>().Card.GetComponentInChildren<QuitButton>(true);
+                Object.FindFirstObjectByType<ConfirmCard>().Show(asker);
+            }
             if (System.Environment.GetCommandLineArgs().Contains("-hands")) // as a bare-handed player sees it
                 Object.FindFirstObjectByType<HandprintStart>(FindObjectsInactive.Include)?.Apply(true);
         }
