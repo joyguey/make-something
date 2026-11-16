@@ -430,6 +430,13 @@ namespace RoomOrchestra.EditorTools
             // panels now; the room's walls stay as invisible fences, so thrown balls still bounce back into play.
             bool meadow = MeadowArt.Available;
             if (meadow) panels.AddRange(MeadowArt.Build(room));
+            // The painted look and the haze on the far meadow (owner, Fable refinement 2026-11-11, option B)
+            if (!room.TryGetComponent<LookSettings>(out _)) room.gameObject.AddComponent<LookSettings>();
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogStartDistance = LookSettings.HazeStart;
+            RenderSettings.fogEndDistance = LookSettings.HazeEnd;
+            RenderSettings.fogColor = MeadowTimeOfDay.DayHaze;
 
             // A wall: a grid of upright panels on the plane through 'at', spanning 'along' (one axis) and the height.
             void Wall(string name, Vector3 start, Vector3 along, float length)
@@ -631,13 +638,13 @@ namespace RoomOrchestra.EditorTools
             holder.position = CountdownAt;
             holder.rotation = FacePlayer(CountdownAt);
             var data = JsonUtility.FromJson<CountPieces>(System.IO.File.ReadAllText(CountdownMeshData));
-            var rim = EnsureMaterial("CountRim", "Ball", new Color(0.23f, 0.14f, 0.31f));
+            var rim = EnsureMaterial("CountRim", "Ball", new Color(0.165f, 0.122f, 0.239f));
             var pieces = new Transform[data.pieces.Length];
             for (int i = 0; i < pieces.Length; i++)
             {
                 var piece = data.pieces[i];
                 var colour = TutorialDirector.CountColours[Mathf.Min(i, TutorialDirector.CountColours.Length - 1)];
-                var face = Glow(EnsureMaterial($"Count{Mathf.Min(i, 3)}Face", "Ball", colour), colour * 0.5f);
+                var face = Glow(EnsureMaterial($"Count{Mathf.Min(i, 3)}Face", "Ball", colour), colour * 0.3f);
                 var side = EnsureMaterial($"Count{Mathf.Min(i, 3)}Side", "Ball", colour * 0.6f + new Color(0f, 0f, 0f, 0.4f));
                 var word = Holder(piece.name, holder, Vector3.zero);
                 var solid = MeshPart("Solid", word, SaveSolidMesh(piece.name, piece.faces, piece.sides), Vector3.zero, face);
@@ -740,8 +747,8 @@ namespace RoomOrchestra.EditorTools
             var bubble = Holder("TutorialBubble", pad, Vector3.zero);
             bubble.position = BubbleAt;
             bubble.rotation = FacePlayer(BubbleAt);
-            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
-            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(0.949f, 0.910f, 0.847f));
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.165f, 0.122f, 0.239f));
             Box("BubbleRim", bubble, new Vector3(0f, 0f, 0.006f), BubbleSize + new Vector3(0.024f, 0.024f, 0f), cream, keepCollider: false);
             Box("BubblePanel", bubble, Vector3.zero, BubbleSize, plum, keepCollider: false);
             var tailRim = Box("BubbleTailRim", bubble, new Vector3(0.06f, -BubbleSize.y / 2f - 0.004f, 0.006f), new Vector3(0.066f, 0.066f, BubbleSize.z), cream, keepCollider: false);
@@ -764,7 +771,7 @@ namespace RoomOrchestra.EditorTools
 
             // The Skip leaf on the bubble's left end (left of every sight line to the tiles).
             var skip = Holder("SkipButton", bubble, new Vector3(-BubbleSize.x / 2f + 0.06f, 0f, -BubbleSize.z / 2f - 0.012f));
-            var leaf = Primitive(PrimitiveType.Sphere, "SkipLeaf", skip, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
+            var leaf = Primitive(PrimitiveType.Cube, "SkipLeaf", skip, EnsureMaterial("TitleStart", "Ball", new Color(0.184f, 0.490f, 0.290f)), keepCollider: false);
             leaf.localScale = new Vector3(0.1f, 0.07f, 0.03f);
             leaf.gameObject.AddComponent<BoxCollider>();
             Hoverable(leaf.gameObject);
@@ -820,54 +827,101 @@ namespace RoomOrchestra.EditorTools
 
         // The title card (Version 1 feedback: "boot into a proper title screen"): in front of the player, the
         // name in the key-art lettering, a line about what it is, and a leaf-shaped Start button.
-        static readonly Vector3 TitleCardAt = new Vector3(0f, 1.4f, 1.8f); // just above eye height, behind the ball stand at launch
+        // Close and still from the first frame (owner, headset 2026-11-14: "the sign needs to be closer for me to put my
+        // hand on it"; then, of a sign that glided up to hands: "that was scary... it should be static but close at the
+        // start"): at arm's reach, a little smaller than life so it fits the view, its feet on the ground. It never moves
+        // until Start sends it into the cloud.
+        const float TitleScale = 0.85f, TitleCardHeight = 1.4f; // the card's middle above the ground at full size (m)
+        static readonly Vector3 TitleCardAt = new Vector3(0f, TitleCardHeight * TitleScale, 0.74f); // 0.65 was "a little bit too close"
         /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
         const float TitleRailTop = 0.398f; // the rail top (1.535 m in Blender x 1.173) less 2 mm: flush, no gap
-        // From the stand's home (right of the leaf) to directly in front of the player, under the title card.
-        static readonly Vector3 StandFrontOffset = new Vector3(-0.62f, 0f, -0.1f);
+        /// <summary>The rail's middle in the card's space: the hanging card swings about it (1.5 m in Blender x 1.173,
+        /// less the card's 1.4 m; the rail is 4.5 cm behind the card).</summary>
+        static readonly Vector3 TitleHangFrom = new Vector3(0f, 0.3595f, 0.045f);
+        const float TitleRingX = 0.2f, TitleRingRadius = 0.062f, TitleRingThickness = 0.0065f;
+        static readonly Vector2 HandprintHalf = new Vector2(0.08f, 0.095f);
+        // From the stand's home (right of the leaf) to beside the title sign's right post, where Flutter on the cloud
+        // greets the player without standing between them and the sign.
+        static readonly Vector3 StandFrontOffset = new Vector3(0.16f, 0f, -0.35f);
 
         static TitleScreen CreateTitle(GameObject root, IntroSequence intro)
         {
             var card = Holder("TitleCard", root.transform, Vector3.zero);
             card.position = TitleCardAt;
             card.rotation = FacePlayer(TitleCardAt);
+            card.localScale = Vector3.one * TitleScale;
             var cream = new Color(1f, 0.96f, 0.92f);
+            // The grown-up title (owner, Fable refinement 2026-11-11: "option A with the square buttons from option C
+            // and change the start button to a green background with white text"): a deep plum card with a cream rim,
+            // the key-art lettering unchanged, rounded square buttons. Start's green keeps white text at 5:1.
+            var plum = new Color(0.165f, 0.122f, 0.239f);    // #2A1F3D, the menu plates' family
+            var rimCream = new Color(0.949f, 0.910f, 0.847f); // #F2E8D8
+            var startGreen = new Color(0.184f, 0.490f, 0.290f); // #2F7D4A
+            var quitGrey = new Color(0.290f, 0.255f, 0.341f);   // #4A4157
+            // The card hangs from the sign's top rail on two steel rings and rocks about the rail (owner, Fable
+            // refinement 2026-11-11): everything on the card is under "Hanging", whose origin is the rail's middle.
+            var hanging = Holder("Hanging", card, TitleHangFrom);
+            Vector3 On(Vector3 cardLocal) => cardLocal - TitleHangFrom;
+            var steel = EnsureMaterial("SteelRing", "Ball", new Color(0.655f, 0.678f, 0.71f)); // #A7ADB5
+            if (steel.HasProperty("_Smoothness")) steel.SetFloat("_Smoothness", 0.8f);
+            if (steel.HasProperty("_Metallic")) steel.SetFloat("_Metallic", 0.6f);
+            foreach (float x in new[] { -TitleRingX, TitleRingX })
+                MeshPart(x < 0f ? "RingLeft" : "RingRight", hanging, SteelRingMesh(), new Vector3(x, 0f, 0f), steel);
             // 3 cm deep, so even parked at TitleScreen.ParkedScale nothing is under the near-zero scale limit.
-            Box("TitleRim", card, new Vector3(0f, 0f, 0.02f), new Vector3(0.95f, 0.59f, 0.03f), EnsureMaterial("TitleRim", "Ball", cream), keepCollider: false);
-            Box("TitlePanel", card, new Vector3(0f, 0f, 0.012f), new Vector3(0.92f, 0.56f, 0.03f), EnsureMaterial("TitlePanel", "Ball", new Color(1f, 0.56f, 0.48f)), keepCollider: false);
+            Box("TitleRim", hanging, On(new Vector3(0f, 0f, 0.02f)), new Vector3(0.95f, 0.59f, 0.03f), EnsureMaterial("TitleRim", "Ball", rimCream), keepCollider: false);
+            Box("TitlePanel", hanging, On(new Vector3(0f, 0f, 0.012f)), new Vector3(0.92f, 0.56f, 0.03f), EnsureMaterial("TitlePanel", "Ball", plum), keepCollider: false);
+            hanging.gameObject.AddComponent<TitleSwing>().Configure(new Vector2(0.475f, 0.295f), TitleHangFrom.y, -TitleHangFrom.z);
 
             // The key-art lettering as two flat meshes (cream letters on the icon's plum outline): PICO Spatial did
             // not draw it as a textured quad on the emulator (ArtSource/Icon/lettering_mesh.py explains).
             var (fill, outline) = TitleLetteringMeshes();
-            var letters = Holder("TitleLettering", card, new Vector3(0f, 0.1f, 0f));
+            var letters = Holder("TitleLettering", hanging, On(new Vector3(0f, 0.1f, 0f)));
             MeshPart("LetteringOutline", letters, outline, new Vector3(0f, 0f, -0.005f), EnsureMaterial("TitleLetterOutline", "Ball", new Color(0.23f, 0.14f, 0.31f)));
             MeshPart("LetteringFill", letters, fill, new Vector3(0f, 0f, -0.007f), EnsureMaterial("TitleLetterFill", "Ball", new Color(1f, 0.965f, 0.92f)));
 
-            Localize(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), card, new Vector3(0f, -0.055f, -0.004f), 0.045f), UiTerm.TitleSubtitle);
+            // Every word lies flat on its plate or button, 2 mm proud (owner, headset 2026-11-14, with the sign now at arm's
+            // reach: "the quit and start word are not sitting flush to the sign and button"; they stood 3 cm off, turned
+            // toward the player).
+            Transform Flat(Transform label) { label.localRotation = Quaternion.identity; return label; }
+            const float OnButton = -0.0195f; // the buttons are 35 mm deep: their face is 17.5 mm in front of their middle
+            Localize(Flat(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), hanging, On(new Vector3(0f, -0.055f, -0.005f)), 0.036f)), UiTerm.TitleSubtitle);
 
             // Bottom right, off the centre line: PICO draws its own window handle (the round grabber that opens
             // Back / Close / Minimize) on the app's centre line, and centred it covered Start (owner, emulator).
-            var button = Holder("StartButton", card, new Vector3(0.27f, -0.18f, -0.02f));
-            var leaf = Primitive(PrimitiveType.Sphere, "StartLeaf", button, EnsureMaterial("CallLeaf", "Ball", new Color(0.36f, 0.72f, 0.38f)), keepCollider: false);
+            var button = Holder("StartButton", hanging, On(new Vector3(0.27f, -0.18f, -0.02f)));
+            var buttonLook = Holder("ButtonLook", button, Vector3.zero);
+            var leaf = Primitive(PrimitiveType.Cube, "StartLeaf", buttonLook, EnsureMaterial("TitleStart", "Ball", startGreen), keepCollider: false);
             leaf.localScale = new Vector3(0.26f, 0.1f, 0.035f); // its depth parks above the near-zero limit too
             leaf.gameObject.AddComponent<BoxCollider>(); // the unit box inside the scaled leaf: its tap area
             Hoverable(leaf.gameObject);
             // Well clear of the leaf's curved face: off-centre, the label turns to face the player and its near
             // edge dipped behind the leaf ("tart" on the emulator).
-            Localize(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), button, new Vector3(0f, 0f, -0.045f), 0.04f), UiTerm.Start);
-            button.gameObject.AddComponent<TitleStartButton>();
+            Localize(Flat(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), buttonLook, new Vector3(0f, 0f, OnButton), 0.04f)), UiTerm.Start);
+            // With bare hands, a handprint in a thick green dashed line instead, leaning right like a hand raised for a high five
+            // (owner, Fable refinement 2026-11-11)
+            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.004f, 0.015f)); // just in front of the card's face
+            handLook.localRotation = Quaternion.Euler(0f, 0f, -15f); // leaning right: raised for a high five
+            var printShape = MeshPart("HandprintDashes", handLook, HandprintMesh(), Vector3.zero, EnsureMaterial("HandprintDashes", "Ball", new Color(0.361f, 0.722f, 0.380f))); // #5CB861
+            var printBox = printShape.gameObject.AddComponent<BoxCollider>(); // on the visible print: its tap area
+            printBox.size = new Vector3(HandprintHalf.x * 2f, HandprintHalf.y * 2f, 0.03f);
+            var printWord = Flat(Label("HandprintLabel", UiText.Get(UiTerm.Start, UiLanguage.English), handLook, new Vector3(0.002f, -0.034f, -0.0015f), 0.032f));
+            printWord.localRotation = Quaternion.Euler(0f, 0f, 15f); // level on the card, though the print leans
+            Localize(printWord, UiTerm.Start);
+            var startButton = button.gameObject.AddComponent<TitleStartButton>();
+            button.gameObject.AddComponent<HandprintStart>().Configure(buttonLook.gameObject, handLook.gameObject, startButton, HandprintHalf);
+            handLook.gameObject.SetActive(false); // controllers until hands are seen
 
             // Quit, bottom left (George, 2026-11-03: "a main menu with the app's name and a Quit button"): smaller and
             // quieter than Start, mirrored across PICO's window handle. It asks "Sure?" before it closes the app.
-            var quit = Holder("TitleQuitButton", card, new Vector3(-0.3f, -0.19f, -0.02f));
-            var quitLeaf = Primitive(PrimitiveType.Sphere, "TitleQuitLeaf", quit, EnsureMaterial("QuitLeaf", "Ball", new Color(0.42f, 0.33f, 0.5f)), keepCollider: false);
+            var quit = Holder("TitleQuitButton", hanging, On(new Vector3(-0.3f, -0.19f, -0.02f)));
+            var quitLeaf = Primitive(PrimitiveType.Cube, "TitleQuitLeaf", quit, EnsureMaterial("QuitLeaf", "Ball", quitGrey), keepCollider: false);
             quitLeaf.localScale = new Vector3(0.19f, 0.08f, 0.035f);
             quitLeaf.gameObject.AddComponent<BoxCollider>();
             Hoverable(quitLeaf.gameObject);
-            Localize(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, -0.045f), 0.034f), UiTerm.Quit);
+            Localize(Flat(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, OnButton), 0.034f)), UiTerm.Quit);
             quit.gameObject.AddComponent<QuitButton>();
 
-            MeadowArt.TitleSign(card, TitleCardAt.y); // a wooden sign with a little vine around the card (V3 review: richer menu)
+            MeadowArt.TitleSign(card, TitleCardHeight); // a wooden sign with a little vine around the card (V3 review: richer menu)
             // Flutter, Bop and Boom hop along the sign's top rail in time with the title theme (V3 review: "your bouncy
             // happy characters"); children of the card, so they fly into the cloud with it on Start
             var friends = Holder("TitleFriends", card, new Vector3(0f, 0.375f, 0.03f));
@@ -884,8 +938,9 @@ namespace RoomOrchestra.EditorTools
                 // standing on the top rail, above its leafy vine (owner, headset 2026-11-12: they sank into the post)
                 // the body itself (not its outline shell) sits flush on the rail (owner, headset 2026-11-12)
                 var bodyBox = friend.transform.Find("Visual").GetComponent<Renderer>().bounds;
-                friend.transform.position += Vector3.up * (TitleCardAt.y + TitleRailTop - bodyBox.min.y);
-                float aboveFeet = friend.transform.position.y - (TitleCardAt.y + TitleRailTop);
+                float rail = TitleCardAt.y + TitleRailTop * TitleScale; // the rail's top, in the room
+                friend.transform.position += Vector3.up * (rail - bodyBox.min.y);
+                float aboveFeet = friend.transform.position.y - rail;
                 friend.AddComponent<TitleFriend>().Configure(i * 0.33f, aboveFeet / Mathf.Max(1e-4f, friend.transform.lossyScale.y) * friend.transform.localScale.y);
             }
             var title = root.AddComponent<TitleScreen>();
@@ -903,6 +958,213 @@ namespace RoomOrchestra.EditorTools
         {
             var data = JsonUtility.FromJson<LetteringShapes>(System.IO.File.ReadAllText(TitleLetteringMeshData));
             return (SaveFlatMesh("TitleLetteringFill", data.fill), SaveFlatMesh("TitleLetteringOutline", data.outline));
+        }
+
+// A steel ring round the rail (the rail runs along X, so the ring lies across it, in the YZ plane).
+        static Mesh SteelRingMesh()
+        {
+            const string path = "Assets/RoomOrchestra/Meshes/SteelRing.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            bool created = mesh == null;
+            if (created) mesh = new Mesh { name = "SteelRing" };
+            const int around = 28, tube = 8;
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            for (int i = 0; i <= around; i++)
+            {
+                float u = i * Mathf.PI * 2f / around;
+                for (int j = 0; j <= tube; j++)
+                {
+                    float v = j * Mathf.PI * 2f / tube;
+                    float r = TitleRingRadius + TitleRingThickness * Mathf.Cos(v);
+                    vertices.Add(new Vector3(TitleRingThickness * Mathf.Sin(v), r * Mathf.Cos(u), r * Mathf.Sin(u)));
+                }
+            }
+            for (int i = 0; i < around; i++)
+                for (int j = 0; j < tube; j++)
+                {
+                    int a = i * (tube + 1) + j, b = a + tube + 1;
+                    triangles.AddRange(new[] { a, b, a + 1, a + 1, b, b + 1 });
+                }
+            mesh.Clear();
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            // outward normals: flip the winding if the first one points into the tube
+            var n = mesh.normals;
+            if (Vector3.Dot(n[0], vertices[0] - new Vector3(0f, TitleRingRadius, 0f)) < 0f)
+            {
+                for (int k = 0; k < triangles.Count; k += 3) (triangles[k + 1], triangles[k + 2]) = (triangles[k + 2], triangles[k + 1]);
+                mesh.SetTriangles(triangles, 0);
+                mesh.RecalculateNormals();
+            }
+            mesh.RecalculateBounds();
+            if (created) AssetDatabase.CreateAsset(mesh, path);
+            EditorUtility.SetDirty(mesh);
+            return mesh;
+        }
+
+        // A handprint's outline (palm, four fingers and a short thumb, as a right hand pressed flat leaves it), drawn
+        // as a thick dashed line, nothing filled in (owner, Fable refinement 2026-11-11), flat and facing the player;
+        // about 15 cm wide and 18 cm tall.
+        static Mesh HandprintMesh() => SaveFlatMesh("HandprintDashes", HandprintDashes());
+
+        // The hand as pieces: a palm (ellipse) and five capsules (a centre line and a half width), fingers spread so
+        // the outline runs cleanly between them.
+        struct HandPiece { public bool Ellipse; public Vector2 A, B; public float Rx, Ry, W; }
+
+        static HandPiece[] HandPieces()
+        {
+            HandPiece Finger(Vector2 from, float leanDegrees, float length, float halfWidth)
+            {
+                float a = leanDegrees * Mathf.Deg2Rad;
+                return new HandPiece { A = from, B = from + new Vector2(-Mathf.Sin(a), Mathf.Cos(a)) * length, W = halfWidth };
+            }
+            return new[]
+            {
+                new HandPiece { Ellipse = true, A = new Vector2(0f, -0.026f), Rx = 0.045f, Ry = 0.047f }, // palm, small
+                Finger(new Vector2(-0.04f, 0.0f), 16f, 0.062f, 0.0095f),     // index
+                Finger(new Vector2(-0.013f, 0.008f), 5f, 0.072f, 0.0095f),   // middle
+                Finger(new Vector2(0.014f, 0.006f), -6f, 0.068f, 0.0095f),   // ring
+                Finger(new Vector2(0.039f, -0.004f), -18f, 0.052f, 0.009f),  // little
+                Finger(new Vector2(-0.038f, -0.036f), 58f, 0.042f, 0.011f),  // thumb
+            };
+        }
+
+        // Signed distance to the hand (negative inside): the pieces blended with a small rounding where they meet.
+        static float HandDistance(HandPiece[] pieces, Vector2 q)
+        {
+            const float k = 0.004f;
+            float d = float.MaxValue;
+            foreach (var p in pieces)
+            {
+                float di;
+                if (p.Ellipse) di = (new Vector2((q.x - p.A.x) / p.Rx, (q.y - p.A.y) / p.Ry).magnitude - 1f) * Mathf.Min(p.Rx, p.Ry);
+                else
+                {
+                    var ab = p.B - p.A;
+                    float t = Mathf.Clamp01(Vector2.Dot(q - p.A, ab) / ab.sqrMagnitude);
+                    di = Vector2.Distance(q, p.A + ab * t) - p.W;
+                }
+                if (d == float.MaxValue) { d = di; continue; }
+                float h = Mathf.Clamp01(0.5f + 0.5f * (di - d) / k); // smooth minimum
+                d = Mathf.Lerp(di, d, h) - k * h * (1f - h);
+            }
+            return d;
+        }
+
+        // The hand's silhouette (marching squares over its distance field), one closed line, cut into even dashes:
+        // quads of the line's width.
+        static FlatShape HandprintDashes()
+        {
+            const float size = 1.15f, width = 0.0075f, dashShare = 0.6f, period = 0.02f, cell = 0.0008f;
+            var pieces = HandPieces();
+            float x0 = -0.12f, y0 = -0.1f, x1 = 0.1f, y1 = 0.1f;
+            int nx = Mathf.CeilToInt((x1 - x0) / cell), ny = Mathf.CeilToInt((y1 - y0) / cell);
+            var field = new float[nx + 1, ny + 1];
+            for (int i = 0; i <= nx; i++)
+                for (int j = 0; j <= ny; j++) field[i, j] = HandDistance(pieces, new Vector2(x0 + i * cell, y0 + j * cell));
+            Vector2 Cross(int ia, int ja, int ib, int jb)
+            {
+                float a = field[ia, ja], b = field[ib, jb], t = a / (a - b);
+                return Vector2.Lerp(new Vector2(x0 + ia * cell, y0 + ja * cell), new Vector2(x0 + ib * cell, y0 + jb * cell), t);
+            }
+            // segments, keyed by the cell edge each end lies on, so they chain exactly
+            var links = new Dictionary<long, List<long>>();
+            var point = new Dictionary<long, Vector2>();
+            long Key(int i, int j, int side) => ((long)i * 4096 + j) * 2 + side; // side 0: the edge along x from (i,j); 1: along y
+            for (int i = 0; i < nx; i++)
+                for (int j = 0; j < ny; j++)
+                {
+                    var crossings = new List<(long key, Vector2 at)>();
+                    if ((field[i, j] < 0f) != (field[i + 1, j] < 0f)) crossings.Add((Key(i, j, 0), Cross(i, j, i + 1, j)));
+                    if ((field[i + 1, j] < 0f) != (field[i + 1, j + 1] < 0f)) crossings.Add((Key(i + 1, j, 1), Cross(i + 1, j, i + 1, j + 1)));
+                    if ((field[i, j + 1] < 0f) != (field[i + 1, j + 1] < 0f)) crossings.Add((Key(i, j + 1, 0), Cross(i, j + 1, i + 1, j + 1)));
+                    if ((field[i, j] < 0f) != (field[i, j + 1] < 0f)) crossings.Add((Key(i, j, 1), Cross(i, j, i, j + 1)));
+                    for (int c = 0; c + 1 < crossings.Count; c += 2)
+                    {
+                        var (a, at) = crossings[c];
+                        var (b, bt) = crossings[c + 1];
+                        point[a] = at;
+                        point[b] = bt;
+                        if (!links.TryGetValue(a, out var la)) links[a] = la = new List<long>();
+                        if (!links.TryGetValue(b, out var lb)) links[b] = lb = new List<long>();
+                        la.Add(b);
+                        lb.Add(a);
+                    }
+                }
+            // the longest loop is the hand's outline
+            var seen = new HashSet<long>();
+            List<Vector2> outline = null;
+            foreach (var start in links.Keys)
+            {
+                if (seen.Contains(start)) continue;
+                var loop = new List<Vector2>();
+                long k = start, previous = -1;
+                while (seen.Add(k))
+                {
+                    loop.Add(point[k] * size);
+                    long step = -1;
+                    foreach (var n in links[k]) if (n != previous && !seen.Contains(n)) { step = n; break; }
+                    if (step < 0) break;
+                    previous = k;
+                    k = step;
+                }
+                if (outline == null || loop.Count > outline.Count) outline = loop;
+            }
+            var vertices = new List<float>();
+            var triangles = new List<int>();
+            if (outline == null) return new FlatShape { vertices = vertices.ToArray(), triangles = triangles.ToArray() };
+            outline.Add(outline[0]);
+            float length = 0f;
+            for (int i = 1; i < outline.Count; i++) length += Vector2.Distance(outline[i - 1], outline[i]);
+            int count = Mathf.Max(8, Mathf.RoundToInt(length / period));
+            float even = length / count; // a whole number of dashes round the hand: no short one where it closes
+            var dashPoints = new List<Vector2>();
+            void Flush()
+            {
+                if (dashPoints.Count >= 2)
+                    for (int i = 0; i < dashPoints.Count; i++)
+                    {
+                        var tangent = (dashPoints[Mathf.Min(i + 1, dashPoints.Count - 1)] - dashPoints[Mathf.Max(i - 1, 0)]).normalized;
+                        var normal = new Vector2(-tangent.y, tangent.x) * (width / 2f);
+                        int v = vertices.Count / 2;
+                        vertices.Add(dashPoints[i].x + normal.x); vertices.Add(dashPoints[i].y + normal.y);
+                        vertices.Add(dashPoints[i].x - normal.x); vertices.Add(dashPoints[i].y - normal.y);
+                        if (i > 0) triangles.AddRange(new[] { v - 2, v, v - 1, v - 1, v, v + 1 });
+                    }
+                dashPoints.Clear();
+            }
+            float along = 0f;
+            for (int i = 0; i < outline.Count; i++)
+            {
+                if (i > 0) along += Vector2.Distance(outline[i - 1], outline[i]);
+                if ((along % even) < even * dashShare) dashPoints.Add(outline[i]); else Flush();
+            }
+            Flush();
+            return new FlatShape { vertices = vertices.ToArray(), triangles = triangles.ToArray() };
+        }
+
+// PICO's hand material (its fresnel shader: one colour facing the eye, another at the edge), copied into the project
+        // and coloured as an outline: nearly clear inside, solid mint at the edge.
+        static Material PlayerHandLook(Material source)
+        {
+            string path = $"{MaterialDir}/PlayerHand.mat";
+            var look = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (look == null)
+            {
+                look = new Material(source);
+                AssetDatabase.CreateAsset(look, path);
+            }
+            look.shader = source.shader;
+            look.CopyPropertiesFromMaterial(source);
+            if (look.HasProperty("_InnerColor")) look.SetColor("_InnerColor", new Color(0.804f, 0.922f, 0.827f, 0.3f));
+            if (look.HasProperty("_OutColor")) look.SetColor("_OutColor", new Color(0.804f, 0.922f, 0.827f, 1f));
+            if (look.HasProperty("_FresnelPower")) look.SetFloat("_FresnelPower", 1.2f);
+            if (look.HasProperty("_MainAlpha")) look.SetFloat("_MainAlpha", 1f);
+            if (look.HasProperty("_PressIntensity")) look.SetFloat("_PressIntensity", 0f); // no pinch glow
+            EditorUtility.SetDirty(look);
+            return look;
         }
 
         static Mesh SaveFlatMesh(string name, FlatShape shape)
@@ -1419,8 +1681,8 @@ namespace RoomOrchestra.EditorTools
             var card = Holder("ConfirmCard", root, Vector3.zero);
             card.position = new Vector3(0f, 1.0f, 0.6f);
             card.rotation = Quaternion.identity; // faces +z, away from the seat; ConfirmCard turns it to the player
-            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(1f, 0.96f, 0.88f));
-            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            var cream = EnsureMaterial("SpeechBubbleRim", "Ball", new Color(0.949f, 0.910f, 0.847f));
+            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.165f, 0.122f, 0.239f));
             Box("ConfirmRim", card, new Vector3(0f, 0f, 0.006f), ConfirmSize + new Vector3(0.02f, 0.02f, 0f), cream, keepCollider: false);
             Box("ConfirmPanel", card, Vector3.zero, ConfirmSize, plum, keepCollider: false);
             var words = Label("ConfirmQuestion", "Ag", card, new Vector3(0f, 0.045f, -ConfirmSize.z / 2f - 0.006f), 0.028f);
@@ -1507,6 +1769,42 @@ namespace RoomOrchestra.EditorTools
                 dot.gameObject.SetActive(false);
                 dots[hand] = dot;
             }
+            // The player's own hands while the meadow hides the real ones (owner, headset 2026-11-15): PICO's hand models
+            // (the SDK's HandLeft/HandRight prefabs follow every joint), without their pinch ray (the game points with the
+            // eyes), in an outline look: solid mint at the hand's edge, faint inside.
+            var hands = new GameObject("PlayerHands");
+            hands.transform.SetParent(rig.transform, false);
+            var models = new GameObject[2];
+            for (int hand = 0; hand < 2; hand++)
+            {
+                string side = hand == 0 ? "Left" : "Right";
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Packages/com.bytedance.pico.xr/Resources/Prefabs/Hand{side}.prefab");
+                if (prefab == null) { Debug.LogError($"[RoomOrchestra] PICO's Hand{side} prefab not found"); continue; }
+                var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab, hands.transform);
+                PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                model.name = $"Hand{side}";
+                var follow = model.GetComponent("PXR_Hand");
+                var so = new SerializedObject(follow);
+                so.FindProperty("rayPose").objectReferenceValue = null;    // no ray: PXR_Hand leaves it alone when unset
+                so.FindProperty("defaultRay").objectReferenceValue = null;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                foreach (var name in new[] { "RayPose", "DefaultRay" })
+                {
+                    var ray = model.transform.Find(name);
+                    if (ray != null) Object.DestroyImmediate(ray.gameObject);
+                }
+                foreach (var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    skin.sharedMaterial = PlayerHandLook(skin.sharedMaterial);
+                    skin.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    skin.receiveShadows = false;
+                    skin.updateWhenOffscreen = true; // its bounds follow the tracked joints
+                }
+                model.SetActive(false); // shown when its hand is tracked (HandOutline)
+                models[hand] = model;
+            }
+            hands.AddComponent<HandOutline>().Configure(models[0], models[1]);
+
             var router = Object.FindFirstObjectByType<InstrumentInputRouter>();
             if (router != null)
             {
@@ -1572,7 +1870,8 @@ namespace RoomOrchestra.EditorTools
             tray.position = new Vector3(LeafCenter.x, ButtonY + MenuLift, LeafCenter.z + 0.04f);
             tray.localRotation = Quaternion.Euler(-MenuTilt, 0f, 0f);
             CreateMenuButton(LeafRow(1), leafRoot, AssetDatabase.LoadAssetAtPath<Material>($"{MaterialDir}/Pedestal.mat"), mark, "MenuCloseButton", UiTerm.MenuClose);
-            var plum = EnsureMaterial("SpeechBubble", "Ball", new Color(0.2f, 0.1f, 0.28f));
+            var plum = EnsureMaterial("MenuPlate", "Ball", // navy #1E2A47 (owner, Fable refinement 2026-11-11)
+                new Color(0.118f, 0.165f, 0.278f));
             // two level steps, the far row higher (like stadium seats) so a pointer from the lap clears the near row
             Box("MenuPlate", tray, new Vector3(0f, -0.016f, -MenuRowGap / 2f + 0.01f), new Vector3(MenuPlate.x, MenuPlate.y, MenuPlate.z / 2f + 0.02f), plum, keepCollider: false);
             Box("MenuPlateBack", tray, new Vector3(0f, MenuFarStep - 0.016f, MenuRowGap / 2f + 0.01f), new Vector3(MenuPlate.x, MenuPlate.y, MenuPlate.z / 2f), plum, keepCollider: false);
@@ -1669,6 +1968,7 @@ namespace RoomOrchestra.EditorTools
         // The leaf palette itself: a flat green leaf with a pale midrib, on a stalk. Decoration only: no colliders, so it never takes a tap from the buttons on it.
         static LeafStalk CreateLeaf(Transform leafHolder, Transform pad, Material vein)
         {
+            // the bright leaf green under navy menu plates (owner, Fable refinement 2026-11-11: option 1)
             var leafMaterial = EnsureMaterial("LeafPad", "Ball", new Color(0.42f, 0.74f, 0.4f));
             var leaf = Primitive(PrimitiveType.Sphere, "Leaf", leafHolder, leafMaterial, keepCollider: false);
             leaf.position = LeafCenter;

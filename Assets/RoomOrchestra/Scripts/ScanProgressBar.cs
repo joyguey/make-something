@@ -6,13 +6,24 @@ namespace RoomOrchestra
     /// <summary>
     /// How much of the room the scan has covered (owner, headset 2026-11-12: "during the scanning process there should
     /// be some indicator of a bar to show how much of the room has been scanned since I don't know when the tutorial
-    /// will go to the next step"). A bar a little below eye level ahead of the player, following their gaze slowly,
+    /// will go to the next step"). A bar at the right of the player's view, just above eye level, following their gaze slowly,
     /// filling as the scan covers the directions around them, with the percentage written over it. Built in the scene
     /// (its materials ship with the build); waits folded away until the look-around starts.
     /// </summary>
     public class ScanProgressBar : MonoBehaviour
     {
-        public const float Distance = 1.1f, BelowEyes = 0.22f, FollowSeconds = 0.6f, BarWidth = 0.42f;
+        public const float Distance = 1.0f, FollowSeconds = 0.6f, BarWidth = 0.42f;
+        /// <summary>
+        /// On the right of the view and a little above the eyes (owner, headset 2026-11-15: "the room-scan progress bar
+        /// gets placed behind the tutorial card so please put that towards the right side of the room view"). Flutter's
+        /// speech card, the leaf and the ball's cloud are all below eye height, so up here the bar is never behind
+        /// them, wherever the player turns while scanning.
+        /// </summary>
+        public const float RightOfView = 0.36f, AboveEyes = 0.10f;
+
+        /// <summary>Where the bar's middle goes for a head at <paramref name="eyes"/> looking along <paramref name="flatForward"/> (level, unit).</summary>
+        public static Vector3 PlaceFor(Vector3 eyes, Vector3 flatForward) =>
+            eyes + flatForward * Distance + Vector3.Cross(Vector3.up, flatForward) * RightOfView + Vector3.up * AboveEyes;
 
         [SerializeField] Transform fill;
         [SerializeField] TMP_Text label, hint;
@@ -86,7 +97,7 @@ namespace RoomOrchestra
             foreach (var r in GetComponentsInChildren<Renderer>(true)) r.enabled = false;
         }
 
-        // Ahead of the player, a little below their eyes, gliding after their gaze (never stuck to the face).
+        // At the right of the player's view, just above their eyes, gliding after their gaze (never stuck to the face).
         void Follow(bool snap)
         {
             if (StageAnchor.Instance == null || !StageAnchor.Instance.TryGetHeadPose(out var head)) return;
@@ -94,7 +105,7 @@ namespace RoomOrchestra
             flat.y = 0f;
             if (flat.sqrMagnitude < 1e-4f) return;
             flat.Normalize();
-            var want = head.position + flat * Distance + Vector3.down * BelowEyes;
+            var want = PlaceFor(head.position, flat);
             transform.position = snap ? want : Vector3.SmoothDamp(transform.position, want, ref m_Velocity, FollowSeconds);
             var look = transform.position - head.position;
             look.y = 0f;

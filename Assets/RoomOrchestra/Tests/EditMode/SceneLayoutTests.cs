@@ -737,20 +737,20 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(title, "a title card");
             Assert.IsTrue(title.Showing, "showing at launch");
             var p = title.Card.position;
-            Assert.GreaterOrEqual(new Vector2(p.x, p.z).magnitude, 1f, "at least 1 m out (PICO Spatial draws nearer props wrongly)");
+            // close and still from the first frame (owner, headset 2026-11-14: within reach of a hand, and it never moves)
+            Assert.That(new Vector2(p.x, p.z).magnitude, Is.InRange(0.6f, 0.8f), "within arm's reach");
             Assert.Less(Vector3.Angle(Vector3.forward, new Vector3(p.x, 0f, p.z)), 10f, "straight in front");
-            Assert.That(p.y, Is.InRange(1.15f, 1.45f), "at or just above seated eye height (the ball stand sits below it)");
-            // Focused start (Version 1 feedback): the ball stand with its ball is the first thing in front of the player,
-            // at least 1 m out, and the title card does not cover it.
+            Assert.That(p.y, Is.InRange(1.15f, 1.45f), "at or just above seated eye height");
+            // The ball stand with its ball greets the player beside the sign: at least 1 m out, clear of the sign's post,
+            // and inside the headset's view.
             var stand = GameObject.Find("RoomOrchestra").transform.Find("BallDispenser");
             var s = stand.position;
-            Assert.Less(Mathf.Abs(s.x), 0.05f, "the ball stand is directly in front");
             Assert.GreaterOrEqual(new Vector2(s.x, s.z).magnitude, 1f, "at least 1 m out");
-            Assert.Less(s.z, p.z, "in front of the title card");
             var ball = stand.Find("SpawnPoint").position;
-            var eye = new Vector3(0f, 1.15f, 0f);
-            var onCard = eye + (ball - eye) * ((p.z - eye.z) / (ball.z - eye.z)); // where the ball appears on the card's plane
-            Assert.Less(onCard.y, p.y - 0.29f, "the ball shows below the card, not hidden behind it");
+            var frame = title.Card.Find("TitleSign").GetComponent<Renderer>().bounds;
+            float postBearing = Mathf.Atan2(frame.max.x, p.z) * Mathf.Rad2Deg, ballBearing = Mathf.Atan2(ball.x, ball.z) * Mathf.Rad2Deg;
+            Assert.Greater(ballBearing, postBearing, "the ball shows beside the sign, not hidden behind it");
+            Assert.Less(ballBearing, 50f, "and inside the view when looking at the sign");
             var arc = GameObject.Find("RoomOrchestra").transform.Find("AimArc");
             Assert.Less(Vector3.Distance(arc.localPosition, stand.position - DispenserHome), 1e-3f, "the aim arc starts with the stand, offset once (never more)");
             var start = title.Card.GetComponentInChildren<TitleStartButton>();
@@ -762,7 +762,7 @@ namespace RoomOrchestra.Tests
             var texts = title.Card.GetComponentsInChildren<LocalizedLabel>().Select(l => l.TextFor(UiLanguage.English)).ToArray();
             CollectionAssert.Contains(texts, "Start");
             CollectionAssert.Contains(texts, "A mixed-reality musical playground");
-            var letters = title.Card.Find("TitleLettering").GetComponentsInChildren<MeshFilter>();
+            var letters = title.Card.Find("Hanging/TitleLettering").GetComponentsInChildren<MeshFilter>();
             Assert.AreEqual(2, letters.Length, "the key-art lettering: cream letters on a plum outline");
             Assert.IsTrue(letters.All(f => f.sharedMesh.triangles.Length / 3 > 100), "traced shapes, not a textured quad (PICO Spatial did not draw that)");
 

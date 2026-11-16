@@ -121,6 +121,33 @@ namespace RoomOrchestra
             if (Instance == this) Instance = null;
         }
 
+        // The three friends are not drawn while they wait in the bush (owner, headset 2026-11-14: a step forward and
+        // they showed through it): each appears in its puff of leaves as it hops out, never before.
+        Renderer[][] m_HiddenInBush;
+
+        void Start()
+        {
+            if (m_Done || characters == null) return;
+            m_HiddenInBush = new Renderer[characters.Length][];
+            for (int i = 0; i < characters.Length; i++)
+            {
+                if (characters[i] == null) continue;
+                m_HiddenInBush[i] = System.Array.FindAll(characters[i].GetComponentsInChildren<Renderer>(), r => r.enabled);
+                foreach (var r in m_HiddenInBush[i]) r.enabled = false;
+            }
+        }
+
+        /// <summary>True while character <paramref name="i"/> waits unseen in the bush.</summary>
+        public bool WaitsUnseen(int i) => m_HiddenInBush != null && i < m_HiddenInBush.Length && m_HiddenInBush[i] != null;
+
+        void ShowFromBush(int i)
+        {
+            if (!WaitsUnseen(i)) return;
+            foreach (var r in m_HiddenInBush[i])
+                if (r != null) r.enabled = true;
+            m_HiddenInBush[i] = null;
+        }
+
         void Update()
         {
             if (m_Done || leaf == null) return;
@@ -186,7 +213,10 @@ namespace RoomOrchestra
             }
             if (characters != null)
                 for (int i = 0; i < characters.Length; i++)
+                {
+                    ShowFromBush(i);
                     if (characters[i] != null) characters[i].localPosition = homes[i];
+                }
             if (!m_Done && m_Start >= 0f) Debug.Log("[RoomOrchestra] Intro: everyone has landed on the leaf");
             m_Done = true;
         }
@@ -223,6 +253,7 @@ namespace RoomOrchestra
             if (m_Out != null && !m_Out[i])
             {
                 m_Out[i] = true; // out of the bush with a puff of leaves
+                ShowFromBush(i);
                 PoofCloud.PoofAt(leaf.parent.TransformPoint(floorSpots[i]) + Vector3.up * 0.15f, 0.45f);
             }
             var (blend, lift, landed) = IntroPath.HopAt(seconds);

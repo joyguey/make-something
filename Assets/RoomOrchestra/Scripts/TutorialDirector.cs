@@ -83,7 +83,7 @@ namespace RoomOrchestra
         /// <summary>The count's colours: 3 blue, 2 purple, 1 gold, Go! green (the numbers themselves say which).</summary>
         public static readonly Color[] CountColours =
         {
-            new Color(0.25f, 0.55f, 1f), new Color(0.65f, 0.38f, 0.95f), new Color(1f, 0.88f, 0.15f), new Color(0.3f, 0.82f, 0.38f),
+            new Color(0.902f, 0.706f, 0.133f), new Color(0.902f, 0.706f, 0.133f), new Color(0.902f, 0.706f, 0.133f), new Color(0.361f, 0.722f, 0.380f),
         };
         public const int GoChinese = 4;
 

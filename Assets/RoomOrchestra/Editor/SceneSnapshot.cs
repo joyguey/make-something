@@ -14,6 +14,49 @@ namespace RoomOrchestra.EditorTools
     /// </summary>
     public static class SceneSnapshot
     {
+        // The scene, with the meadow at dusk when the command line says -dusk (golden hour otherwise; the scene's own),
+        // and the title's handprint Start with -hands.
+        static void OpenScene()
+        {
+            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            if (System.Environment.GetCommandLineArgs().Contains("-dusk"))
+                Object.FindFirstObjectByType<MeadowTimeOfDay>()?.Apply(true);
+            // look trials: -toon 0..1, -rim 0..1 (warm), -haze start end (m) in the sky's horizon colour
+            var look = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < look.Length - 1; i++)
+            {
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                if (look[i] == "-toon") Shader.SetGlobalFloat("_RO_Toon", float.Parse(look[i + 1], inv));
+                if (look[i] == "-rim") { Shader.SetGlobalFloat("_RO_Rim", float.Parse(look[i + 1], inv)); Shader.SetGlobalColor("_RO_RimColor", new Color(1f, 0.93f, 0.8f)); }
+                if (look[i] == "-haze" && i + 2 < look.Length)
+                {
+                    RenderSettings.fog = true;
+                    RenderSettings.fogMode = FogMode.Linear;
+                    RenderSettings.fogStartDistance = float.Parse(look[i + 1], inv);
+                    RenderSettings.fogEndDistance = float.Parse(look[i + 2], inv);
+                    bool dusk = look.Contains("-dusk");
+                    RenderSettings.fogColor = dusk ? new Color(0.878f, 0.604f, 0.478f) : new Color(0.949f, 0.851f, 0.722f);
+                }
+            }
+            if (look.Contains("-ghosthand")) // PICO's hand model in the outline look, in its rest pose, by the Start print
+            {
+                var model = Object.FindFirstObjectByType<HandOutline>()?.Model(1);
+                if (model != null)
+                {
+                    model.SetActive(true);
+                    model.transform.position = new Vector3(0.22f, 0.98f, 0.5f);
+                    model.transform.rotation = Quaternion.Euler(-80f, 0f, 0f);
+                }
+            }
+            if (look.Contains("-askquit")) // the title's Quit asks "Quit Little Echoes?"
+            {
+                var asker = Object.FindFirstObjectByType<TitleScreen>().Card.GetComponentInChildren<QuitButton>(true);
+                Object.FindFirstObjectByType<ConfirmCard>().Show(asker);
+            }
+            if (System.Environment.GetCommandLineArgs().Contains("-hands")) // as a bare-handed player sees it
+                Object.FindFirstObjectByType<HandprintStart>(FindObjectsInactive.Include)?.Apply(true);
+        }
+
         public static void Capture()
         {
             string path = "docs/evidence/scene-start-view.png";
@@ -21,7 +64,7 @@ namespace RoomOrchestra.EditorTools
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
 
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             var camera = GameObject.Find("EditorPreviewCamera")?.GetComponent<Camera>();
             if (camera == null)
             {
@@ -33,6 +76,7 @@ namespace RoomOrchestra.EditorTools
             const int width = 1600, height = 900;
             var rt = new RenderTexture(width, height, 24);
             camera.targetTexture = rt;
+            camera.Render(); // a first frame sets up the lighting; the second is the picture
             camera.Render();
             RenderTexture.active = rt;
             var image = new Texture2D(width, height, TextureFormat.RGB24, false);
@@ -56,7 +100,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") dir = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>()?.Finish();
             var tray = Object.FindFirstObjectByType<MenuTray>();
             var eye = new Vector3(0f, 1.15f, 0.05f);
@@ -69,12 +113,69 @@ namespace RoomOrchestra.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>The sky from the seat: ahead and up (-snapshotPath folder/name: writes -ahead.png), and back toward
+        /// the sun or moon (-back.png). -dusk for the night sky. Unity's renderer; never saved.</summary>
+        public static void CaptureSky()
+        {
+            string path = "docs/evidence/sky";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            OpenScene();
+            var eye = new Vector3(0f, 1.15f, 0f);
+            CaptureCloseUp($"{path}-ahead.png", eye, eye + new Vector3(0f, 0.45f, 1f), 80f);
+            var light = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
+            CaptureCloseUp($"{path}-back.png", eye, eye - light.transform.forward + Vector3.down * 0.25f, 70f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>The three friends' faces, close up (-snapshotPath out.png). Unity's renderer; never saved.</summary>
+        public static void CaptureFriends()
+        {
+            string path = "docs/evidence/friends.png";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            OpenScene();
+            // the same three characters as on the leaf (CharacterArt.Dress), where nothing stands in front of them:
+            // on the title sign's rail
+            var friends = GameObject.Find("TitleFriends").transform;
+            var middle = friends.GetChild(1).position;
+            CaptureCloseUp(path, middle + new Vector3(0f, 0.03f, -0.42f), middle + Vector3.up * 0.03f, 50f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>The title card on its sign with the friends on the rail, from the seated eye (-snapshotPath out.png;
+        /// -dusk for the night meadow, -hands for the handprint Start, -tilt degrees to show it mid-swing, -side to look
+        /// from the side). Unity's renderer; never saved.</summary>
+        public static void CaptureTitle()
+        {
+            string path = "docs/evidence/title.png";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            OpenScene();
+            var card = GameObject.Find("TitleCard").transform;
+            // the sign is at arm's reach: seen from the seat (or standing with -standing) with the headset's wide view
+            var eye = new Vector3(0f, args.Contains("-standing") ? 1.65f : 1.15f, 0f);
+            float fov = 85f;
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (args[i] == "-tilt") card.Find("Hanging").localRotation = Quaternion.Euler(float.Parse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture), 0f, 0f);
+                if (args[i] == "-side") { eye = card.position + new Vector3(1.3f, 0.25f, -0.55f); fov = 38f; }
+                if (args[i] == "-eye") { eye = new Vector3(0f, 1.15f, 0f) + Vector3.right * float.Parse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture) + Vector3.forward * 0.9f; }
+            }
+            CaptureCloseUp(path, eye, args.Contains("-side") ? card.position + Vector3.up * 0.05f : new Vector3(0.12f, card.position.y - 0.1f, card.position.z), fov);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         /// <summary>
         /// Close-up of part of the open scene (e.g. the blob tray) from <paramref name="eye"/>, with a
         /// temporary camera that is destroyed afterwards (never saved). Unity's renderer, not PICO's.
         /// </summary>
         public static void CaptureCloseUp(string path, Vector3 eye, Vector3 lookAt, float fieldOfView = 30f)
         {
+            ShaderUtil.allowAsyncCompilation = false; // a single frame: compile every shader now, never a placeholder
             var go = new GameObject("SnapshotCloseUpCamera") { hideFlags = HideFlags.HideAndDontSave };
             try
             {
@@ -87,6 +188,7 @@ namespace RoomOrchestra.EditorTools
                 const int width = 1200, height = 800;
                 var rt = new RenderTexture(width, height, 24);
                 camera.targetTexture = rt;
+                camera.Render(); // a first frame sets up the lighting; the second is the picture
                 camera.Render();
                 RenderTexture.active = rt;
                 var image = new Texture2D(width, height, TextureFormat.RGB24, false);
@@ -117,7 +219,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
             var tutorial = Object.FindFirstObjectByType<TutorialDirector>();
             var so = new SerializedObject(tutorial);
@@ -166,7 +268,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: false);
             foreach (var station in Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None)) station.ShowNow();
             var room = Object.FindFirstObjectByType<VirtualRoom>();
@@ -193,7 +295,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             // -lesson: as the guided song starts (the leaf's extras tucked away); otherwise free play.
             Object.FindFirstObjectByType<IntroSequence>().Finish(skipTutorial: !args.Contains("-lesson"));
             if (!args.Contains("-lesson")) TuckAway.ShowAllNow();
@@ -211,7 +313,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish();
             var battle = Object.FindFirstObjectByType<EchoBattleDirector>();
             var so = new SerializedObject(battle);
@@ -229,7 +331,7 @@ namespace RoomOrchestra.EditorTools
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-snapshotPath") path = args[i + 1];
-            EditorSceneManager.OpenScene(LittleEchoesSceneSetup.ScenePath);
+            OpenScene();
             Object.FindFirstObjectByType<IntroSequence>().Finish();
             Object.FindFirstObjectByType<TutorialDirector>().SkipNow();
             var room = Object.FindFirstObjectByType<VirtualRoom>();

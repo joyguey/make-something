@@ -11,6 +11,9 @@ Shader "RoomOrchestra/LitBakedAO"
         _Smoothness ("Smoothness", Range(0, 1)) = 0.35
         _AOStrength ("Baked AO strength on direct light", Range(0, 1)) = 0.65
         _EmissionColor ("Emission", Color) = (0, 0, 0, 0)
+        _RimAmount ("Rim light (characters and furniture)", Range(0, 1)) = 0
+        _SwayAmount ("Wind sway at the top (m)", Range(0, 0.2)) = 0
+        _SwayHeight ("Height of the top (m)", Float) = 1
     }
     SubShader
     {
@@ -43,7 +46,30 @@ Shader "RoomOrchestra/LitBakedAO"
                 half _Smoothness;
                 half _AOStrength;
                 half4 _EmissionColor;
+                half _RimAmount;
+                half _SwayAmount;
+                half _SwayHeight;
             CBUFFER_END
+
+            // A gentle wind (owner, Fable refinement 2026-11-11: "add the gentle swaying"): a shape bends from its base,
+            // more toward its top, in slow waves that travel across the meadow. The same in every pass, so its shadow and
+            // depth move with it. Nothing moves where _SwayAmount is 0 (everything but grass, flowers, bushes and trees).
+            float3 Sway(float3 positionOS, float3 positionWS)
+            {
+                if (_SwayAmount <= 0.0) return positionWS;
+                float h = saturate(positionOS.y / max(_SwayHeight, 0.01));
+                float phase = dot(positionWS.xz, float2(0.35, 0.22));
+                float wave = sin(_Time.y * 1.3 + phase) * 0.7 + sin(_Time.y * 2.1 + phase * 1.7) * 0.3;
+                positionWS.xz += float2(0.8, 0.6) * (wave * h * h * _SwayAmount);
+                return positionWS;
+            }
+
+            // The game's look, set once for every material (LookSettings, owner-approved Fable refinement): 0 is URP's
+            // smooth lighting, 1 is painted light (a lit side and a shade side with a soft edge between); a rim of
+            // light round each shape's edge; both cheap, per pixel, no post-processing.
+            half _RO_Toon;
+            half _RO_Rim;
+            half4 _RO_RimColor;
 
             struct Attributes
             {
@@ -70,13 +96,13 @@ Shader "RoomOrchestra/LitBakedAO"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                VertexPositionInputs position = GetVertexPositionInputs(input.positionOS.xyz);
+                float3 positionWS = Sway(input.positionOS.xyz, TransformObjectToWorld(input.positionOS.xyz));
                 VertexNormalInputs normal = GetVertexNormalInputs(input.normalOS);
-                output.positionCS = position.positionCS;
-                output.positionWS = position.positionWS;
+                output.positionCS = TransformWorldToHClip(positionWS);
+                output.positionWS = positionWS;
                 output.normalWS = normal.normalWS;
                 output.color = input.color;
-                output.fogFactor = ComputeFogFactor(position.positionCS.z);
+                output.fogFactor = ComputeFogFactor(output.positionCS.z);
                 return output;
             }
 
@@ -108,6 +134,24 @@ Shader "RoomOrchestra/LitBakedAO"
                 surface.normalTS = half3(0, 0, 1);
 
                 half4 color = UniversalFragmentPBR(inputData, surface);
+                Light sun = GetMainLight(inputData.shadowCoord);
+                half facing = dot(inputData.normalWS, sun.direction);
+                half lit = smoothstep(0.0h, 0.08h, facing) * lerp(1.0h, sun.shadowAttenuation, 0.8h);
+                if (_RO_Toon > 0.001h)
+                {
+                    // painted light: the shade side keeps a third of the sun, the lit side its full colour, and a small
+                    // crisp highlight on the shiny shapes
+                    half3 painted = surface.albedo * (inputData.bakedGI * ao + sun.color * lerp(0.32h, 0.95h, lit));
+                    half3 halfway = SafeNormalize(sun.direction + inputData.viewDirectionWS);
+                    half shine = smoothstep(0.965h, 0.98h, dot(inputData.normalWS, halfway)) * _Smoothness * lit;
+                    painted += sun.color * shine * 0.35h + surface.emission;
+                    color.rgb = lerp(color.rgb, painted, _RO_Toon);
+                }
+                if (_RO_Rim * _RimAmount > 0.001h) // characters and furniture only: never the ground
+                {
+                    half edge = pow(1.0h - saturate(dot(inputData.normalWS, inputData.viewDirectionWS)), 3.0h);
+                    color.rgb += _RO_RimColor.rgb * edge * _RO_Rim * _RimAmount * (0.35h + 0.65h * lit) * ao;
+                }
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);
                 return color;
             }
@@ -138,7 +182,23 @@ Shader "RoomOrchestra/LitBakedAO"
                 half _Smoothness;
                 half _AOStrength;
                 half4 _EmissionColor;
+                half _RimAmount;
+                half _SwayAmount;
+                half _SwayHeight;
             CBUFFER_END
+
+            // A gentle wind (owner, Fable refinement 2026-11-11: "add the gentle swaying"): a shape bends from its base,
+            // more toward its top, in slow waves that travel across the meadow. The same in every pass, so its shadow and
+            // depth move with it. Nothing moves where _SwayAmount is 0 (everything but grass, flowers, bushes and trees).
+            float3 Sway(float3 positionOS, float3 positionWS)
+            {
+                if (_SwayAmount <= 0.0) return positionWS;
+                float h = saturate(positionOS.y / max(_SwayHeight, 0.01));
+                float phase = dot(positionWS.xz, float2(0.35, 0.22));
+                float wave = sin(_Time.y * 1.3 + phase) * 0.7 + sin(_Time.y * 2.1 + phase * 1.7) * 0.3;
+                positionWS.xz += float2(0.8, 0.6) * (wave * h * h * _SwayAmount);
+                return positionWS;
+            }
 
             float3 _LightDirection;
             float3 _LightPosition;
@@ -159,7 +219,7 @@ Shader "RoomOrchestra/LitBakedAO"
             {
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
-                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 positionWS = Sway(input.positionOS.xyz, TransformObjectToWorld(input.positionOS.xyz));
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
             #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                 float3 lightDirectionWS = normalize(_LightPosition - positionWS);
@@ -199,7 +259,23 @@ Shader "RoomOrchestra/LitBakedAO"
                 half _Smoothness;
                 half _AOStrength;
                 half4 _EmissionColor;
+                half _RimAmount;
+                half _SwayAmount;
+                half _SwayHeight;
             CBUFFER_END
+
+            // A gentle wind (owner, Fable refinement 2026-11-11: "add the gentle swaying"): a shape bends from its base,
+            // more toward its top, in slow waves that travel across the meadow. The same in every pass, so its shadow and
+            // depth move with it. Nothing moves where _SwayAmount is 0 (everything but grass, flowers, bushes and trees).
+            float3 Sway(float3 positionOS, float3 positionWS)
+            {
+                if (_SwayAmount <= 0.0) return positionWS;
+                float h = saturate(positionOS.y / max(_SwayHeight, 0.01));
+                float phase = dot(positionWS.xz, float2(0.35, 0.22));
+                float wave = sin(_Time.y * 1.3 + phase) * 0.7 + sin(_Time.y * 2.1 + phase * 1.7) * 0.3;
+                positionWS.xz += float2(0.8, 0.6) * (wave * h * h * _SwayAmount);
+                return positionWS;
+            }
 
             struct Attributes
             {
@@ -218,7 +294,7 @@ Shader "RoomOrchestra/LitBakedAO"
                 Varyings output = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.positionCS = TransformWorldToHClip(Sway(input.positionOS.xyz, TransformObjectToWorld(input.positionOS.xyz)));
                 return output;
             }
 

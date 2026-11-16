@@ -177,7 +177,7 @@ namespace RoomOrchestra.EditorTools
             go.transform.localPosition = localPosition;
             var mesh = Part(type, part);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = BakedAO.For(mesh, material); // AO baked in Blender
+            go.AddComponent<MeshRenderer>().sharedMaterial = BakedAO.For(mesh, material, rim: false); // no rim light on a face's features
             return go.transform;
         }
     }
