@@ -109,5 +109,17 @@ namespace RoomOrchestra.Tests
             Pump(40);
             Assert.AreEqual("1|3", hostGot.Single(m => m.Type == "SCORE").Payload);
         }
+
+        [Test]
+        public void ACalledNoteOnAnInstrumentTheEchoerLacksIsMatchedByTheSameNoteOnTheirs()
+        {
+            var call = new[] { new PhraseNote(InstrumentType.Ocarina, 2, 0), new PhraseNote(InstrumentType.Mbira, 1, 4) };
+            var echo = new[] { new PhraseNote(InstrumentType.Erhu, 2, 0), new PhraseNote(InstrumentType.Mbira, 1, 4) };
+            Assert.AreEqual(EchoBattleRules.ExactPoints, EchoBattleRules.Score(call, echo), "the same rooms: the instrument has to match");
+            Assert.AreEqual(2 * EchoBattleRules.ExactPoints, EchoBattleRules.Score(call, echo, type => type != InstrumentType.Ocarina),
+                "no ocarina in the echoer's room: the same note on any of their instruments counts");
+            var wrong = new[] { new PhraseNote(InstrumentType.Udu, 1, 4) };
+            Assert.AreEqual(0, EchoBattleRules.Score(new[] { call[1] }, wrong, type => type != InstrumentType.Ocarina), "an instrument they do have still has to match");
+        }
     }
 }

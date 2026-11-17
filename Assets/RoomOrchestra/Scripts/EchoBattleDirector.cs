@@ -109,9 +109,24 @@ namespace RoomOrchestra
 
         bool InBattle => State != Phase.Hidden && State != Phase.Menu && State != Phase.Over;
 
+        // HOST and JOIN show only where they do something (the card's menu, and after a battle); while pairing or
+        // playing, LEAVE is the only button, so there is nothing to press by mistake.
+        Phase m_ButtonsFor = (Phase)(-1);
+
+        void ShowButtonsFor(Phase state)
+        {
+            if (state == m_ButtonsFor || card == null) return;
+            m_ButtonsFor = state;
+            bool choosing = state == Phase.Menu || state == Phase.Over;
+            foreach (var button in card.GetComponentsInChildren<EchoBattleButton>(true))
+                if (button.ButtonKind != EchoBattleButton.Kind.Leave && button.gameObject.activeSelf != choosing)
+                    button.gameObject.SetActive(choosing);
+        }
+
         void Update()
         {
             WatchForTheSecret();
+            ShowButtonsFor(State);
             if (State == Phase.Hidden)
             {
                 if (park != null && card != null && card.position != park.position) Park();
@@ -183,8 +198,15 @@ namespace RoomOrchestra
         {
             switch (kind)
             {
-                case EchoBattleButton.Kind.Host: Open(EchoBattleLink.Role.Host); break;
-                case EchoBattleButton.Kind.Join: Open(EchoBattleLink.Role.Guest); break;
+                // HOST and JOIN only start something from the card's menu. Pressed again while pairing or in a battle they
+                // do nothing (V4 feedback: "my coop partner ended up leaving the game by accidentally pressing join twice":
+                // a second press reopened the link, which said goodbye to the other headset). Only LEAVE leaves.
+                case EchoBattleButton.Kind.Host:
+                    if (State == Phase.Menu || State == Phase.Over) Open(EchoBattleLink.Role.Host);
+                    break;
+                case EchoBattleButton.Kind.Join:
+                    if (State == Phase.Menu || State == Phase.Over) Open(EchoBattleLink.Role.Guest);
+                    break;
                 case EchoBattleButton.Kind.Leave:
                     if (State == Phase.Menu || State == Phase.Over)
                     {
@@ -328,14 +350,26 @@ namespace RoomOrchestra
         void Listen(IReadOnlyList<PhraseNote> phrase)
         {
             State = Phase.Listening;
-            Say(UiTerm.BattleListen);
+            Say(phrase.Count > 0 ? UiTerm.BattleListen : UiTerm.BattleNothing, phrase.Count);
             m_ListenBar = Bar + 1;
             if (conductor == null || conductor.Clock == null) return;
+            int played = 0;
             foreach (var note in phrase)
             {
+                // on the same instrument here; if this room doesn't have it (the players chose different ones), on this
+                // room's furniture in the caller's instrument's own sound: every called note is always heard
                 var target = InstrumentTarget.Find(note.Instrument);
-                if (target != null) target.PlayNoteAt(note.Note, conductor.Clock.TimeOf(m_ListenBar, note.Step), 0.8f, InstrumentTarget.HitSource.Loop);
+                AudioClip[] sound = null;
+                if (target == null)
+                {
+                    target = InstrumentTarget.Active.Count > 0 ? InstrumentTarget.Active[played % InstrumentTarget.Active.Count] : null;
+                    sound = InstrumentPacks.Instance != null && InstrumentPacks.Instance.Current != null ? InstrumentPacks.Instance.Current.For(note.Instrument) : null;
+                }
+                if (target == null) continue;
+                target.PlayHeardAt(note.Note, conductor.Clock.TimeOf(m_ListenBar, note.Step), 1f, sound);
+                played++;
             }
+            Debug.Log($"[RoomOrchestra] Echo Battle: their call plays here next bar ({played} of {phrase.Count} notes)");
         }
 
         void NextTurnSoon()
@@ -387,7 +421,7 @@ namespace RoomOrchestra
             if (m_Echoing)
             {
                 int round = m_Match.Round; // the round this echo belongs to (scoring moves the match on)
-                int points = m_Match.Echoed(m_Recorded);
+                int points = m_Match.Echoed(m_Recorded, type => InstrumentTarget.Find(type) != null);
                 m_Link?.Send("SCORE", $"{round}|{points}");
                 Say(UiTerm.BattleGotPoints, points);
                 Debug.Log($"[RoomOrchestra] Echo Battle: our echo scored {points}");

@@ -321,6 +321,19 @@ namespace RoomOrchestra
         public void PlayNote(int index) => PlayNoteAt(index, AudioSettings.dspTime, 1f, HitSource.Tap);
 
         /// <summary>Plays a scale degree at an audio-clock time; future times are sample-accurate.</summary>
+        /// <summary>
+        /// Plays a note that came from somewhere else (the other player's call in an Echo Battle) on this furniture at
+        /// <paramref name="dspTime"/>, with the furniture's flash and its note band lit, so it is seen as well as heard.
+        /// <paramref name="clips"/>: another instrument's notes when this room doesn't have that instrument (null: this
+        /// instrument's own).
+        /// </summary>
+        public void PlayHeardAt(int index, double dspTime, float strength, AudioClip[] clips = null)
+        {
+            var from = clips != null && clips.Length > 0 ? clips : notes;
+            if (from == null || from.Length == 0 || index < 0) return;
+            PlayClipAt(from[Mathf.Min(index, from.Length - 1)], Mathf.Min(index, NoteMapping.Count - 1), dspTime, strength, HitSource.Tap);
+        }
+
         public void PlayNoteAt(int index, double dspTime, float strength, HitSource source)
         {
             if (notes == null || index < 0 || index >= notes.Length) return;

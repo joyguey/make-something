@@ -141,7 +141,9 @@ namespace RoomOrchestra
         ScanProgress,
         ScanProgressHint,
         /// <summary>Furniture chosen with a virtual piece kept: how to change and move it (owner, headset 2026-11-12).</summary>
-        PlaceDoneMovable
+        PlaceDoneMovable,
+        /// <summary>Echo Battle: the other player's call had no notes (appended: terms are saved by number).</summary>
+        BattleNothing
     }
 
     /// <summary>
@@ -239,17 +241,18 @@ namespace RoomOrchestra
             { UiTerm.ViewContrast, ("High contrast", "高对比") },
             { UiTerm.ViewLargeContrast, ("Large + contrast", "大字+高对比") },
             { UiTerm.BattleTitle, ("Echo Battle", "回声对决") },
-            { UiTerm.BattleFound, ("Unlocked. Two headsets, same Wi-Fi: one hits HOST, the other JOIN.", "解锁了。两台头显连同一个Wi-Fi：一台点\"主持\"，另一台点\"加入\"。") },
+            { UiTerm.BattleFound, ("Unlocked. Two players on the same Wi-Fi: one taps HOST, then the other taps JOIN.", "解锁了。两位玩家连同一个Wi-Fi：一位先点\"主持\"，另一位再点\"加入\"。") },
             { UiTerm.BattleHost, ("HOST", "主持") },
             { UiTerm.BattleJoin, ("JOIN", "加入") },
             { UiTerm.BattleLeave, ("LEAVE", "离开") },
-            { UiTerm.BattleWaiting, ("Waiting for a challenger...", "等待挑战者……") },
-            { UiTerm.BattleLooking, ("Looking for a host on this Wi-Fi...", "正在这个Wi-Fi上寻找主持……") },
+            { UiTerm.BattleWaiting, ("You are the host. Ask the other player to tap JOIN.", "你是主持。请对方点\"加入\"。") },
+            { UiTerm.BattleLooking, ("Joining. Looking for the host on this Wi-Fi...", "加入中。正在这个Wi-Fi上寻找主持……") },
             { UiTerm.BattleReady, ("Get ready...", "准备……") },
             { UiTerm.BattleYourCall, ("GO! Drop your beat: up to 4 notes", "开始！出你的招：最多4个音") },
             { UiTerm.BattleTheyEcho, ("They're trying to echo you...", "对方正在模仿你……") },
-            { UiTerm.BattleTheyCall, ("Their call. Listen up...", "轮到对方出招。仔细听……") },
-            { UiTerm.BattleListen, ("Listen...", "听好……") },
+            { UiTerm.BattleTheyCall, ("Their turn. You will hear their notes next.", "轮到对方出招。接下来你会听到对方的音。") },
+            { UiTerm.BattleListen, ("Listen: their {0} notes are playing", "听好：对方的{0}个音正在播放") },
+            { UiTerm.BattleNothing, ("They played nothing. Your turn is next.", "对方没有出招。接下来轮到你。") },
             { UiTerm.BattleEcho, ("GO! Echo it back", "开始！照着来一遍") },
             { UiTerm.BattleGotPoints, ("+{0} points", "+{0} 分") },
             { UiTerm.BattleRound, ("ROUND {0}/3", "第 {0}/3 轮") },

@@ -159,5 +159,71 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(battle.Shown, "leaving a battle goes back to the card's menu");
             Assert.AreSame(ownSong, EchoConductor.Instance.Echoes.Single(), "exactly as it was");
         }
+
+        [UnityTest]
+        public IEnumerator JoiningHearsTheOtherHeadsetsCallOnThisRoomsFurniture()
+        {
+            var battle = EchoBattleDirector.Instance;
+            battle.UseTestNetwork(47811, 47812);
+            m_Other = new EchoBattleLink(EchoBattleLink.Role.Host, 47812, 47811, IPAddress.Loopback);
+            m_Other.Open();
+            var got = new List<EchoBattleLink.Message>();
+            IEnumerator Pump(float seconds, System.Func<bool> until = null)
+            {
+                float end = Time.realtimeSinceStartup + seconds;
+                while (Time.realtimeSinceStartup < end && (until == null || !until()))
+                {
+                    got.AddRange(m_Other.Poll(Time.realtimeSinceStartup));
+                    yield return null;
+                }
+            }
+            yield return Secret();
+            Assert.IsTrue(InstrumentInputRouter.Activate(battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Join).GetComponentInChildren<Collider>().gameObject));
+            yield return Pump(5f, () => got.Any(m => m.Type == "JOIN"));
+            Assert.IsTrue(got.Any(m => m.Type == "JOIN"), "we asked to join");
+            m_Other.Send("START");
+            yield return Pump(4f, () => battle.State == EchoBattleDirector.Phase.WaitingForThem);
+            Assert.AreEqual(EchoBattleDirector.Phase.WaitingForThem, battle.State, "the host calls first");
+
+            // JOIN (or HOST) pressed again mid-battle does nothing: it used to reopen the link, which left the battle and
+            // told the other headset goodbye (V4 feedback: "leaving the game by accidentally pressing join twice")
+            Assert.IsTrue(battle.Card.GetComponentsInChildren<EchoBattleButton>(true).Where(b => b.ButtonKind != EchoBattleButton.Kind.Leave).All(b => !b.gameObject.activeInHierarchy),
+                "HOST and JOIN are put away once a battle is on: LEAVE is the only button");
+            battle.Press(EchoBattleButton.Kind.Join);
+            battle.Press(EchoBattleButton.Kind.Host);
+            yield return Pump(0.5f);
+            Assert.AreEqual(EchoBattleDirector.Phase.WaitingForThem, battle.State, "still in the battle");
+            Assert.IsNotNull(battle.Match);
+            Assert.IsFalse(got.Any(m => m.Type == "BYE"), "and the other headset was not told goodbye");
+
+            // the host's call: two notes on the chair's mbira
+            var mbira = InstrumentTarget.Find(InstrumentType.Mbira);
+            Assert.IsNotNull(mbira);
+            m_Other.Send("CALL", "1|M2@0,M4@4");
+            yield return Pump(4f, () => battle.State == EchoBattleDirector.Phase.Listening);
+            Assert.AreEqual(EchoBattleDirector.Phase.Listening, battle.State);
+            Debug.Log($"[test] scheduled on the mbira right after the call: {mbira.ScheduledCount}");
+            Assert.AreEqual(2, mbira.ScheduledCount, "both notes of the call are queued to sound on this room's mbira");
+            // and they do sound: a voice is playing during the listening bar
+            bool heard = false;
+            yield return Pump(6f, () => { heard |= mbira.GetComponentsInChildren<AudioSource>().Any(s => s.isPlaying); return heard || battle.State == EchoBattleDirector.Phase.CountIn; });
+            Assert.IsTrue(heard, "the call is heard");
+
+            // our echo is scored, and the host calls again, this time on an instrument this room doesn't have (the two
+            // players chose different ones): it is still heard, in the ocarina's sound, on this room's furniture
+            yield return Pump(14f, () => got.Any(m => m.Type == "SCORE"));
+            Assert.IsTrue(got.Any(m => m.Type == "SCORE"), "our echo was scored and sent");
+            yield return Pump(14f, () => got.Any(m => m.Type == "CALL")); // we call second in round 1 (nothing played: an empty call)
+            Assert.IsTrue(got.Any(m => m.Type == "CALL"), "our call went out");
+            m_Other.Send("SCORE", "1|0"); // their echo of it
+            yield return Pump(14f, () => battle.State == EchoBattleDirector.Phase.WaitingForThem && battle.Match.Round == 2);
+            Assert.AreEqual(2, battle.Match.Round, "round 2: the host calls again");
+            Assert.IsNull(InstrumentTarget.Find(InstrumentType.Ocarina), "no ocarina in this room");
+            m_Other.Send("CALL", "2|O1@0,O3@8");
+            yield return Pump(4f, () => battle.State == EchoBattleDirector.Phase.Listening);
+            Assert.AreEqual(EchoBattleDirector.Phase.Listening, battle.State);
+            Assert.AreEqual(2, InstrumentTarget.Active.Sum(target => target.ScheduledCount), "both ocarina notes are queued on this room's furniture");
+            StringAssert.Contains("2", battle.StatusText, "the card says how many notes to listen for");
+        }
     }
 }

@@ -28,3 +28,11 @@ The battle card is styled for teens and adults, separate from the main game's so
 ## Known limits
 - Same-room play shares no anchors: each player sees their own furniture; the other player's call is replayed on yours.
 - Two players only; the first guest to answer pairs with the host.
+
+## Changes after the V4 review (2026-11-16)
+The dev team tried it on two headsets: hosting and joining worked but were hard to follow, a second press on JOIN made a player leave, and the listening player could not hear the call.
+- **HOST and JOIN only work from the card's menu.** Once pairing or playing they are put away, and LEAVE is the only button. (A second press used to reopen the link, which said goodbye to the other headset.)
+- **Clearer words:** "one taps HOST, then the other taps JOIN"; "You are the host. Ask the other player to tap JOIN."; "Joining. Looking for the host..."; "Listen: their N notes are playing".
+- **The call is always heard and seen.** It plays at full strength with the furniture's flash and its note band lit. If the listener's room doesn't have the caller's instrument (each player can change theirs), it plays on the listener's furniture in the caller's instrument's sound, and the same note on any of the listener's instruments scores.
+- **Not reproduced:** on the real scene with the default instruments, the listening path queues and plays the call (new PlayMode test). The silence on the headsets is therefore most likely the two rooms holding different instruments; that is fixed, but only two headsets can confirm it.
+

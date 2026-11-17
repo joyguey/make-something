@@ -39,9 +39,14 @@ namespace RoomOrchestra
         public static int MaxScore(int callNotes) => callNotes * ExactPoints;
 
         /// <summary>Points for <paramref name="echo"/> against <paramref name="call"/>: each call note matched at most once.</summary>
-        public static int Score(IReadOnlyList<PhraseNote> call, IReadOnlyList<PhraseNote> echo)
+        /// <param name="inThisRoom">Which instruments the echoing player has on their furniture (null: all). A called
+        /// note on an instrument they don't have is matched by the same note on any of theirs: the two rooms need not
+        /// hold the same instruments (V4 feedback: with different instruments the echo could never score).</param>
+        public static int Score(IReadOnlyList<PhraseNote> call, IReadOnlyList<PhraseNote> echo, Func<InstrumentType, bool> inThisRoom = null)
         {
             if (call == null || echo == null) return 0;
+            bool SameSound(PhraseNote a, PhraseNote b) =>
+                a.Note == b.Note && (a.Instrument == b.Instrument || (inThisRoom != null && !inThisRoom(a.Instrument)));
             var used = new bool[echo.Count];
             int points = 0;
             // Exact matches first, so a near echo never steals an exact one.
@@ -68,8 +73,6 @@ namespace RoomOrchestra
             }
             return points;
         }
-
-        static bool SameSound(PhraseNote a, PhraseNote b) => a.Instrument == b.Instrument && a.Note == b.Note;
 
         public static int StepsApart(int a, int b)
         {
@@ -169,10 +172,10 @@ namespace RoomOrchestra
         }
 
         /// <summary>This player echoed: score it here and move on. Returns the points (sent to the caller).</summary>
-        public int Echoed(IReadOnlyList<PhraseNote> echo)
+        public int Echoed(IReadOnlyList<PhraseNote> echo, Func<InstrumentType, bool> inThisRoom = null)
         {
             if (Turn != BattleTurn.Echoing) return 0;
-            int points = EchoBattleRules.Score(LastCall, echo);
+            int points = EchoBattleRules.Score(LastCall, echo, inThisRoom);
             MyScore += points;
             Advance();
             return points;
