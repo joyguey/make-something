@@ -87,9 +87,75 @@ namespace RoomOrchestra
             for (int i = 0; i < phrase.Count; i++)
             {
                 if (i > 0) text.Append(',');
-                text.Append(phrase[i].Instrument.ToString()[0]).Append(phrase[i].Note).Append('@').Append(phrase[i].Step);
+                text.Append(Initial(phrase[i].Instrument)).Append(phrase[i].Note).Append('@').Append(phrase[i].Step);
             }
             return text.ToString();
+        }
+
+        /// <summary>An instrument's letter on the wire (U M E O H G B S).</summary>
+        public static char Initial(InstrumentType type) => type.ToString()[0];
+
+        public static bool TryInstrument(char initial, out InstrumentType type)
+        {
+            switch (initial)
+            {
+                case 'U': type = InstrumentType.Udu; return true;
+                case 'M': type = InstrumentType.Mbira; return true;
+                case 'E': type = InstrumentType.Erhu; return true;
+                case 'O': type = InstrumentType.Ocarina; return true;
+                case 'H': type = InstrumentType.Handpan; return true;
+                case 'G': type = InstrumentType.Guzheng; return true;
+                case 'B': type = InstrumentType.Balafon; return true;
+                case 'S': type = InstrumentType.SlitDrum; return true;
+                default: type = InstrumentType.Udu; return false;
+            }
+        }
+
+        /// <summary>The host's instruments for a battle, as their letters ("UME"): the host chooses and locks them in,
+        /// and the other player puts the same ones on their furniture before play starts (owner, 2026-11-16).</summary>
+        public static string EncodeSet(IEnumerable<InstrumentType> instruments)
+        {
+            var text = new StringBuilder();
+            foreach (var type in instruments) text.Append(Initial(type));
+            return text.ToString();
+        }
+
+        /// <summary>The set back from <see cref="EncodeSet"/>; false if empty, malformed or with a repeat.</summary>
+        public static bool TryDecodeSet(string text, out List<InstrumentType> instruments)
+        {
+            instruments = new List<InstrumentType>();
+            if (string.IsNullOrEmpty(text)) return false;
+            foreach (char c in text)
+            {
+                if (!TryInstrument(c, out var type) || instruments.Contains(type)) return false;
+                instruments.Add(type);
+            }
+            return true;
+        }
+
+        /// <summary>The host's instruments this room does not have yet, in the host's order. A room with fewer pieces
+        /// of furniture than the host (<paramref name="pieces"/>) only has to fill the pieces it has.</summary>
+        public static List<InstrumentType> Missing(IReadOnlyList<InstrumentType> wanted, ICollection<InstrumentType> here, int pieces)
+        {
+            var missing = new List<InstrumentType>();
+            int have = 0;
+            foreach (var type in wanted)
+                if (here.Contains(type)) have++;
+                else missing.Add(type);
+            int need = Math.Min(wanted.Count, pieces) - have;
+            if (need <= 0) missing.Clear();
+            return missing;
+        }
+
+        /// <summary>Which instrument a tap on a piece playing <paramref name="current"/> gives it while the room is
+        /// being matched to the host's set: the first missing one; with none missing, the next of the host's set.</summary>
+        public static InstrumentType NextWanted(IReadOnlyList<InstrumentType> wanted, ICollection<InstrumentType> here, InstrumentType current)
+        {
+            foreach (var type in wanted)
+                if (!here.Contains(type)) return type;
+            int at = -1;
+            for (int i = 0; i < wanted.Count; i++) if (wanted[i] == current) at = i;
+            return wanted.Count == 0 ? current : wanted[(at + 1) % wanted.Count];
         }
 
         /// <summary>The phrase back from <see cref="Encode"/>; false if anything in it is malformed (a stray packet).</summary>
@@ -101,19 +167,7 @@ namespace RoomOrchestra
             {
                 int at = part.IndexOf('@');
                 if (part.Length < 4 || at < 2) return false;
-                InstrumentType type;
-                switch (part[0])
-                {
-                    case 'U': type = InstrumentType.Udu; break;
-                    case 'M': type = InstrumentType.Mbira; break;
-                    case 'E': type = InstrumentType.Erhu; break;
-                    case 'O': type = InstrumentType.Ocarina; break;
-                    case 'H': type = InstrumentType.Handpan; break;
-                    case 'G': type = InstrumentType.Guzheng; break;
-                    case 'B': type = InstrumentType.Balafon; break;
-                    case 'S': type = InstrumentType.SlitDrum; break;
-                    default: return false;
-                }
+                if (!TryInstrument(part[0], out var type)) return false;
                 if (!int.TryParse(part.Substring(1, at - 1), out int note) || note < 0 || note >= NoteMapping.Count) return false;
                 if (!int.TryParse(part.Substring(at + 1), out int step) || step < 0 || step >= MusicClock.StepsPerBar) return false;
                 phrase.Add(new PhraseNote(type, note, step));

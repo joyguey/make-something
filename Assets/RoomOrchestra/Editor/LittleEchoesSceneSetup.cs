@@ -832,7 +832,7 @@ namespace RoomOrchestra.EditorTools
         // start"): at arm's reach, a little smaller than life so it fits the view, its feet on the ground. It never moves
         // until Start sends it into the cloud.
         const float TitleScale = 0.85f, TitleCardHeight = 1.4f; // the card's middle above the ground at full size (m)
-        static readonly Vector3 TitleCardAt = new Vector3(0f, TitleCardHeight * TitleScale, 0.74f); // 0.65 was "a little bit too close"
+        static readonly Vector3 TitleCardAt = new Vector3(0f, TitleCardHeight * TitleScale, 0.85f); // 0.65, then 0.74, were "a little too close" (owner; V4 review); 0.85 is still a straight-arm reach
         /// <summary>The sign's top rail with its vine, above the card's middle (m): the friends stand on it.</summary>
         const float TitleRailTop = 0.398f; // the rail top (1.535 m in Blender x 1.173) less 2 mm: flush, no gap
         /// <summary>The rail's middle in the card's space: the hanging card swings about it (1.5 m in Blender x 1.173,
@@ -2159,8 +2159,8 @@ namespace RoomOrchestra.EditorTools
             Hoverable(mixTile.gameObject);
             mixTile.position = new Vector3(go.transform.position.x, ColumnBottom - 0.14f, go.transform.position.z);
             mixTile.rotation = FacePlayer(mixTile.position);
-            mixTile.localScale = new Vector3(0.16f, 0.1f, 0.03f);
-            var caption = Label("InstrumentLabel", MixButton.TextFor(target.Instrument, 0, UiLanguage.English), go.transform, Vector3.zero, 0.07f); // two lines, ~3 cm each
+            mixTile.localScale = new Vector3(0.18f, 0.11f, 0.03f); // room for what the instrument is, under its name
+            var caption = Label("InstrumentLabel", MixButton.TextFor(target.Instrument, 0, UiLanguage.English), go.transform, Vector3.zero, 0.09f); // name, what it is (small), volume
             caption.position = mixTile.position - mixTile.forward * 0.02f;
             caption.rotation = mixTile.rotation;
             var mix = mixTile.gameObject.AddComponent<MixButton>();

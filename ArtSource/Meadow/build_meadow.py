@@ -31,6 +31,17 @@ rng = random.Random(2026_11_11)
 PALETTE = os.environ.get("MEADOW_PALETTE", "day")
 assert PALETTE in ("day", "dusk"), PALETTE
 EXPORT = os.path.join(ROOT, "Assets", "RoomOrchestra", "Art", "Meadow", "Meadow.fbx" if PALETTE == "day" else "Meadow_Dusk.fbx")
+# The look (V4 review: "more polygons", "smooth shading on the ground", "nothing boxy"):
+#   faceted  the first low-poly look: flat faces, one colour a face
+#   smooth   the same shapes with more polygons, smooth shaded, colours blended from point to point
+#   rich     smooth, plus shaped detail: clumpy canopies, flared trunks with branches, scalloped pines, chiselled
+#            mossy rocks, curved grass blades, a floor that rolls away beyond the meadow
+STYLE = os.environ.get("MEADOW_STYLE", "faceted")
+assert STYLE in ("faceted", "smooth", "rich"), STYLE
+SMOOTH, RICH = STYLE != "faceted", STYLE == "rich"
+TRIAL = os.environ.get("MEADOW_EXPORT")  # a look trial writes somewhere else and leaves the .blend alone
+if TRIAL:
+    EXPORT = TRIAL
 
 
 def hexes(*codes):
@@ -75,7 +86,9 @@ class Piece:
     def __init__(self, name):
         self.name = name
         self.bm = bmesh.new()
-        self.colours = {}  # face index -> rgb
+        self.colours = {}  # face -> rgb
+        self.tone = {}     # vert -> brightness (smooth looks: lighter where a shape faces the sky)
+        self.sharp = None  # smooth looks: edges sharper than this angle (degrees) stay crisp; None: all smooth
 
     def paint(self, faces, rgb):
         for f in faces:
@@ -95,12 +108,22 @@ def jitter(rgb, amount=0.04):
     return tuple(max(0.0, min(1.0, c + rng.uniform(-amount, amount))) for c in rgb)
 
 
-def ico(piece, centre, radius, rgb, subdiv=1, squash=(1, 1, 1), wobble=0.12):
+def ico(piece, centre, radius, rgb, subdiv=1, squash=(1, 1, 1), wobble=0.12, clumps=0.0, lit=(0.80, 1.12)):
+    """A wobbly ball. Smooth looks: one more subdivision, and lighter toward the sky (lit: brightness underneath and on
+    top). clumps (rich look): leafy bumps, as a share of the radius."""
+    if SMOOTH and subdiv > 0:
+        subdiv += 1
     geom = bmesh.ops.create_icosphere(piece.bm, subdivisions=subdiv, radius=radius)
     verts = geom["verts"]
     for v in verts:
         n = noise.noise(v.co * 3.0 + Vector((centre[0], centre[1], centre[2])))
+        up = v.co.normalized().z
+        piece.tone[v] = lit[0] + (lit[1] - lit[0]) * (0.5 + 0.5 * up)
         v.co *= 1.0 + wobble * n
+        if RICH and clumps > 0.0:
+            near = noise.voronoi((v.co + Vector(centre)) * (2.6 / radius))[0][0]
+            v.co *= 1.0 + clumps * (0.45 - min(near, 0.9))
+            piece.tone[v] *= 1.0 - 0.22 * max(0.0, min(1.0, near * 1.6 - 0.25))  # the creases between clumps are darker
         v.co.x *= squash[0]
         v.co.y *= squash[1]
         v.co.z *= squash[2]
@@ -112,6 +135,8 @@ def ico(piece, centre, radius, rgb, subdiv=1, squash=(1, 1, 1), wobble=0.12):
 
 
 def cone(piece, base, radius1, radius2, depth, rgb, segments=8):
+    if SMOOTH:
+        segments = max(segments, 6) * 2
     geom = bmesh.ops.create_cone(piece.bm, cap_ends=True, segments=segments, radius1=radius1, radius2=radius2, depth=depth)
     verts = geom["verts"]
     for v in verts:
@@ -123,12 +148,17 @@ def cone(piece, base, radius1, radius2, depth, rgb, segments=8):
 
 
 def box(piece, centre, size, rgb):
+    before = set(piece.bm.faces)
     geom = bmesh.ops.create_cube(piece.bm, size=1.0)
     for v in geom["verts"]:
         v.co.x = centre[0] + v.co.x * size[0]
         v.co.y = centre[1] + v.co.y * size[1]
         v.co.z = centre[2] + v.co.z * size[2]
     faces = list({f for v in geom["verts"] for f in v.link_faces})
+    if SMOOTH:  # no knife edges: every edge of the block rounded (the wooden sign)
+        edges = list({e for f in faces for e in f.edges})
+        bmesh.ops.bevel(piece.bm, geom=edges, offset=min(size) * 0.16, segments=3, profile=0.5, affect="EDGES")
+        faces = [f for f in piece.bm.faces if f not in before]  # the block's faces, rounded ones included
     for f in faces:
         piece.colours[f] = rgb
     return faces
@@ -141,46 +171,92 @@ def finish(piece):
     bm.faces.ensure_lookup_table()
     colours = [piece.colours.get(f, (1, 1, 1)) for f in bm.faces]
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    blended = []
+    if SMOOTH:
+        bm.verts.ensure_lookup_table()
+        for v in bm.verts:
+            near = [piece.colours.get(f, (1, 1, 1)) for f in v.link_faces] or [(1, 1, 1)]
+            k = piece.tone.get(v, 1.0)
+            blended.append(tuple(max(0.0, min(1.0, sum(c[i] for c in near) / len(near) * k)) for i in range(3)))
     bm.to_mesh(mesh)
     bm.free()
     obj = bpy.data.objects.new(piece.name, mesh)
     bpy.context.collection.objects.link(obj)
     col = mesh.color_attributes.new("Col", "FLOAT_COLOR", "CORNER")
+    if not SMOOTH:
+        for poly in mesh.polygons:
+            rgb = colours[poly.index] if poly.index < len(colours) else (1, 1, 1)
+            for li in poly.loop_indices:
+                col.data[li].color = (rgb[0], rgb[1], rgb[2], 1.0)
+        for poly in mesh.polygons:
+            poly.use_smooth = False
+        return obj
+    # smooth looks: each point takes the blend of the faces round it (no hard-edged colour patches), lighter where
+    # the shape faces the sky
     for poly in mesh.polygons:
-        rgb = colours[poly.index] if poly.index < len(colours) else (1, 1, 1)
-        for li in poly.loop_indices:
-            col.data[li].color = (rgb[0], rgb[1], rgb[2], 1.0)
-    for poly in mesh.polygons:
-        poly.use_smooth = False
+        poly.use_smooth = True
+    for li, loop in enumerate(mesh.loops):
+        rgb = blended[loop.vertex_index]
+        col.data[li].color = (rgb[0], rgb[1], rgb[2], 1.0)
+    if piece.sharp is not None:
+        mesh.set_sharp_from_angle(angle=math.radians(piece.sharp))
     return obj
 
 
 # ---- the pieces ----
+def trunk(p, radius, height, segments=7):
+    """A tree's trunk. Rich look: it flares into the ground and two short boughs reach up into the leaves."""
+    cone(p, (0, 0, 0), radius, radius * 0.62, height, BARK, segments=segments)
+    if not RICH:
+        return
+    cone(p, (0, 0, 0), radius * 1.9, radius * 0.98, height * 0.16, BARK, segments=segments)
+    for (ax, ay) in ((0.55, 0.2), (-0.5, -0.3)):
+        geom = bmesh.ops.create_cone(p.bm, cap_ends=True, segments=10, radius1=radius * 0.5, radius2=radius * 0.25, depth=height * 0.5)
+        for v in geom["verts"]:
+            t = v.co.z / (height * 0.5) + 0.5
+            v.co = Vector((ax * t * height * 0.42, ay * t * height * 0.42, height * 0.62 + t * height * 0.42)) + Vector((v.co.x, v.co.y, 0))
+        for f in {f for v in geom["verts"] for f in v.link_faces}:
+            p.colours[f] = jitter(BARK, 0.02)
+
+
 def tree_round(name, height=3.2):
     p = Piece(name)
-    cone(p, (0, 0, 0), 0.16, 0.10, height * 0.55, BARK, segments=7)
+    trunk(p, 0.16, height * 0.55)
     top = height * 0.55
-    ico(p, (0, 0, top + 0.55), 0.95, rng.choice(LEAVES), subdiv=2, squash=(1, 1, 0.85))
-    ico(p, (0.55, 0.15, top + 0.25), 0.62, rng.choice(LEAVES), subdiv=1)
-    ico(p, (-0.5, -0.2, top + 0.3), 0.58, rng.choice(LEAVES), subdiv=1)
-    ico(p, (0.05, 0.45, top + 1.15), 0.55, rng.choice(LEAVES), subdiv=1)
+    ico(p, (0, 0, top + 0.55), 0.95, rng.choice(LEAVES), subdiv=2, squash=(1, 1, 0.85), clumps=0.2)
+    ico(p, (0.55, 0.15, top + 0.25), 0.62, rng.choice(LEAVES), subdiv=1, clumps=0.2)
+    ico(p, (-0.5, -0.2, top + 0.3), 0.58, rng.choice(LEAVES), subdiv=1, clumps=0.2)
+    ico(p, (0.05, 0.45, top + 1.15), 0.55, rng.choice(LEAVES), subdiv=1, clumps=0.2)
     return finish(p)
 
 
 def tree_pine(name, height=3.8):
     p = Piece(name)
-    cone(p, (0, 0, 0), 0.13, 0.09, height * 0.3, BARK, segments=6)
+    trunk(p, 0.13, height * 0.3, segments=6)
+    p.sharp = 50  # each tier's hem stays crisp
     for i, (r, z, d) in enumerate([(1.05, 0.30, 1.4), (0.85, 0.55, 1.2), (0.62, 0.78, 1.0), (0.38, 0.95, 0.8)]):
-        cone(p, (0, 0, height * z - d * 0.35), r, 0.02, d, LEAVES[(i + 1) % len(LEAVES)], segments=8)
+        faces = cone(p, (0, 0, height * z - d * 0.35), r, 0.02, d, LEAVES[(i + 1) % len(LEAVES)], segments=8)
+        low = height * z - d * 0.35
+        hem = sorted({v for f in faces for v in f.verts if abs(v.co.z - low) < 1e-4 and v.co.xy.length > r * 0.5},
+                     key=lambda v: math.atan2(v.co.y, v.co.x))
+        for v in {v for f in faces for v in f.verts}:
+            p.tone[v] = 0.78 + 0.34 * max(0.0, min(1.0, (v.co.z - low) / d))  # darker under each skirt, light at its tip
+        if RICH:  # a scalloped hem: the boughs droop in pairs
+            for k, v in enumerate(hem):
+                if k % 2 == 0:
+                    v.co.z -= d * 0.11
+                    v.co.xy *= 1.07
+                else:
+                    v.co.xy *= 0.9
     return finish(p)
 
 
 def tree_blossom(name, height=2.8):
     p = Piece(name)
-    cone(p, (0, 0, 0), 0.14, 0.09, height * 0.5, BARK, segments=7)
+    trunk(p, 0.14, height * 0.5)
     top = height * 0.5
     for (x, y, z, r) in [(0, 0, 0.5, 0.85), (0.6, 0.2, 0.3, 0.55), (-0.55, -0.15, 0.35, 0.55), (0.1, -0.5, 0.75, 0.5), (-0.1, 0.45, 0.85, 0.5)]:
-        ico(p, (x, y, top + z), r, rng.choice(BLOSSOM), subdiv=1)
+        ico(p, (x, y, top + z), r, rng.choice(BLOSSOM), subdiv=1, clumps=0.16, lit=(0.86, 1.08))
     return finish(p)
 
 
@@ -189,7 +265,7 @@ def bush(name, size=0.7):
     for i in range(rng.randint(3, 4)):
         a = rng.uniform(0, math.tau)
         d = rng.uniform(0.0, size * 0.5)
-        ico(p, (math.cos(a) * d, math.sin(a) * d, size * 0.45), size * rng.uniform(0.45, 0.6), rng.choice(LEAVES), subdiv=1, squash=(1, 1, 0.8))
+        ico(p, (math.cos(a) * d, math.sin(a) * d, size * 0.45), size * rng.uniform(0.45, 0.6), rng.choice(LEAVES), subdiv=1, squash=(1, 1, 0.8), clumps=0.18)
     # a few berries or blossoms on top
     for i in range(5):
         a = rng.uniform(0, math.tau)
@@ -199,15 +275,31 @@ def bush(name, size=0.7):
 
 def rock(name, size=0.5):
     p = Piece(name)
-    ico(p, (0, 0, size * 0.25), size, rng.choice(ROCK), subdiv=1, squash=(1.2, 0.9, 0.55), wobble=0.3)
+    faces = ico(p, (0, 0, size * 0.25), size, rng.choice(ROCK), subdiv=1, squash=(1.2, 0.9, 0.55), wobble=0.3, lit=(0.86, 1.06))
+    if RICH:  # chiselled: a few flat cuts with crisp edges, and moss where it faces the sky
+        p.sharp = 28
+        verts = {v for f in faces for v in f.verts}
+        middle = Vector((0, 0, size * 0.25))
+        for (dx, dy, dz, reach) in ((0.8, 0.3, 0.5, 0.62), (-0.6, 0.6, 0.45, 0.6), (0.1, -0.85, 0.5, 0.56), (-0.2, 0.1, 1.0, 0.44)):
+            n = Vector((dx, dy, dz)).normalized()
+            for v in verts:
+                over = (v.co - middle).dot(n) - reach * size
+                if over > 0:
+                    v.co -= n * over
+        p.bm.normal_update()
+        moss = mix(GRASS[0], ROCK[1], 0.3)
+        for f in faces:
+            if f.normal.z > 0.8 and f.calc_center_median().z > size * 0.45:
+                p.colours[f] = moss
     return finish(p)
 
 
 def hill(name, radius=4.0, height=2.0):
     p = Piece(name)
-    geom = bmesh.ops.create_uvsphere(p.bm, u_segments=20, v_segments=10, radius=1.0)
+    geom = bmesh.ops.create_uvsphere(p.bm, u_segments=40 if SMOOTH else 20, v_segments=20 if SMOOTH else 10, radius=1.0)
     verts = geom["verts"]
     for v in verts:
+        p.tone[v] = 0.86 + 0.24 * max(0.0, v.co.z)  # lighter toward the crest
         z = v.co.z
         if z < 0:
             v.co.z = 0
@@ -225,7 +317,7 @@ def hill(name, radius=4.0, height=2.0):
 
 
 def flower(p, at, rgb, height):
-    cone(p, at, 0.012, 0.008, height, STEM, segments=4)
+    cone(p, at, 0.012, 0.008, height, STEM, segments=3 if SMOOTH else 4)
     head = (at[0], at[1], at[2] + height)
     for k in range(5):
         a = k / 5 * math.tau
@@ -243,7 +335,42 @@ def flower_patch(name, count=9, spread=0.5):
     return finish(p)
 
 
+def grass_blades(name):
+    """Rich look: a tuft of curved blades, dark at the root and light at the tip, each bending its own way."""
+    p = Piece(name)
+    p.sharp = 40
+    for i in range(11):
+        a = rng.uniform(0, math.tau)
+        d = rng.uniform(0, 0.09)
+        h = rng.uniform(0.16, 0.36)
+        out = Vector((math.cos(a), math.sin(a), 0))
+        side = Vector((-out.y, out.x, 0))
+        base = out * d
+        colour = jitter(rng.choice(GRASS), 0.04)
+        rings = []
+        for k in range(4):  # root, two bends, then the tip
+            t = k / 4
+            centre = base + out * (0.11 * t * t) + Vector((0, 0, h * t))
+            w = 0.022 * (1 - t * 0.75)
+            ring = [p.bm.verts.new(centre + side * w), p.bm.verts.new(centre - side * w), p.bm.verts.new(centre + out * w * 0.8)]
+            for v in ring:
+                p.tone[v] = 0.72 + 0.5 * t
+            rings.append(ring)
+        tip = p.bm.verts.new(base + out * 0.11 + Vector((0, 0, h)))
+        p.tone[tip] = 1.24
+        for k in range(3):
+            for j in range(3):
+                f = p.bm.faces.new((rings[k][j], rings[k][(j + 1) % 3], rings[k + 1][(j + 1) % 3], rings[k + 1][j]))
+                p.colours[f] = colour
+        for j in range(3):
+            f = p.bm.faces.new((rings[3][j], rings[3][(j + 1) % 3], tip))
+            p.colours[f] = colour
+    return finish(p)
+
+
 def grass_tuft(name):
+    if RICH:
+        return grass_blades(name)
     p = Piece(name)
     for i in range(7):
         a = rng.uniform(0, math.tau)
@@ -271,7 +398,7 @@ def cloud(name, size=1.4):
         (0.20, -0.32, 0.04, 0.42), (-0.16, 0.34, 0.0, 0.40), (0.05, 0.0, -0.20, 0.46),
     ]
     for (x, y, z, r) in puffs:
-        ico(p, (x * size, y * size, z * size), r * size, CLOUD, subdiv=2, squash=(1.05, 1.0, 0.92), wobble=0.02)
+        ico(p, (x * size, y * size, z * size), r * size, CLOUD, subdiv=1 if SMOOTH else 2, squash=(1.05, 1.0, 0.92), wobble=0.02, lit=(0.93, 1.03))
     return finish(p)
 
 
@@ -286,10 +413,32 @@ def ground_tile(name, size=2.0, seed=0):
     return finish(p)
 
 
-def ground_sectors(radius=12.0, rings=(0.0, 3.0, 6.0, 9.0, 12.0)):
+def ground_height(x, y):
+    """The floor is level everywhere (a rolling rise beyond the meadow was tried for the rich look: it showed a dark
+    sliver at the horizon, so it is left out)."""
+    return 0.0
+
+
+def ground_colour(x, y):
+    """The grass at a point: soft patches from one noise over the whole meadow; the rich look adds sunlit drifts and
+    darker clover patches."""
+    n = noise.noise(Vector((x * 0.28, y * 0.28, 0.37))) * 0.6 + noise.noise(Vector((x * 0.9, y * 0.9, 1.7))) * 0.25
+    t = max(0.0, min(1.0, 0.5 + n))
+    rgb = tuple(GROUND_LO[q] + (GROUND_HI[q] - GROUND_LO[q]) * t for q in range(3))
+    if RICH:
+        drift = max(0.0, noise.noise(Vector((x * 0.17 + 9.0, y * 0.5 - 3.0, 2.2))) - 0.15)  # long light streaks, as wind lays the grass
+        clover = max(0.0, noise.noise(Vector((x * 1.6, y * 1.6, 7.7))) - 0.35)
+        k = 1.0 + 0.22 * drift - 0.3 * clover
+        rgb = tuple(max(0.0, min(1.0, c * k)) for c in rgb)
+    return rgb
+
+
+def ground_sectors(radius=12.0, rings=(0.0, 3.0, 6.0, 9.0, 12.0, 20.0, 31.0)):
     """The meadow floor around the stage (its centre at the origin): ring sectors that meet exactly, coloured by one
     noise over the whole meadow (soft patches that flow across pieces, no checkerboard). Built in place: Unity moves
-    each piece's origin to its middle, so the floor still comes apart piece by piece."""
+    each piece's origin to its middle, so the floor still comes apart piece by piece. The two outer rings run on under
+    the sky's lower edge (V4 review: "a slight gap between the skybox and the ground" let the real room show: the
+    floor stopped at 12 m, the sky's edge is 28 m out and 1.4 m down)."""
     pieces = []
     for r in range(len(rings) - 1):
         r0, r1 = rings[r], rings[r + 1]
@@ -297,14 +446,15 @@ def ground_sectors(radius=12.0, rings=(0.0, 3.0, 6.0, 9.0, 12.0)):
         for k in range(sectors):
             p = Piece(f"Meadow_GroundS{r}_{k}")
             a0, a1 = k / sectors * math.tau, (k + 1) / sectors * math.tau
-            rad_steps, ang_steps = 4, 64 // sectors  # every ring cut into the same 64 steps round: edges meet with no gaps
+            rad_steps, ang_steps = (6, 128 // sectors) if SMOOTH else (4, 64 // sectors)  # every ring cut into the same steps round: edges meet with no gaps
             grid = []
             for i in range(rad_steps + 1):
                 rr = r0 + (r1 - r0) * i / rad_steps
                 row = []
                 for j in range(ang_steps + 1):
                     aa = a0 + (a1 - a0) * j / ang_steps
-                    row.append(p.bm.verts.new((rr * math.cos(aa), rr * math.sin(aa), 0.0)))
+                    x, y = rr * math.cos(aa), rr * math.sin(aa)
+                    row.append(p.bm.verts.new((x, y, ground_height(x, y))))
                 grid.append(row)
             for i in range(rad_steps):
                 for j in range(ang_steps):
@@ -313,12 +463,16 @@ def ground_sectors(radius=12.0, rings=(0.0, 3.0, 6.0, 9.0, 12.0)):
                     else:
                         f = p.bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
                     c = f.calc_center_median()
-                    n = noise.noise(Vector((c.x * 0.28, c.y * 0.28, 0.37))) * 0.6 + noise.noise(Vector((c.x * 0.9, c.y * 0.9, 1.7))) * 0.25
-                    t = max(0.0, min(1.0, 0.5 + n))
-                    lo, hi = GROUND_LO, GROUND_HI
-                    p.colours[f] = tuple(lo[q] + (hi[q] - lo[q]) * t for q in range(3))
+                    p.colours[f] = ground_colour(c.x, c.y)
             bmesh.ops.remove_doubles(p.bm, verts=p.bm.verts, dist=1e-5)
-            pieces.append(finish(p))
+            obj = finish(p)
+            if SMOOTH:  # each point its own colour: the grass shades from patch to patch with no facets, and across pieces
+                col = obj.data.color_attributes["Col"]
+                for loop in obj.data.loops:
+                    co = obj.data.vertices[loop.vertex_index].co
+                    rgb = ground_colour(co.x, co.y)
+                    col.data[loop.index].color = (rgb[0], rgb[1], rgb[2], 1.0)
+            pieces.append(obj)
     return pieces
 
 
@@ -528,14 +682,14 @@ def main():
             obj.location = (0, 0, 0)
 
     os.makedirs(os.path.dirname(EXPORT), exist_ok=True)
-    if PALETTE == "day":
+    if PALETTE == "day" and not TRIAL:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, "Meadow.blend"))
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.fbx(
         filepath=EXPORT, use_selection=True, object_types={"MESH"},
         apply_unit_scale=True, apply_scale_options="FBX_SCALE_ALL",
         axis_forward="Z", axis_up="Y", bake_space_transform=True,
-        mesh_smooth_type="FACE", add_leaf_bones=False, bake_anim=False,
+        mesh_smooth_type="OFF" if SMOOTH else "FACE", add_leaf_bones=False, bake_anim=False,
         colors_type="LINEAR", prioritize_active_color=True)
     total = 0
     for obj, _ in built:

@@ -2,7 +2,7 @@
 
 | File | Source | License | Changes | sha256 |
 |---|---|---|---|---|
-| LittleEchoesLabels.ttf | Noto Sans SC (Google Fonts, github.com/google/fonts/tree/main/ofl/notosanssc), Copyright 2014-2021 Adobe | SIL Open Font License 1.1 (OFL.txt beside this file). Commercial use, embedding and bundling in software are allowed. | Cut down to the 372 characters the controls use (printable ASCII + the Chinese terms in Core/UiText.cs), fixed at weight 700, renamed "Little Echoes Labels" (a modified version must not use the reserved name "Source"; it doesn't). Made by ArtSource/Fonts/subset_label_font.py. | 6cf0c0c226cf67ae38eada2afe0b9d26be9b8401c9789e936a73f28eab83de81 |
+| LittleEchoesLabels.ttf | Noto Sans SC (Google Fonts, github.com/google/fonts/tree/main/ofl/notosanssc), Copyright 2014-2021 Adobe | SIL Open Font License 1.1 (OFL.txt beside this file). Commercial use, embedding and bundling in software are allowed. | Cut down to the 380 characters the controls use (printable ASCII + the Chinese terms in Core/UiText.cs), fixed at weight 700, renamed "Little Echoes Labels" (a modified version must not use the reserved name "Source"; it doesn't). Made by ArtSource/Fonts/subset_label_font.py. | 8f3b65039da3079afb3661dbb8231aa194e8077904974985833786b7bf134572 |
 | LittleEchoesLabels SDF.asset | generated from the .ttf above by Editor/LabelFont.cs (TextMesh Pro static atlas) | same as the .ttf | none beyond rasterizing | — |
 
 The OFL requires the license to travel with the font: keep OFL.txt in the project and list the font in the app's credits/notices before release.

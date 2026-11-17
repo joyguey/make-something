@@ -115,8 +115,19 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(InstrumentInputRouter.Activate(battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Host).GetComponentInChildren<Collider>().gameObject));
             Assert.AreEqual(EchoBattleDirector.Phase.Pairing, battle.State);
             Assert.IsTrue(EchoConductor.Instance.SongMuted, "the player's song is set aside (kept, silent) during the battle");
+            // hosting locks this room's instruments in, and the other headset is told which they are
+            StringAssert.Contains("udu, mbira, erhu", battle.StatusText);
+            var chair = InstrumentTarget.Find(InstrumentType.Mbira);
+            Assert.IsFalse(InstrumentPacks.Instance.ChangeInstrument(chair), "the host's instruments are locked in");
+            Assert.AreEqual(InstrumentType.Mbira, chair.Instrument);
+            yield return Pump(5f, () => got.Any(m => m.Type == "SET"));
+            Assert.AreEqual("UME", got.First(m => m.Type == "SET").Payload, "the other headset joined and was told the host's instruments");
+            Assert.AreEqual(EchoBattleDirector.Phase.Setup, battle.State, "waiting while they put them on their furniture");
+            Assert.IsNull(battle.Match, "no play before their room matches");
+            Assert.IsFalse(got.Any(m => m.Type == "START"));
+            m_Other.Send("READY");
             yield return Pump(5f, () => got.Any(m => m.Type == "START"));
-            Assert.IsTrue(got.Any(m => m.Type == "START"), "the other headset joined and was told to start");
+            Assert.IsTrue(got.Any(m => m.Type == "START"), "their room matches: told to start");
             Assert.IsNotNull(battle.Match);
             Assert.IsTrue(battle.Match.ICall, "the host calls first");
 
@@ -156,6 +167,7 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(EchoConductor.Instance.SongMuted, "mid-battle, Leave asks \"Sure?\" first (George, 2026-11-03)");
             Assert.IsTrue(InstrumentInputRouter.Activate(leave));
             Assert.IsFalse(EchoConductor.Instance.SongMuted, "leaving the battle: the player's own song plays on");
+            Assert.IsFalse(InstrumentPacks.Locked, "and the instruments can be changed again");
             Assert.IsTrue(battle.Shown, "leaving a battle goes back to the card's menu");
             Assert.AreSame(ownSong, EchoConductor.Instance.Echoes.Single(), "exactly as it was");
         }
@@ -181,6 +193,24 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(InstrumentInputRouter.Activate(battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Join).GetComponentInChildren<Collider>().gameObject));
             yield return Pump(5f, () => got.Any(m => m.Type == "JOIN"));
             Assert.IsTrue(got.Any(m => m.Type == "JOIN"), "we asked to join");
+            // the host plays udu, handpan and erhu: this room (udu, mbira, erhu) must get a handpan before play starts
+            m_Other.Send("SET", "UHE");
+            yield return Pump(4f, () => battle.State == EchoBattleDirector.Phase.Setup);
+            Assert.AreEqual(EchoBattleDirector.Phase.Setup, battle.State);
+            StringAssert.Contains("handpan", battle.StatusText, "the card names what is still missing");
+            StringAssert.DoesNotContain("erhu", battle.StatusText, "and only that");
+            yield return Pump(0.6f);
+            Assert.IsFalse(got.Any(m => m.Type == "READY"), "not ready while an instrument is missing");
+            Assert.IsNull(battle.Match);
+            // Change on the chair (the mbira is not in the host's set): one tap gives it the missing handpan
+            var chairPiece = InstrumentTarget.Find(InstrumentType.Mbira);
+            var change = Object.FindObjectsByType<ChangeInstrumentButton>(FindObjectsSortMode.None).First(b => b.Target == chairPiece);
+            Assert.IsTrue(InstrumentInputRouter.Activate(change.GetComponentInChildren<Collider>().gameObject));
+            Assert.AreEqual(InstrumentType.Handpan, chairPiece.Instrument);
+            yield return Pump(4f, () => got.Any(m => m.Type == "READY"));
+            Assert.IsTrue(got.Any(m => m.Type == "READY"), "the room matches the host's: ready");
+            Assert.IsFalse(InstrumentPacks.Instance.ChangeInstrument(chairPiece), "and its instruments are locked in too");
+            Assert.AreEqual("Udu,Mbira,Erhu", PlayerPrefs.GetString(InstrumentPacks.PlacesPrefKey, "Udu,Mbira,Erhu"), "the player's own arrangement stays the remembered one");
             m_Other.Send("START");
             yield return Pump(4f, () => battle.State == EchoBattleDirector.Phase.WaitingForThem);
             Assert.AreEqual(EchoBattleDirector.Phase.WaitingForThem, battle.State, "the host calls first");
@@ -196,14 +226,14 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(battle.Match);
             Assert.IsFalse(got.Any(m => m.Type == "BYE"), "and the other headset was not told goodbye");
 
-            // the host's call: two notes on the chair's mbira
-            var mbira = InstrumentTarget.Find(InstrumentType.Mbira);
+            // the host's call: two notes on the handpan (now on this room's chair)
+            var mbira = InstrumentTarget.Find(InstrumentType.Handpan);
             Assert.IsNotNull(mbira);
-            m_Other.Send("CALL", "1|M2@0,M4@4");
+            m_Other.Send("CALL", "1|H2@0,H4@4");
             yield return Pump(4f, () => battle.State == EchoBattleDirector.Phase.Listening);
             Assert.AreEqual(EchoBattleDirector.Phase.Listening, battle.State);
             Debug.Log($"[test] scheduled on the mbira right after the call: {mbira.ScheduledCount}");
-            Assert.AreEqual(2, mbira.ScheduledCount, "both notes of the call are queued to sound on this room's mbira");
+            Assert.AreEqual(2, mbira.ScheduledCount, "both notes of the call are queued to sound on this room's handpan");
             // and they do sound: a voice is playing during the listening bar
             bool heard = false;
             yield return Pump(6f, () => { heard |= mbira.GetComponentsInChildren<AudioSource>().Any(s => s.isPlaying); return heard || battle.State == EchoBattleDirector.Phase.CountIn; });
@@ -224,6 +254,13 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(EchoBattleDirector.Phase.Listening, battle.State);
             Assert.AreEqual(2, InstrumentTarget.Active.Sum(target => target.ScheduledCount), "both ocarina notes are queued on this room's furniture");
             StringAssert.Contains("2", battle.StatusText, "the card says how many notes to listen for");
+
+            // leaving puts the player's own instruments back on their furniture
+            battle.Press(EchoBattleButton.Kind.Leave);
+            Assert.AreEqual(EchoBattleDirector.Phase.Menu, battle.State);
+            Assert.AreEqual(InstrumentType.Mbira, chairPiece.Instrument, "the chair plays the mbira again");
+            Assert.IsFalse(InstrumentPacks.Locked);
+            Assert.IsNull(InstrumentPacks.Wanted);
         }
     }
 }

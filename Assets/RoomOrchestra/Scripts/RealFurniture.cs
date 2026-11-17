@@ -534,7 +534,7 @@ namespace RoomOrchestra
             if (cursor != null)
             {
                 cursor.Show(top, new Vector2(Mathf.Min(m_PreviewBox.size.x, CursorSide * 2f), Mathf.Min(m_PreviewBox.size.z, CursorSide * 2f)),
-                    UiText.Name(target.Instrument, Localization.Current), tappable: false);
+                    UiText.NameAndKind(target.Instrument, Localization.Current, 45), tappable: false);
                 cursor.ShowIcon(target.Instrument); // its picture above its name (owner, 2026-11-11)
             }
         }
@@ -820,7 +820,7 @@ namespace RoomOrchestra
                     spot.Hide();
                     continue;
                 }
-                var text = m_Occupant[i] >= 0 ? UiText.Get(TermFor(m_Stations[m_Occupant[i]].Target.Instrument), Localization.Current) : "+";
+                var text = m_Occupant[i] >= 0 ? UiText.NameAndKind(m_Stations[m_Occupant[i]].Target.Instrument, Localization.Current, 45) : "+";
                 if (reposition || !spot.Shown)
                 {
                     var box = m_Candidates[i].Box;
@@ -829,13 +829,6 @@ namespace RoomOrchestra
                 else spot.SetText(text);
             }
         }
-
-        static UiTerm TermFor(InstrumentType instrument) => instrument switch
-        {
-            InstrumentType.Udu => UiTerm.Udu,
-            InstrumentType.Mbira => UiTerm.Mbira,
-            _ => UiTerm.Erhu
-        };
 
         /// <summary>
         /// A tap on a spot: the next instrument lives there (udu, mbira, erhu, then none). If it lived on another spot,

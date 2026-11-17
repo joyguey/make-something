@@ -155,7 +155,7 @@ namespace RoomOrchestra.Tests
             var spotIcon = cursor.GetComponentInChildren<InstrumentIcon>();
             Assert.IsNotNull(spotIcon, "and its picture (owner, 2026-11-11)");
             Assert.AreEqual(first.Instrument, spotIcon.Showing);
-            Assert.AreEqual(first.Instrument.ToString().ToLowerInvariant(), cursor.Text.ToLowerInvariant());
+            Assert.AreEqual(UiText.NameAndKind(first.Instrument, UiLanguage.English, 45), cursor.Text, "its name, and what it is (V4 review)");
 
             // a press: the mbira lives on the desk; the virtual chair is gone
             yield return Press(hand, DeskTop);

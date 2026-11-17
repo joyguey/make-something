@@ -57,6 +57,47 @@ namespace RoomOrchestra
         public Pack Current => packs != null && packs.Length > 0 ? packs[m_Pack] : null;
         public IReadOnlyList<InstrumentTarget> Furniture => furniture;
 
+        /// <summary>An Echo Battle holds the instruments where they are (the host's, once hosting; both players' once
+        /// the rooms match): Change does nothing until the battle ends.</summary>
+        public static bool Locked;
+        /// <summary>The host's instruments while the joining player matches their room to them: Change gives a piece
+        /// the next one still missing. Null outside that.</summary>
+        public static IReadOnlyList<InstrumentType> Wanted;
+        /// <summary>Change was pressed while <see cref="Locked"/> (the battle card says why).</summary>
+        public static event Action RefusedWhileLocked;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            Locked = false;
+            Wanted = null;
+        }
+
+        /// <summary>The instrument on each piece of furniture, left to right.</summary>
+        public InstrumentType[] Places()
+        {
+            var places = new InstrumentType[furniture.Length];
+            for (int i = 0; i < furniture.Length; i++) places[i] = furniture[i].Instrument;
+            return places;
+        }
+
+        /// <summary>Puts a whole arrangement back (the player's own, after a battle).</summary>
+        public void SetPlaces(IReadOnlyList<InstrumentType> places)
+        {
+            if (places == null || furniture == null || places.Count != furniture.Length) return;
+            bool changed = false;
+            for (int i = 0; i < furniture.Length; i++)
+                if (furniture[i] != null && furniture[i].Instrument != places[i])
+                {
+                    SetPlace(furniture[i], places[i]);
+                    changed = true;
+                }
+            if (!changed) return;
+            ApplySounds();
+            Remember();
+            Changed?.Invoke();
+        }
+
         public void Configure(Pack[] soundPacks, InstrumentTarget[] leftToRight)
         {
             packs = soundPacks;
@@ -141,6 +182,18 @@ namespace RoomOrchestra
                 Debug.Log("[RoomOrchestra] Instruments stay where they are during the lesson");
                 return false;
             }
+            if (Locked)
+            {
+                Debug.Log("[RoomOrchestra] Instruments are locked in for the Echo Battle");
+                RefusedWhileLocked?.Invoke();
+                return false;
+            }
+            if (Wanted != null)
+            {
+                var here = new HashSet<InstrumentType>();
+                foreach (var f in furniture) if (f != null) here.Add(f.Instrument);
+                return Place(piece, EchoBattleRules.NextWanted(Wanted, here, piece.Instrument));
+            }
             return Place(piece, Next(piece.Instrument));
         }
 
@@ -163,6 +216,7 @@ namespace RoomOrchestra
         /// <summary>Back to the first arrangement (the guided song is about it).</summary>
         public void ResetPlaces()
         {
+            if (Locked || Wanted != null) return; // a battle holds them
             bool changed = false;
             for (int i = 0; i < furniture.Length; i++)
                 if (furniture[i] != null && furniture[i].Instrument != firstPlaces[i])
@@ -178,9 +232,8 @@ namespace RoomOrchestra
 
         void Remember()
         {
-            var places = new InstrumentType[furniture.Length];
-            for (int i = 0; i < furniture.Length; i++) places[i] = furniture[i].Instrument;
-            PlayerPrefs.SetString(PlacesPrefKey, FormatPlaces(places));
+            if (Wanted != null) return; // matching the host's set is for the battle only: the player's own arrangement stays remembered
+            PlayerPrefs.SetString(PlacesPrefKey, FormatPlaces(Places()));
             PlayerPrefs.Save();
         }
 

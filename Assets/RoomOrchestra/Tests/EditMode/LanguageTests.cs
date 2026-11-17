@@ -17,7 +17,8 @@ namespace RoomOrchestra.Tests
             {
                 if (UiText.ChineseOnly(term)) Assert.AreEqual("", UiText.Get(term, UiLanguage.English), term.ToString());
                 else Assert.IsFalse(string.IsNullOrWhiteSpace(UiText.Get(term, UiLanguage.English)), term.ToString());
-                Assert.IsFalse(string.IsNullOrWhiteSpace(UiText.Get(term, UiLanguage.Chinese)), term.ToString());
+                if (UiText.EnglishOnly(term)) Assert.AreEqual("", UiText.Get(term, UiLanguage.Chinese), term.ToString());
+                else Assert.IsFalse(string.IsNullOrWhiteSpace(UiText.Get(term, UiLanguage.Chinese)), term.ToString());
             }
             Assert.AreEqual("Undo", UiText.Get(UiTerm.Undo, UiLanguage.English));
             Assert.AreEqual("撤销", UiText.Get(UiTerm.Undo, UiLanguage.Chinese));

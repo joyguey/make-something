@@ -102,7 +102,7 @@ namespace RoomOrchestra.Tests
             var card = Title().Card;
             var flat = card.position;
             flat.y = 0f;
-            Assert.That(flat.magnitude, Is.InRange(0.6f, 0.8f), "an outstretched palm reaches it from the seat");
+            Assert.That(flat.magnitude, Is.InRange(0.8f, 0.9f), "a straight arm reaches it from the seat, and it is not in the player's face (V4 review)");
             var frame = card.Find("TitleSign").GetComponent<Renderer>().bounds;
             Assert.Less(Mathf.Abs(frame.min.y), 0.02f, "its feet are on the ground");
             var print = card.GetComponentInChildren<HandprintStart>(true).transform.position;

@@ -169,7 +169,7 @@ namespace RoomOrchestra.Tests
             {
                 Assert.IsTrue(real.SpotAt(i).Shown);
                 if (real.OccupantAt(i) == null) free = i;
-                else Assert.AreEqual(real.OccupantAt(i).Instrument.ToString().ToLowerInvariant(), real.SpotAt(i).Text.ToLowerInvariant(), "the spot names its instrument");
+                else Assert.AreEqual(UiText.NameAndKind(real.OccupantAt(i).Instrument, Localization.Current, 45), real.SpotAt(i).Text, "the spot names its instrument and what it is");
             }
             Assert.GreaterOrEqual(free, 0, "the cabinet is free");
             Assert.AreEqual("+", real.SpotAt(free).Text);
