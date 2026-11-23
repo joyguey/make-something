@@ -37,9 +37,10 @@ The dev team tried it on two headsets: hosting and joining worked but were hard 
 - **Not reproduced:** on the real scene with the default instruments, the listening path queues and plays the call (new PlayMode test). The silence on the headsets is therefore most likely the two rooms holding different instruments; that is fixed, but only two headsets can confirm it.
 
 
-## Play together from the menu, and SOLO (2026-11-22)
-Owner: multiplayer needs "an easier way to access than the easter egg", and has to be smooth for both players "even though I don't have two headsets".
-- **Menu > Play together** (two-people icon, first on the menu's back row) brings out the card in its poof. It folds the menu away, and if the lesson is still on it ends it (Menu > Lesson plays it again). The card says: "Two headsets on the same Wi-Fi: one taps HOST, the other taps JOIN. Only one headset? Tap SOLO." The secret still works.
-- **SOLO** (yellow sticker, between JOIN and LEAVE) is a whole battle against the game on one headset. The game joins over loopback with the same messages a second headset sends over Wi-Fi (`Scripts/EchoBattlePartner.cs`), so the battle on the card is the real one: count-in, call, listen, echo, score, three rounds, result. The game echoes about 70% of what a perfect echo would score (a 16th off now and then, a missed note sometimes), and its calls grow from 2 notes to 4 over the rounds, on 8th notes. Nothing is sent on the Wi-Fi (loopback, ports 47787/47788).
-- **Nobody found after 20 s:** while hosting or joining, the card says "Still looking. Are both headsets on the same Wi-Fi? Or tap LEAVE, then SOLO to battle the game."
-- Tested: PlayMode `PlayTogetherOnTheMenuThenSoloPlaysAWholeBattleAgainstTheGame` (menu tap to the result, on the real scene) and `NobodyToJoinTheCardSaysWhatToCheckAndOffersSolo`; EditMode `EchoBattleSoloTests` (the partner's calls and echo strength; the menu button; four stickers on the poster without overlap). **Not tested on a headset yet.** HOST/JOIN between two real headsets were last tried by PICO's developers on 2026-11-16.
+## Play together from the menu (2026-11-22)
+Owner: multiplayer needs "an easier way to access than the easter egg".
+- **Menu > Play together** (two-people icon, first on the menu's back row) brings out the card in its poof. It folds the menu away and, if the lesson is still on, ends it (Menu > Lesson plays it again). The card says: "Two headsets on the same Wi-Fi: one taps HOST, the other taps JOIN." The secret still works.
+- **Joining is automatic:** the host's instruments go straight onto the joining player's furniture (pieces already playing one of them keep it); the player's own come back after the battle.
+- **Nobody found after 20 s:** the card says "Still looking. Are both headsets on the same Wi-Fi?"
+- A one-headset SOLO mode was built and then removed the same day (owner: "so unnecessary").
+- Tested: PlayMode `PlayTogetherOnTheMenuBringsOutTheCard`, `NobodyToJoinTheCardSaysWhatToCheck`, `JoiningHearsTheOtherHeadsetsCallOnThisRoomsFurniture`; EditMode `EchoBattleTogetherTests`. **Not tested on two headsets since 2026-11-16.**

@@ -488,7 +488,6 @@ namespace RoomOrchestra.EditorTools
         // opened out of sight); above the sight lines to the table and its tiles.
         static readonly Vector3 BattleCardAt = new Vector3(-0.62f, 1.3f, 1.3f); // its wall clear of the table's drum tiles too
         static readonly Vector3 BattleCardSize = new Vector3(0.5f, 0.36f, 0.03f);
-        public const float BattleButtonStep = 0.118f, BattleButtonWidth = 0.094f; // four stickers within the poster
 
         static void CreateEchoBattle(GameObject root, EchoConductor conductor)
         {
@@ -580,15 +579,14 @@ namespace RoomOrchestra.EditorTools
             score.text = string.Format(UiText.Get(UiTerm.BattleScore, UiLanguage.English), 0, 0);
 
             // Sticker buttons: bold colour, white edge, each a little askew.
-            // SOLO (owner, 2026-11-22): a battle against the game on one headset; four stickers across the same row
-            var kinds = new[] { (EchoBattleButton.Kind.Host, UiTerm.BattleHost, pink, -3f), (EchoBattleButton.Kind.Join, UiTerm.BattleJoin, blue, 2f), (EchoBattleButton.Kind.Solo, UiTerm.BattleSolo, yellow, -2f), (EchoBattleButton.Kind.Leave, UiTerm.BattleLeave, orange, 1.5f) };
+            var kinds = new[] { (EchoBattleButton.Kind.Host, UiTerm.BattleHost, pink, -3f), (EchoBattleButton.Kind.Join, UiTerm.BattleJoin, blue, 2f), (EchoBattleButton.Kind.Leave, UiTerm.BattleLeave, orange, -1.5f) };
             for (int i = 0; i < kinds.Length; i++)
             {
                 var (kind, term, colour, tilt) = kinds[i];
-                var button = Holder($"Battle{kind}", card, new Vector3(BattleButtonStep * (i - (kinds.Length - 1) / 2f), -0.13f, front - 0.004f));
+                var button = Holder($"Battle{kind}", card, new Vector3(-0.155f + 0.155f * i, -0.13f, front - 0.004f));
                 button.localRotation = Quaternion.Euler(0f, 0f, tilt);
-                Box($"Battle{kind}Edge", button, new Vector3(0f, 0f, 0.004f), new Vector3(BattleButtonWidth + 0.012f, 0.072f, 0.03f), white, keepCollider: false);
-                var slab = Box($"Battle{kind}Slab", button, Vector3.zero, new Vector3(BattleButtonWidth, 0.06f, 0.03f), colour, keepCollider: false);
+                Box($"Battle{kind}Edge", button, new Vector3(0f, 0f, 0.004f), new Vector3(0.142f, 0.072f, 0.03f), white, keepCollider: false);
+                var slab = Box($"Battle{kind}Slab", button, Vector3.zero, new Vector3(0.13f, 0.06f, 0.03f), colour, keepCollider: false);
                 slab.gameObject.AddComponent<BoxCollider>();
                 Hoverable(slab.gameObject);
                 var label = Label($"Battle{kind}Label", UiText.Get(term, UiLanguage.English), button, new Vector3(0f, 0f, -0.02f), 0.026f);

@@ -305,12 +305,12 @@ namespace RoomOrchestra
             { UiTerm.BattleGone, ("Lost the other headset.", "和另一台头显断开了。") },
             { UiTerm.BattleFinishLesson, ("Finish or skip the lesson first, then try again.", "先完成或跳过教学，再试一次。") },
             { UiTerm.Together, ("Play\ntogether", "一起\n玩") },
-            { UiTerm.BattleSolo, ("SOLO", "试玩") },
+            { UiTerm.BattleSolo, ("SOLO", "试玩") }, // unused: SOLO removed (owner, 2026-11-22); kept, terms are saved by number
             { UiTerm.ConfirmPlaces, ("Choose again where each instrument lives? The places you chose are forgotten.", "重新选乐器放在哪里吗？现在选好的家具会清除。") },
             { UiTerm.MoveHowTo, ("To move a virtual piece: look at it, make a fist and keep holding it until the piece lifts. Move it, then open your hand to set it down. With a controller: point at it and hold the grip button.", "移动虚拟家具：看着它（或指着它），握拳，握住不放，等它起来。移过去，再张开手放下。也可以指着它按住握把键。") },
-            { UiTerm.BattleIntro, ("Two headsets on the same Wi-Fi: one taps HOST, the other taps JOIN. Only one headset? Tap SOLO.", "两台头显连同一个Wi-Fi：一位点\"主持\"，另一位点\"加入\"。只有一台头显？点\"试玩\"。") },
-            { UiTerm.BattleSoloOn, ("SOLO: the game plays the other side. Get ready...", "试玩：游戏和你对决。准备……") },
-            { UiTerm.BattleStillLooking, ("Still looking. Are both headsets on the same Wi-Fi? Or tap LEAVE, then SOLO to battle the game.", "还在找。两台头显连的是同一个Wi-Fi吗？或者点\"离开\"，再点\"试玩\"，和游戏对决。") },
+            { UiTerm.BattleIntro, ("Two headsets on the same Wi-Fi: one taps HOST, the other taps JOIN.", "两台头显连同一个Wi-Fi：一位点\"主持\"，另一位点\"加入\"。") },
+            { UiTerm.BattleSoloOn, ("SOLO: the game plays the other side. Get ready...", "试玩：游戏和你对决。准备……") }, // unused: SOLO removed
+            { UiTerm.BattleStillLooking, ("Still looking. Are both headsets on the same Wi-Fi?", "还在找。两台头显连的是同一个Wi-Fi吗？") },
             // A button that ends or wipes something asks first (George, 2026-11-03): its label reads this until tapped again.
             { UiTerm.ConfirmAgain, ("Sure?", "确定？") },
             { UiTerm.Quit, ("Quit", "退出") },
