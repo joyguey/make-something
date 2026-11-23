@@ -1,7 +1,7 @@
 """
 Bakes ambient occlusion into the furniture's and characters' meshes (V3 review: "Consider using Blender to bake
 ambient occlusion on your objects individually for greater visuals"), then re-exports their FBX with the result in the
-vertex colours: white RGB, occlusion in alpha (the shader RoomOrchestra/LitBakedAO darkens by it).
+vertex colours: a soft wood grain in RGB (white on the lamp and cushion), occlusion in alpha (the shader RoomOrchestra/LitBakedAO darkens by it).
 
 Each object is baked on its own: furniture parts with every other part hidden, and every character part alone too.
 (The eyes and mouth used to shade the body where they sit; on a low-poly body that showed as dark smudges round the
@@ -22,6 +22,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 mode = args[0] if args else "furniture"
+
+
+def grain(name, co):
+    """Soft wood grain (owner, 2026-11-19, Astro Bot direction): each board its own tone, streaks along it. RGB only,
+    times the material's colour; co in metres (Blender axes). White for the lamp and the cushion."""
+    import math
+    along = {"Furniture_TableTop": 1, "Furniture_ChairSeat": 1}.get(name, 2)
+    if name in ("Furniture_LampBase", "Furniture_LampPole", "Furniture_ChairCushion") or not name.startswith("Furniture_"):
+        return 1.0
+    a = co[along]
+    x = co[0] if along != 0 else co[1]
+    y = co[1] if along == 2 else co[2]
+    board = round(co[0] / 0.24) if name == "Furniture_TableTop" else round(co[0] / 0.1)
+    tone = 0.9 + 0.1 * math.sin(board * 12.9898 + len(name)) ** 2
+    streak = 0.055 * math.sin(x * 120 + y * 40 + 2.2 * math.sin(a * 6 + board)) + 0.03 * math.sin(x * 310 + a * 2)
+    return max(0.6, min(1.0, tone + streak))
 
 
 def bake(obj, distance, visible):
@@ -51,8 +67,11 @@ def bake(obj, distance, visible):
     values = [max(0.3, min(1.0, (d.color[0] + d.color[1] + d.color[2]) / 3)) for d in ao.data]
     mesh.color_attributes.remove(ao)
     col = mesh.color_attributes.new("Col", "FLOAT_COLOR", "CORNER")
+    scale = obj.scale
     for i, v in enumerate(values):
-        col.data[i].color = (1.0, 1.0, 1.0, v)
+        p = mesh.vertices[mesh.loops[i].vertex_index].co
+        g = grain(obj.name, (p.x * scale.x, p.y * scale.y, p.z * scale.z))
+        col.data[i].color = (g, g, g, v)
     mesh.color_attributes.active_color = col
     mesh.color_attributes.render_color_index = mesh.color_attributes.active_color_index
     for o in bpy.data.objects:
@@ -75,7 +94,7 @@ if mode == "furniture":
     sizes = {p["mesh"]: p for p in json.load(open(os.path.join(ROOT, "ArtSource", "Furniture", "part_sizes.json")))["parts"]}
     for obj in meshes:
         key = obj.name.replace("Furniture_", "")
-        part = sizes.get(obj.name) or sizes.get(key)
+        part = sizes.get(obj.name) or sizes.get(key) or sizes.get({"Furniture_ChairCushion": "Furniture_ChairSeat"}.get(obj.name, ""))
         s = part["scale"] if part else [1, 1, 1]
         obj.scale = (s[0], s[2], s[1])  # Unity X/Y/Z scale -> Blender X/Z/Y
         bpy.context.view_layer.update()

@@ -220,7 +220,7 @@ namespace RoomOrchestra.Tests
                 yield return new WaitForSecondsRealtime(0.25f); // past the duplicate-tap debounce
                 Assert.IsTrue(InstrumentInputRouter.Activate(mixGo));
             }
-            Assert.AreEqual("mbira\nMuted", label.text);
+            Assert.AreEqual("mbira\n<size=60%>thumb piano</size>\nMuted", label.text);
             Assert.AreEqual(0f, chair.MixGain);
             foreach (var voice in chair.GetComponents<AudioSource>())
                 Assert.AreEqual(0f, voice.volume, "ringing and scheduled voices silent at once");
@@ -232,7 +232,7 @@ namespace RoomOrchestra.Tests
 
             yield return new WaitForSecondsRealtime(0.25f);
             InstrumentInputRouter.Activate(mixGo);
-            Assert.AreEqual("mbira\nVol 100%", label.text);
+            Assert.AreEqual("mbira\n<size=60%>thumb piano</size>\nVol 100%", label.text);
             Assert.AreEqual(1f, chair.MixGain);
             bool anyAudible = false;
             foreach (var voice in chair.GetComponents<AudioSource>()) anyAudible |= voice.volume > 0f;

@@ -32,6 +32,9 @@ namespace RoomOrchestra.EditorTools
                 float smallest = Mathf.Min(size.x, Mathf.Min(size.y, size.z));
                 if (smallest < MinRounded) continue;
                 float radius = Mathf.Min(maxRadius, smallest * 0.3f);
+                // the toy buttons (owner, 2026-11-19): a pillowy cap, a soft ring, and name tags rounded like pills
+                if (filter.name.EndsWith("Slab") || filter.name.EndsWith("Ring")) radius = Mathf.Min(0.012f, smallest * 0.4f);
+                if (filter.name == "LabelBacking") radius = smallest * 0.49f;
                 filter.sharedMesh = RoundedBox(size, radius);
                 count++;
             }

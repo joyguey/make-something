@@ -3,7 +3,7 @@ More detailed furniture for Little Echoes (Version 1 feedback: "more detailed 3D
 built at each part's real size (ArtSource/Furniture/part_sizes.json, written by FurnitureModels.DumpPartSizes):
 
   table   a top of five bevelled planks with grooves between them and an apron underneath; tapered square legs with feet
-  chair   a seat board with a soft cushion; a back of two stiles, a curved top rail, a bottom rail and three slats;
+  chair   a seat board with a soft cream cushion (its own mesh, four button tufts); a back of two stiles, a curved top rail, a bottom rail and three slats;
           tapered round legs
   lamp    a stepped, bevelled base; a slim pole with two collars (the drum shade is built in Unity: RoundedShapes)
 
@@ -20,6 +20,7 @@ import os
 
 import bmesh
 import bpy
+from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -78,6 +79,23 @@ def disc(bm, cz, h, d, bevel=0.0, sides=40):
     merge(bm, tmp)
 
 
+def strips(bm, across, along=None, cuts=18, along_cuts=6):
+    """Cuts a part into thin strips across its grain (and a few along it), so the wood grain painted into its vertex
+    colours (bake_ao.py) has somewhere to live: streaks run along each board."""
+    lo = [min(v.co[i] for v in bm.verts) for i in range(3)]
+    hi = [max(v.co[i] for v in bm.verts) for i in range(3)]
+    for axis, n in ((across, cuts), (along, along_cuts)):
+        if axis is None:
+            continue
+        normal = [0, 0, 0]
+        normal[axis] = 1
+        for k in range(1, n):
+            co = [0, 0, 0]
+            co[axis] = lo[axis] + (hi[axis] - lo[axis]) * k / n
+            geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+            bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=normal)
+
+
 def merge(bm, tmp):
     tmp.verts.ensure_lookup_table()
     mapping = {v: bm.verts.new(v.co) for v in tmp.verts}
@@ -89,9 +107,10 @@ def merge(bm, tmp):
     tmp.free()
 
 
-def finish(name, bm):
-    """Into the part's local space (divide by its scale: Unity X, Y(up), Z = Blender X, Z, Y) and into the scene."""
-    s = SIZES[name]["scale"]
+def finish(name, bm, space=None):
+    """Into the part's local space (divide by its scale: Unity X, Y(up), Z = Blender X, Z, Y) and into the scene.
+    <space>: another part whose space it lives in (the cushion is a child of the seat)."""
+    s = SIZES[space or name]["scale"]
     for v in bm.verts:
         v.co.x /= s[0]
         v.co.y /= s[2]
@@ -119,7 +138,10 @@ def table_top():
     pw = (w - groove * (planks - 1)) / planks
     for i in range(planks):  # planks run front to back, grooves between them
         cx = -w / 2 + pw / 2 + i * (pw + groove)
-        box(bm, cx, 0, 0, pw, d, h, bevel=0.008)
+        plank = bmesh.new()
+        box(plank, cx, 0, 0, pw, d, h, bevel=0.008)
+        strips(plank, 0, 1, cuts=14, along_cuts=5)  # streaks run front to back, along each plank
+        merge(bm, plank)
     # An apron (skirt) under the top, set in from the edges; it hangs below the top's own box.
     apron_h, inset, t = 0.075, 0.06, 0.022
     z = -h / 2 - apron_h / 2
@@ -136,6 +158,8 @@ def table_leg():
     foot = 0.025
     frustum(bm, -h / 2 + foot, h / 2, w * 0.68, w, sides=4, bevel=0.006)  # tapers toward the floor
     box(bm, 0, 0, -h / 2 + foot / 2, w * 0.74, w * 0.74, foot, bevel=0.006)  # a small foot
+    strips(bm, 0, 2, cuts=6, along_cuts=8)
+    strips(bm, 1, None, cuts=6)
     finish("Furniture_TableLeg", bm)
 
 
@@ -144,9 +168,21 @@ def chair_seat():
     bm = bmesh.new()
     board = h * 0.55
     box(bm, 0, 0, -h / 2 + board / 2, w, d, board, bevel=0.008)
-    cushion = h - board + 0.02  # a little proud of the seat's box: soft
-    box(bm, 0, 0.01, -h / 2 + board + cushion / 2 - 0.005, w - 0.05, d - 0.07, cushion, bevel=0.018, segments=4)
+    strips(bm, 0, 1, cuts=16, along_cuts=5)
     finish("Furniture_ChairSeat", bm)
+    # The cushion, its own mesh in the seat's space (a cream fabric, FurnitureModels), with four button tufts.
+    cushion = h - board + 0.02  # a little proud of the seat's box: soft
+    cz = -h / 2 + board + cushion / 2 - 0.005
+    soft = bmesh.new()
+    box(soft, 0, 0.01, cz, w - 0.05, d - 0.07, cushion, bevel=0.018, segments=4)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            tuft = bmesh.new()
+            bmesh.ops.create_uvsphere(tuft, u_segments=10, v_segments=6, radius=0.009)
+            for v in tuft.verts:
+                v.co += Vector((sx * 0.1, 0.01 + sy * 0.1, cz + cushion / 2 - 0.002))
+            merge(soft, tuft)
+    finish("Furniture_ChairCushion", soft, space="Furniture_ChairSeat")
 
 
 def chair_back():
@@ -165,6 +201,7 @@ def chair_back():
     for i in range(3):  # three slats
         cx = (i - 1) * (w - 2 * stile) / 3.2
         box(bm, cx, 0, (span_lo + span_hi) / 2, 0.055, d * 0.6, span_hi - span_lo, bevel=0.006)
+    strips(bm, 0, 2, cuts=24, along_cuts=6)
     finish("Furniture_ChairBack", bm)
 
 
@@ -172,6 +209,7 @@ def chair_leg():
     w, d, h = size("Furniture_ChairLeg")
     bm = bmesh.new()
     frustum(bm, -h / 2, h / 2, w * 0.7, w, sides=12, round_=True)
+    strips(bm, 2, None, cuts=8)
     finish("Furniture_ChairLeg", bm)
 
 

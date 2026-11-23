@@ -28,7 +28,7 @@ namespace RoomOrchestra
         }
 
         public static string TextFor(InstrumentType instrument, int level, UiLanguage language) =>
-            $"{UiText.Name(instrument, language)}\n{UiText.Volume(level, language)}";
+            $"{UiText.NameAndKind(instrument, language)}\n{UiText.Volume(level, language)}";
 
         void OnEnable()
         {

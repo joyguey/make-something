@@ -211,6 +211,9 @@ namespace RoomOrchestra
         readonly FlatSpots m_Spots = new();
         bool m_SpotsDirty, m_KeepOutSet;
         XRMeshSubsystem m_Meshing;
+        /// <summary>This device can scan the room (its meshing subsystem is there), whether or not any of the scan has
+        /// arrived yet. The editor and devices without room meshing cannot.</summary>
+        public bool CanScan => m_Meshing != null || m_Surfaces.Count > 0; // a scan already in (or the tests' pretend room) counts
         float m_NextPoll;
         bool m_Logged;
 
@@ -306,6 +309,8 @@ namespace RoomOrchestra
             m_SpotsDirty = true;
         }
 
+        bool m_WasAllowed;
+
         void Start()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -321,6 +326,16 @@ namespace RoomOrchestra
             if (Time.time < m_NextPoll) return;
             m_NextPoll = Time.time + PollSeconds;
             if (m_Meshing == null && !FindMeshing()) return;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // meshing started before the player allowed room data delivers nothing: start it again once allowed
+            bool allowed = UnityEngine.Android.Permission.HasUserAuthorizedPermission(SpatialDataPermission);
+            if (allowed && !m_WasAllowed && m_Meshing.running)
+            {
+                m_Meshing.Stop();
+                Debug.Log("[RoomOrchestra] Room data allowed: the room scan starts again");
+            }
+            m_WasAllowed = allowed;
+#endif
             if (!m_Meshing.running) m_Meshing.Start();
             m_Infos.Clear();
             if (!m_Meshing.TryGetMeshInfos(m_Infos)) return;

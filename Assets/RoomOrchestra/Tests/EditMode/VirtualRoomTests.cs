@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor.SceneManagement;
@@ -39,7 +40,21 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(inside.Contains(new Vector3(0f, 1.15f, 0f)), "the seat is inside");
             // V3 review: a meadow instead of a box: grass, flowers, trees, hills, clouds and sky, inside invisible fences
             Assert.AreEqual(40, room.Panels.Count(p => p.name.StartsWith("Wall")), "4 invisible fences of 10");
-            Assert.AreEqual(28, room.Panels.Count(p => p.name.StartsWith("GroundS")), "grass underfoot: the floor's ring sectors");
+            Assert.AreEqual(44, room.Panels.Count(p => p.name.StartsWith("GroundS")), "grass underfoot: the floor's ring sectors, out under the sky's edge (V4 review: no gap)");
+            // the grass runs on to the sky's lower edge all the way round: no ring of the real room between them (V4 review)
+            // (measured on the vertices: a rotated piece's bounds box is bigger than the piece)
+            IEnumerable<Vector3> Points(string prefix) => room.Panels.Where(p => p.name.StartsWith(prefix))
+                .SelectMany(p => p.GetComponent<MeshFilter>().sharedMesh.vertices.Select(v => p.TransformPoint(v)));
+            var middle = room.Panels.First(p => p.name.StartsWith("SkyWedge")).position;
+            float Flat(Vector3 v) => new Vector2(v.x - middle.x, v.z - middle.z).magnitude;
+            var sky = Points("SkyWedge").ToList();
+            var grass = Points("GroundS").ToList();
+            float grassLevel = grass.Min(v => v.y);
+            Assert.Less(sky.Min(v => v.y), grassLevel, "the sky's lower edge is below the grass");
+            float skyAtGrass = sky.Where(v => v.y >= grassLevel).Max(Flat); // where the dome comes down to the grass
+            // the grass's reach, in the direction it reaches least (16 directions round)
+            float grassReach = grass.GroupBy(v => Mathf.RoundToInt(Mathf.Repeat(Mathf.Atan2(v.z - middle.z, v.x - middle.x), Mathf.PI * 2f) / (Mathf.PI / 8f)) % 16).Min(g => g.Max(Flat));
+            Assert.Greater(grassReach, skyAtGrass, "in every direction the grass runs on under the sky");
             foreach (var kind in new[] { "Tree", "Hill", "Flowers", "Bush", "Cloud", "SkyWedge" })
                 Assert.IsTrue(room.Panels.Any(p => p.name.StartsWith(kind)), $"the meadow has {kind}");
         }

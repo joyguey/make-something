@@ -74,6 +74,7 @@ namespace RoomOrchestra.EditorTools
             var m = EnsureMaterial(name, "RoomOrchestra/LitBakedAO", Color.white);
             m.SetFloat("_SwayAmount", amount);
             m.SetFloat("_SwayHeight", height);
+            m.SetFloat("_Smoothness", 0.06f); // leaves are matte: no shiny disc on a leafy clump (owner, 2026-11-19)
             return m;
         }
         static Material Grass() => Swaying("MeadowSwayGrass", 0.035f, 0.35f);
@@ -83,12 +84,13 @@ namespace RoomOrchestra.EditorTools
         // clouds glow softly so their undersides stay light, not storm grey (less at dusk, so they sit in the evening sky)
         static Material CloudLook(bool dusk = false)
         {
-            var m = EnsureMaterial(dusk ? "MeadowCloudDusk" : "MeadowCloud", "RoomOrchestra/LitBakedAO", Color.white);
-            m.SetColor("_EmissionColor", dusk ? new Color(0.25f, 0.25f, 0.25f) : new Color(0.45f, 0.47f, 0.5f));
+            // drawn unlit: their soft light and shade are painted into their colours in Blender, so no hard line runs
+            // between a billow's lit and shaded sides (owner, 2026-11-19: "I need them to look like a natural cloud")
+            var m = EnsureMaterial(dusk ? "MeadowCloudDusk" : "MeadowCloud", "RoomOrchestra/UnlitVertexColor", Color.white);
             return m;
         }
 
-        static Material EnsureMaterial(string name, string shader, Color colour)
+        internal static Material EnsureMaterial(string name, string shader, Color colour)
         {
             string path = $"{MaterialDir}/{name}.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -154,6 +156,9 @@ namespace RoomOrchestra.EditorTools
             return mesh;
         }
 
+        /// <summary>The least distance between two trees' trunks (m): their canopies never meet.</summary>
+        public const float TreeSpacing = 3.4f;
+
         static bool InClearing(Vector3 p, float margin) =>
             p.x > Clearing.xMin - margin && p.x < Clearing.xMax + margin && p.z > Clearing.yMin - margin && p.z < Clearing.yMax + margin;
 
@@ -196,48 +201,91 @@ namespace RoomOrchestra.EditorTools
                     s_Dusk[k] = dusk != null ? CentredCopy(dusk, name, middle, name + "_Dusk") : mesh; // the day's middle: the same place
                 }
             }
-            // flowers and grass tufts, around the clearing
-            for (int i = 0; i < 16; i++)
+            // Everything stands on its own patch of ground: nothing grows into anything else (owner, 2026-11-19:
+            // "make sure nothing is overlapping that wouldn't be found in nature"). The big things go down first; each
+            // smaller one looks for a clear spot (its footprint off every footprint already down) and is left out if
+            // it finds none. Grass may grow up to a tree's trunk or a rock's foot, as it does.
+            var ground = new List<(Vector3 at, float r)>();
+            bool Clear(Vector3 at, float r) => ground.All(g => (g.at - at).magnitude >= g.r + r);
+            Vector3? Spot(float rMin, float rMax, float r, float clearing, int tries = 24)
             {
-                var at = Around(rng, 3.2f, 8f, centre);
-                if (InClearing(at, 0.3f)) continue;
-                Piece($"Meadow_Flowers{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 1f, Grass(), panels);
+                for (int t = 0; t < tries; t++)
+                {
+                    var at = Around(rng, rMin, rMax, centre);
+                    if (!InClearing(at, clearing) && Clear(at, r)) return at;
+                }
+                return null;
             }
-            for (int i = 0; i < 70; i++)
+            // three outcrops around the horizon, never a ring of them (owner, 2026-11-19: "only about 3 when looking
+            // around"; the start screen stays uncluttered): ahead-left, to the right and behind
+            float[] outcrops = { 305f, 75f, 190f };
+            for (int i = 0; i < outcrops.Length; i++)
             {
-                var at = Around(rng, 2.6f, 9.5f, centre);
-                if (InClearing(at, 0f)) continue;
-                Piece($"Meadow_Grass{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 0.8f + (float)rng.NextDouble() * 0.6f, Grass(), panels);
+                float a = outcrops[i] + (float)rng.NextDouble() * 20f;
+                var at = centre + Quaternion.Euler(0f, a, 0f) * Vector3.forward * (14f + (float)rng.NextDouble() * 4f);
+                string hill = $"Meadow_Hill{rng.Next(3)}";
+                var rock = Piece(hill, room, at, a + 90f, 1f, Swaying("MeadowHill", 0f, 1f), panels); // matte: no shine on the grass
+                if (rock != null) ground.Add((at, Mathf.Max(M(hill).bounds.extents.x, M(hill).bounds.extents.z) + 0.3f));
             }
             // the bush the friends hide in until Start, beside the leaf (LittleEchoesSceneSetup.FriendsBushAt)
-            var hide = Piece("Meadow_Bush2", room, LittleEchoesSceneSetup.FriendsBushAt, 20f, 1.15f, lit, panels);
+            var hide = Piece("Meadow_Bush2", room, LittleEchoesSceneSetup.FriendsBushAt, 20f, 1.15f, Swaying("MeadowBushStill", 0f, 0.9f), panels); // matte leaves, and still: the friends hide in it
             if (hide != null) hide.name = "FriendsBush";
-            // bushes and rocks at the clearing's edge
-            for (int i = 0; i < 11; i++)
-            {
-                var at = Around(rng, 4.2f, 7f, centre);
-                if (InClearing(at, 0.6f)) continue;
-                Piece($"Meadow_Bush{rng.Next(3)}", room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.4f, Shrub(), panels);
-            }
-            for (int i = 0; i < 7; i++)
-            {
-                var at = Around(rng, 4f, 9f, centre);
-                if (InClearing(at, 0.5f)) continue;
-                Piece($"Meadow_Rock{rng.Next(2)}", room, at, (float)rng.NextDouble() * 360f, 0.8f + (float)rng.NextDouble() * 0.7f, lit, panels);
-            }
-            // trees beyond
+            ground.Add((LittleEchoesSceneSetup.FriendsBushAt, 0.8f));
+            // trees beyond, each canopy clear of the others (owner, 2026-11-19: the blossom trees "blend into the
+            // normal green trees"): a trunk's footprint is half the spacing, so two trees stand TreeSpacing apart
             string[] trees = { "Meadow_TreeRound0", "Meadow_TreeRound1", "Meadow_TreePine0", "Meadow_TreePine1", "Meadow_TreeBlossom0" };
+            var trunks = new List<(Vector3 at, float r)>();
             for (int i = 0; i < 16; i++)
             {
-                var at = Around(rng, 6.5f, 10.5f, centre);
-                Piece(trees[rng.Next(trees.Length)], room, at, (float)rng.NextDouble() * 360f, 0.9f + (float)rng.NextDouble() * 0.5f, Tree(), panels);
+                string kind = trees[rng.Next(trees.Length)];
+                float turn = (float)rng.NextDouble() * 360f, size = 0.9f + (float)rng.NextDouble() * 0.5f;
+                var at = Spot(6.5f, 11.5f, TreeSpacing / 2f, 0f);
+                if (at == null) continue;
+                ground.Add((at.Value, TreeSpacing / 2f));
+                trunks.Add((at.Value, 0.35f * size));
+                Piece(kind, room, at.Value, turn, size, Tree(), panels);
             }
-            // rolling hills on the horizon
-            for (int i = 0; i < 10; i++)
+            // under the trees, only grass: from here on the trees count by their trunks (and the blossom's fallen petals)
+            ground.RemoveAll(g => trunks.Any(t => t.at == g.at));
+            foreach (var t in trunks) ground.Add((t.at, 1.3f));
+            // rocks and bushes at the clearing's edge
+            for (int i = 0; i < 7; i++)
             {
-                float a = i / 10f * 360f + (float)rng.NextDouble() * 20f;
-                var at = centre + Quaternion.Euler(0f, a, 0f) * Vector3.forward * (14f + (float)rng.NextDouble() * 4f);
-                Piece($"Meadow_Hill{rng.Next(3)}", room, at, a + 90f, 1f, lit, panels);
+                float turn = (float)rng.NextDouble() * 360f, size = 0.8f + (float)rng.NextDouble() * 0.7f;
+                string kind = $"Meadow_Rock{rng.Next(2)}";
+                var at = Spot(4f, 9f, 0.55f * size, 0.5f);
+                if (at == null) continue;
+                ground.Add((at.Value, 0.55f * size));
+                Piece(kind, room, at.Value, turn, size, lit, panels);
+            }
+            for (int i = 0; i < 11; i++)
+            {
+                float turn = (float)rng.NextDouble() * 360f, size = 0.9f + (float)rng.NextDouble() * 0.4f;
+                string kind = $"Meadow_Bush{rng.Next(3)}";
+                var at = Spot(4.2f, 7f, 0.5f * size, 0.6f);
+                if (at == null) continue;
+                ground.Add((at.Value, 0.5f * size));
+                Piece(kind, room, at.Value, turn, size, Shrub(), panels);
+            }
+            // flowers in the open, then grass tufts (which may grow close to a trunk or a rock's foot, not into them)
+            for (int i = 0; i < 16; i++)
+            {
+                string kind = $"Meadow_Flowers{rng.Next(3)}";
+                float turn = (float)rng.NextDouble() * 360f;
+                var at = Spot(3.2f, 8f, 0.6f, 0.3f);
+                if (at == null) continue;
+                ground.Add((at.Value, 0.6f));
+                Piece(kind, room, at.Value, turn, 1f, Grass(), panels);
+            }
+            ground.RemoveAll(g => trunks.Any(t => t.at == g.at)); // a tuft may stand right by a trunk: the trees count by their trunks alone
+            foreach (var t in trunks) ground.Add((t.at, t.r));
+            for (int i = 0; i < 70; i++)
+            {
+                string kind = $"Meadow_Grass{rng.Next(2)}";
+                float turn = (float)rng.NextDouble() * 360f, size = 0.8f + (float)rng.NextDouble() * 0.6f;
+                var at = Spot(2.6f, 9.5f, 0.12f * size, 0f, 6);
+                if (at == null) continue;
+                Piece(kind, room, at.Value, turn, size, Grass(), panels);
             }
             // clouds overhead, and the sky
             for (int i = 0; i < 7; i++)

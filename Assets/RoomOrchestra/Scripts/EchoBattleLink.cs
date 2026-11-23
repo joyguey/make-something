@@ -19,7 +19,7 @@ namespace RoomOrchestra
     /// </summary>
     public sealed class EchoBattleLink : IDisposable
     {
-        public const string Protocol = "LE1";
+        public const string Protocol = "LE2";
         public const int DefaultPort = 47777;
         public const float AnnounceSeconds = 1f, ResendSeconds = 0.3f;
         public const int MaxResends = 40;

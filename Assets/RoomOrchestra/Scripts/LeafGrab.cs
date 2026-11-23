@@ -14,7 +14,17 @@ namespace RoomOrchestra
         /// <summary>How close to the leaf (m, from its edge) a grab takes hold of it.</summary>
         public const float Reach = 0.12f;
 
+        /// <summary>A bare hand's fist must be held this long before it takes hold of furniture, and opened this long
+        /// before it lets go (owner, headset 2026-11-22: "I couldn't tell when I was suddenly dragging the virtual
+        /// furniture": a relaxed, curled hand looking at a piece took it, and the fist's flicker took and dropped it).
+        /// The controller's grip button is deliberate and acts at once. The fist must stay on the same piece all the
+        /// while (the gaze passing over another piece starts over), and the piece lifts when it is taken.</summary>
+        public const float HandHoldSeconds = 0.7f, HandLetGoSeconds = 0.15f;
+
         readonly bool[] m_WasGrip = new bool[2];
+        readonly float[] m_GripSince = { -1f, -1f }, m_OpenSince = { -1f, -1f };
+        readonly bool[] m_GripUsed = new bool[2];
+        readonly string[] m_Aimed = new string[2];
         int m_Hand = -1;
         bool m_Furniture; // holding a kept virtual piece of furniture, not the leaf
         bool m_ByRay;     // ... from afar, along the pointer (or the gaze)
@@ -47,10 +57,28 @@ namespace RoomOrchestra
                 bool grip = frame.Grip;
                 bool closed = grip && !m_WasGrip[hand];
                 m_WasGrip[hand] = grip;
+                bool bareHand = frame.Gaze || frame.BarePalm;
+                float now = Time.unscaledTime;
+                if (grip)
+                {
+                    if (closed) { m_GripSince[hand] = now; m_GripUsed[hand] = false; m_Aimed[hand] = null; }
+                    m_OpenSince[hand] = -1f;
+                }
+                else if (m_OpenSince[hand] < 0f) m_OpenSince[hand] = now;
+                // a bare hand's fist takes furniture once held a moment (once per fist); a controller's grip at once
                 var furniture = RealFurniture.Instance;
+                // a bare hand's fist must stay on one piece: looking off it, or onto another, starts the hold over
+                if (bareHand && grip && !m_GripUsed[hand] && m_Hand < 0 && furniture != null)
+                {
+                    var aimed = furniture.WouldTake(at, frame.Tracked || frame.Gaze ? PointerRay(frame, rig) : (Ray?)null);
+                    if (aimed != m_Aimed[hand]) { m_Aimed[hand] = aimed; m_GripSince[hand] = now; }
+                }
+                bool furnitureGrab = !m_GripUsed[hand] && grip && (bareHand ? m_Aimed[hand] != null && now - m_GripSince[hand] >= HandHoldSeconds : closed);
                 if (m_Hand == hand)
                 {
-                    if (grip)
+                    // a bare hand holding furniture lets go only once it has been open a moment (the fist flickers)
+                    bool holding = grip || (m_Furniture && bareHand && now - m_OpenSince[hand] < HandLetGoSeconds);
+                    if (holding)
                     {
                         if (m_Furniture && m_ByRay) furniture?.MoveAlong(PointerRay(frame, rig));
                         else if (m_Furniture) furniture?.MoveTo(at);
@@ -64,27 +92,28 @@ namespace RoomOrchestra
                     }
                     continue;
                 }
-                if (m_Hand < 0 && closed && playing)
+                if (m_Hand < 0 && playing && closed && Near(at))
                 {
-                    if (Near(at))
+                    m_Hand = hand;
+                    m_Furniture = false;
+                    m_GripUsed[hand] = true;
+                    tray.BeginGrab(at);
+                }
+                else if (m_Hand < 0 && playing && furnitureGrab && furniture != null)
+                {
+                    bool took = furniture.TryBeginMove(at); // a kept virtual piece within reach (owner, 2026-11-12)
+                    m_ByRay = false;
+                    if (!took && (frame.Tracked || frame.Gaze)) // or pointed at, from afar
                     {
-                        m_Hand = hand;
-                        m_Furniture = false;
-                        tray.BeginGrab(at);
+                        took = furniture.TryBeginMoveByRay(PointerRay(frame, rig));
+                        m_ByRay = took;
                     }
-                    else if (furniture != null && furniture.TryBeginMove(at)) // a kept virtual piece within reach (owner, 2026-11-12)
+                    m_GripUsed[hand] = true; // one try per fist: no grab later in the same fist as the head turns
+                    if (took)
                     {
                         m_Hand = hand;
                         m_Furniture = true;
-                        m_ByRay = false;
-                        UiSounds.Play(UiSound.Press, at);
-                    }
-                    else if (furniture != null && (frame.Tracked || frame.Gaze) && furniture.TryBeginMoveByRay(PointerRay(frame, rig))) // or pointed at, from afar
-                    {
-                        m_Hand = hand;
-                        m_Furniture = true;
-                        m_ByRay = true;
-                        UiSounds.Play(UiSound.Press, at);
+                        if (!frame.Gaze) Haptics.Pulse(hand, Haptics.GrabStrength, Haptics.GrabMs);
                     }
                 }
             }

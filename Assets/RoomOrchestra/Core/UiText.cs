@@ -141,7 +141,36 @@ namespace RoomOrchestra
         ScanProgress,
         ScanProgressHint,
         /// <summary>Furniture chosen with a virtual piece kept: how to change and move it (owner, headset 2026-11-12).</summary>
-        PlaceDoneMovable
+        PlaceDoneMovable,
+        /// <summary>Echo Battle: the other player's call had no notes (appended: terms are saved by number).</summary>
+        BattleNothing,
+        /// <summary>Echo Battle, the host's instruments are locked in and the joiner matches them (owner, 2026-11-16;
+        /// appended). {0} is the list of instruments; BattleNeed's {0} is the ones still missing.</summary>
+        BattleTheyPlace,
+        BattleNeed,
+        BattleHostSet,
+        BattlePlaced,
+        BattleLocked,
+        /// <summary>What each instrument is, in plain words, under its name (V4 review: "mbira" took a while to
+        /// understand). Appended.</summary>
+        KindUdu,
+        KindMbira,
+        KindErhu,
+        KindOcarina,
+        KindHandpan,
+        KindGuzheng,
+        KindBalafon,
+        KindSlitDrum,
+        /// <summary>Echo Battle from the menu, and a battle against the game on one headset (owner, 2026-11-22: "an
+        /// easier way to access than the easter egg", smooth "even though I don't have two headsets"). Appended.</summary>
+        Together,
+        BattleSolo,
+        BattleIntro,
+        BattleSoloOn,
+        BattleStillLooking,
+        /// <summary>Flutter, after the furniture is chosen: how to move a virtual piece, on its own (owner, headset
+        /// 2026-11-22: the grab gesture "should be mentioned in the tutorial, that is not very clear"). Appended.</summary>
+        MoveHowTo
     }
 
     /// <summary>
@@ -174,6 +203,14 @@ namespace RoomOrchestra
             { UiTerm.Guzheng, ("guzheng", "古筝") },
             { UiTerm.Balafon, ("balafon", "巴拉风木琴") },
             { UiTerm.SlitDrum, ("slit drum", "木鼓") },
+            { UiTerm.KindUdu, ("clay pot drum", "") },
+            { UiTerm.KindMbira, ("thumb piano", "") },
+            { UiTerm.KindErhu, ("two-string fiddle", "") },
+            { UiTerm.KindOcarina, ("clay flute", "") },
+            { UiTerm.KindHandpan, ("steel hand drum", "") },
+            { UiTerm.KindGuzheng, ("plucked zither", "") },
+            { UiTerm.KindBalafon, ("wooden xylophone", "") },
+            { UiTerm.KindSlitDrum, ("wooden log drum", "") },
             { UiTerm.ScanProgress, ("Scanning your room: {0}%", "正在扫描房间：{0}%") },
             { UiTerm.PlaceDoneMovable, ("All set! Tap the picture above any furniture to change its instrument. To move a virtual one, point at it and hold the grip button (or look at it and make a fist), then drag it.", "好啦！点家具上面的小图可以换乐器。要移动虚拟家具，指着它按住握把键（或看着它握拳），然后拖动。") },
             { UiTerm.ScanProgressHint, ("Look all around: walls, floor, furniture", "看一圈：墙、地板、家具") },
@@ -203,9 +240,9 @@ namespace RoomOrchestra
             { UiTerm.ScanLook, ("Look slowly around your room. Furniture I find gets a glowing spot!", "慢慢看看你的房间。我找到的家具上会出现发光的圆点！") },
             { UiTerm.ScanFound, ("Tap a glowing spot to choose which instrument lives there. Then throw us at it!", "点一下发光的圆点，选一个乐器放在那里。然后把我们扔过去！") },
             { UiTerm.ScanNone, ("I couldn't find your furniture, so the instruments stay right here.", "没找到你的家具，乐器就留在这里。") },
-            { UiTerm.PlaceUdu, ("Last, the udu drum: point at a real table and press. Or press the table to keep it here.", "最后是乌杜鼓：指向一张真的桌子，按一下。或者按桌子，让它留在这里。") },
-            { UiTerm.PlaceMbira, ("The glow is your room. Where should the mbira live? Point at a real chair or sofa and press. Or press the chair to keep it here.", "发光的就是你的房间。拇指琴要住在哪里？指向一把真的椅子或沙发，按一下。或者按椅子，让它留在这里。") },
-            { UiTerm.PlaceErhu, ("Now the erhu: point at a real lamp or light and press. Or press the lamp to keep it here.", "现在是二胡：指向一盏真的灯，按一下。或者按台灯，让它留在这里。") },
+            { UiTerm.PlaceUdu, ("Last, the udu, a clay pot drum: point at a real table and press. Or press the table to keep it here.", "最后是乌杜鼓：指向一张真的桌子，按一下。或者按桌子，让它留在这里。") },
+            { UiTerm.PlaceMbira, ("The glow is your room. Where should the mbira (a thumb piano) live? Point at a real chair or sofa and press. Or press the chair to keep it here.", "发光的就是你的房间。拇指琴要住在哪里？指向一把真的椅子或沙发，按一下。或者按椅子，让它留在这里。") },
+            { UiTerm.PlaceErhu, ("Now the erhu, a two-string fiddle: point at a real lamp or light and press. Or press the lamp to keep it here.", "现在是二胡：指向一盏真的灯，按一下。或者按台灯，让它留在这里。") },
             { UiTerm.PlaceDone, ("All set! Point at your furniture to see its five notes, then press to play, or throw us at it! Tap the picture above it to change the instrument.", "好啦！指向你的家具，看看它的五个音，然后按一下来弹，或者把我们扔过去！点它上面的小图可以换乐器。") },
             { UiTerm.PlaceWelcomeBack, ("Welcome back! Your instruments are where you left them.", "欢迎回来！乐器都还在你上次放的地方。") },
             { UiTerm.ConfirmQuit, ("Quit Little Echoes?", "退出游戏吗？") },
@@ -239,17 +276,23 @@ namespace RoomOrchestra
             { UiTerm.ViewContrast, ("High contrast", "高对比") },
             { UiTerm.ViewLargeContrast, ("Large + contrast", "大字+高对比") },
             { UiTerm.BattleTitle, ("Echo Battle", "回声对决") },
-            { UiTerm.BattleFound, ("Unlocked. Two headsets, same Wi-Fi: one hits HOST, the other JOIN.", "解锁了。两台头显连同一个Wi-Fi：一台点\"主持\"，另一台点\"加入\"。") },
+            { UiTerm.BattleFound, ("Unlocked. Two players on the same Wi-Fi: one taps HOST, then the other taps JOIN.", "解锁了。两位玩家连同一个Wi-Fi：一位先点\"主持\"，另一位再点\"加入\"。") },
             { UiTerm.BattleHost, ("HOST", "主持") },
             { UiTerm.BattleJoin, ("JOIN", "加入") },
             { UiTerm.BattleLeave, ("LEAVE", "离开") },
-            { UiTerm.BattleWaiting, ("Waiting for a challenger...", "等待挑战者……") },
-            { UiTerm.BattleLooking, ("Looking for a host on this Wi-Fi...", "正在这个Wi-Fi上寻找主持……") },
+            { UiTerm.BattleWaiting, ("Hosting with {0}, locked in. Ask the other player to tap JOIN.", "你是主持，乐器已锁定：{0}。请对方点\"加入\"。") },
+            { UiTerm.BattleTheyPlace, ("A player joined. They are putting your instruments on their furniture: {0}.", "有玩家加入了。对方正在把你的乐器放到家具上：{0}。") },
+            { UiTerm.BattleNeed, ("Match the host's instruments. Still missing: {0}. Tap Change (or the picture) on your furniture.", "换成主持的乐器。还缺：{0}。点家具上的\"更换\"（或小图）。") },
+            { UiTerm.BattleHostSet, ("HOST: {0}", "主持：{0}") },
+            { UiTerm.BattlePlaced, ("All matched. Instruments locked in. Starting...", "全部对上了，乐器已锁定。马上开始……") },
+            { UiTerm.BattleLocked, ("Instruments are locked in until the battle ends.", "对决结束前，乐器不能更换。") },
+            { UiTerm.BattleLooking, ("Joining. Looking for the host on this Wi-Fi...", "加入中。正在这个Wi-Fi上寻找主持……") },
             { UiTerm.BattleReady, ("Get ready...", "准备……") },
             { UiTerm.BattleYourCall, ("GO! Drop your beat: up to 4 notes", "开始！出你的招：最多4个音") },
             { UiTerm.BattleTheyEcho, ("They're trying to echo you...", "对方正在模仿你……") },
-            { UiTerm.BattleTheyCall, ("Their call. Listen up...", "轮到对方出招。仔细听……") },
-            { UiTerm.BattleListen, ("Listen...", "听好……") },
+            { UiTerm.BattleTheyCall, ("Their turn. You will hear their notes next.", "轮到对方出招。接下来你会听到对方的音。") },
+            { UiTerm.BattleListen, ("Listen: their {0} notes are playing", "听好：对方的{0}个音正在播放") },
+            { UiTerm.BattleNothing, ("They played nothing. Your turn is next.", "对方没有出招。接下来轮到你。") },
             { UiTerm.BattleEcho, ("GO! Echo it back", "开始！照着来一遍") },
             { UiTerm.BattleGotPoints, ("+{0} points", "+{0} 分") },
             { UiTerm.BattleRound, ("ROUND {0}/3", "第 {0}/3 轮") },
@@ -259,12 +302,22 @@ namespace RoomOrchestra
             { UiTerm.BattleDraw, ("DRAW. Settle it: HOST or JOIN.", "平局。再决胜负：点\"主持\"或\"加入\"。") },
             { UiTerm.BattleGone, ("Lost the other headset.", "和另一台头显断开了。") },
             { UiTerm.BattleFinishLesson, ("Finish or skip the lesson first, then try again.", "先完成或跳过教学，再试一次。") },
+            { UiTerm.Together, ("Play\ntogether", "一起\n玩") },
+            { UiTerm.BattleSolo, ("SOLO", "试玩") },
+            { UiTerm.MoveHowTo, ("To move a virtual piece: look at it, make a fist and keep holding it until the piece lifts. Move it, then open your hand to set it down. With a controller: point at it and hold the grip button.", "移动虚拟家具：看着它（或指着它），握拳，握住不放，等它起来。移过去，再张开手放下。也可以指着它按住握把键。") },
+            { UiTerm.BattleIntro, ("Two headsets on the same Wi-Fi: one taps HOST, the other taps JOIN. Only one headset? Tap SOLO.", "两台头显连同一个Wi-Fi：一位点\"主持\"，另一位点\"加入\"。只有一台头显？点\"试玩\"。") },
+            { UiTerm.BattleSoloOn, ("SOLO: the game plays the other side. Get ready...", "试玩：游戏和你对决。准备……") },
+            { UiTerm.BattleStillLooking, ("Still looking. Are both headsets on the same Wi-Fi? Or tap LEAVE, then SOLO to battle the game.", "还在找。两台头显连的是同一个Wi-Fi吗？或者点\"离开\"，再点\"试玩\"，和游戏对决。") },
             // A button that ends or wipes something asks first (George, 2026-11-03): its label reads this until tapped again.
             { UiTerm.ConfirmAgain, ("Sure?", "确定？") },
             { UiTerm.Quit, ("Quit", "退出") },
         };
 
         /// <summary>Terms shown only in Chinese (blank in English).</summary>
+        /// <summary>Terms shown in English only: what an instrument is, which its Chinese name already says
+        /// (拇指琴 is "thumb piano").</summary>
+        public static bool EnglishOnly(UiTerm term) => term >= UiTerm.KindUdu && term <= UiTerm.KindSlitDrum;
+
         public static bool ChineseOnly(UiTerm term) => term == UiTerm.KeyOfD;
 
         // Chinese shows the notes in numbered notation (jianpu) with 1 = D, as erhu music is usually written.
@@ -294,6 +347,40 @@ namespace RoomOrchestra
             InstrumentType.SlitDrum => UiTerm.SlitDrum,
             _ => UiTerm.Erhu,
         }, language);
+
+        /// <summary>What the instrument is, in plain words ("thumb piano"); empty in Chinese, whose names already say it
+        /// (拇指琴 is "thumb piano").</summary>
+        public static string Kind(InstrumentType instrument, UiLanguage language) => Get(instrument switch
+        {
+            InstrumentType.Udu => UiTerm.KindUdu,
+            InstrumentType.Mbira => UiTerm.KindMbira,
+            InstrumentType.Ocarina => UiTerm.KindOcarina,
+            InstrumentType.Handpan => UiTerm.KindHandpan,
+            InstrumentType.Guzheng => UiTerm.KindGuzheng,
+            InstrumentType.Balafon => UiTerm.KindBalafon,
+            InstrumentType.SlitDrum => UiTerm.KindSlitDrum,
+            _ => UiTerm.KindErhu,
+        }, language);
+
+        /// <summary>The name with what it is in small letters on a second line (TextMeshPro rich text); the name alone
+        /// where there is nothing to add.</summary>
+        public static string NameAndKind(InstrumentType instrument, UiLanguage language, int smallPercent = 60)
+        {
+            string kind = Kind(instrument, language);
+            return string.IsNullOrEmpty(kind) ? Name(instrument, language) : $"{Name(instrument, language)}\n<size={smallPercent}%>{kind}</size>";
+        }
+
+        /// <summary>"udu, mbira, erhu" (the Echo Battle card's lists).</summary>
+        public static string Names(IEnumerable<InstrumentType> instruments, UiLanguage language)
+        {
+            var text = new System.Text.StringBuilder();
+            foreach (var type in instruments)
+            {
+                if (text.Length > 0) text.Append(language == UiLanguage.Chinese ? "、" : ", ");
+                text.Append(Name(type, language));
+            }
+            return text.ToString();
+        }
 
         public static string Posture(PlayPosture posture, UiLanguage language) =>
             Get(posture == PlayPosture.Standing ? UiTerm.Standing : UiTerm.Seated, language);

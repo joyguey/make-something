@@ -209,9 +209,16 @@ namespace RoomOrchestra
                     RememberHomes(); // now, not at startup: the opening still has the lamp and table tucked in the cloud
                     if (!AutoPlace)
                     {
-                        // nothing to choose from (or to find the saved objects' shapes in) until the room scan is in
-                        if (RealWalls.Instance == null || RealWalls.Instance.SurfaceCount == 0) return;
-                        if (TryRestore()) break; // the places chosen last time, found again from their saved anchors
+                        // the places chosen last time are found again from their saved anchors, once the scan is in;
+                        // otherwise look around now: the bar fills as the scan arrives (owner, headset 2026-11-22:
+                        // after Skip there was no scan; this waited, silently, for a scan that had not started yet)
+                        var walls = RealWalls.Instance;
+                        if (walls == null || !walls.CanScan) return; // no room scanning here (the editor): nothing to look around for
+                        if (RealHomeStore.HasAnchors())
+                        {
+                            if (walls.SurfaceCount == 0) return;
+                            if (TryRestore()) break;
+                        }
                         LookAround();
                         break;
                     }
@@ -233,6 +240,13 @@ namespace RoomOrchestra
                     TryPlace(Time.time - m_ScanStart);
                     break;
                 case Phase.Placed:
+                    if (m_SayMoveAt >= 0f && Time.time >= m_SayMoveAt)
+                    {
+                        m_SayMoveAt = -1f;
+                        MoveHintSaid = true;
+                        if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.MoveHowTo, MoveHintSeconds);
+                        Debug.Log("[RoomOrchestra] Real furniture: Flutter says how to move a virtual piece");
+                    }
                     if (Time.time < m_NextTry) return;
                     m_NextTry = Time.time + 0.5f;
                     WriteSpots(); // language or instrument changes
@@ -346,6 +360,7 @@ namespace RoomOrchestra
                 m_MoveFrom = VisibleBox(s.Root).center;
                 m_MoveOffset = s.Root.position - hand;
                 m_MoveOffset.y = 0f;
+                PickUp(s);
                 Debug.Log($"[RoomOrchestra] Real furniture: the virtual {s.Name} taken by hand");
                 return true;
             }
@@ -353,6 +368,55 @@ namespace RoomOrchestra
         }
 
         public bool Moving => m_Moving != null;
+
+        float m_SayMoveAt = -1f;
+        /// <summary>How long Flutter shows how to move a virtual piece (s).</summary>
+        public const float MoveHintSeconds = 25f;
+        /// <summary>Flutter has said how to move a virtual piece (after the furniture was chosen with one kept).</summary>
+        public bool MoveHintSaid { get; private set; }
+
+        /// <summary>The kept virtual piece a grab would take: the one within reach of <paramref name="hand"/>, else the
+        /// one along <paramref name="ray"/> (when given); null if none. A held fist must stay on the same one.</summary>
+        public string WouldTake(Vector3 hand, Ray? ray)
+        {
+            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return null;
+            foreach (var s in m_Stations)
+            {
+                if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
+                var box = VisibleBox(s.Root);
+                box.Expand(MoveReach * 2f);
+                if (box.Contains(hand)) return s.Name;
+            }
+            if (ray == null) return null;
+            string best = null;
+            float bestDistance = MoveRange;
+            foreach (var s in m_Stations)
+            {
+                if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
+                var box = VisibleBox(s.Root);
+                box.Expand(0.1f);
+                if (box.IntersectRay(ray.Value, out float d) && d < bestDistance) { best = s.Name; bestDistance = d; }
+            }
+            return best;
+        }
+
+        /// <summary>How far a piece lifts off the floor while it is held (m), and the poof as it is taken and set down
+        /// (owner, headset 2026-11-22: "I couldn't tell when I was suddenly dragging the virtual furniture").</summary>
+        public const float HoldLift = 0.05f, PickUpPoof = 0.5f;
+        /// <summary>The held piece's lift now (0 when nothing is held).</summary>
+        public float Lifted { get; private set; }
+
+        // Taken: it rises a little off the floor with a poof and a rising chime, so it is plain it now follows the hand.
+        void PickUp(Station s)
+        {
+            var box = VisibleBox(s.Root);
+            PoofCloud.PoofAt(new Vector3(box.center.x, box.min.y, box.center.z), PickUpPoof);
+            UiSounds.Play(UiSound.Open, box.center);
+            Lifted = HoldLift;
+            s.Root.position += Vector3.up * Lifted;
+            if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
+            Physics.SyncTransforms();
+        }
 
         // From across the room (owner, headset 2026-11-12: "I couldn't move the chair, do I need to walk up to it?"):
         // a grip or a fist while pointing (or looking) at a kept piece takes hold of it; it then slides to where the
@@ -381,6 +445,7 @@ namespace RoomOrchestra
             m_MoveFloor = hold.min.y;
             m_RayOffset = best.Root.position - FloorPoint(ray, best.Root.position);
             m_RayOffset.y = 0f;
+            PickUp(best);
             Debug.Log($"[RoomOrchestra] Real furniture: the virtual {best.Name} taken by hand from {bestDistance:F1} m");
             return true;
         }
@@ -421,7 +486,12 @@ namespace RoomOrchestra
             var s = m_Moving;
             if (s == null) return;
             m_Moving = null;
+            s.Root.position -= Vector3.up * Lifted; // set back down on the floor
+            if (s.Orbit != null) s.Orbit.position = s.Target.AimPosition + s.OrbitOffset;
+            Physics.SyncTransforms();
+            Lifted = 0f;
             var box = VisibleBox(s.Root);
+            PoofCloud.PoofAt(new Vector3(box.center.x, box.min.y, box.center.z), PickUpPoof);
             var jungle = JungleDirector.Instance;
             if (jungle != null)
                 jungle.GrowAround(s.Name, new Vector3(m_MoveFrom.x, box.min.y, m_MoveFrom.z), box.size, new Vector3(box.center.x, box.min.y, box.center.z), box.size);
@@ -459,10 +529,15 @@ namespace RoomOrchestra
         {
             var tutorial = TutorialDirector.Instance;
             if (tutorial != null && tutorial.Active) return; // after the lesson
+            // no scan yet (Skip came before it, or the room was never looked at): look around first, then choose
+            // (owner, headset 2026-11-22: "I didn't get the chance to scan my room even after I selected choose furniture")
+            var walls = RealWalls.Instance;
+            bool noScan = walls != null && walls.CanScan && (m_Phase == Phase.Waiting || m_Phase == Phase.LookingAround || walls.SurfaceCount == 0);
             RealHomeStore.Clear();
             PutBack();
             RememberHomes();
-            StartChoosing();
+            if (noScan && !AutoPlace) LookAround();
+            else StartChoosing();
         }
 
         /// <summary>
@@ -534,7 +609,7 @@ namespace RoomOrchestra
             if (cursor != null)
             {
                 cursor.Show(top, new Vector2(Mathf.Min(m_PreviewBox.size.x, CursorSide * 2f), Mathf.Min(m_PreviewBox.size.z, CursorSide * 2f)),
-                    UiText.Name(target.Instrument, Localization.Current), tappable: false);
+                    UiText.NameAndKind(target.Instrument, Localization.Current, 45), tappable: false);
                 cursor.ShowIcon(target.Instrument); // its picture above its name (owner, 2026-11-11)
             }
         }
@@ -772,7 +847,10 @@ namespace RoomOrchestra
             // a virtual piece kept: say how to move it (owner, headset 2026-11-12: "include instructions ... if the
             // player chooses to use a virtual version of the instrument"), and give it longer to read
             bool kept = m_Stations.Exists(st => !st.Removed && st.Home != null);
-            if (!Application.isEditor) TutorialDirector.Instance?.Announce(kept ? UiTerm.PlaceDoneMovable : UiTerm.PlaceDone, kept ? SayResultSeconds * 2f : SayResultSeconds);
+            if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.PlaceDone, SayResultSeconds);
+            // then, on its own line, how to move a virtual piece (owner, headset 2026-11-22: "the gesture for grabbing
+            // and placing furniture should be mentioned in the tutorial, that is not very clear")
+            m_SayMoveAt = kept ? Time.time + SayResultSeconds : -1f;
         }
 
         /// <summary>Every real piece an instrument could live on, biggest first (the scan's order).</summary>
@@ -820,7 +898,7 @@ namespace RoomOrchestra
                     spot.Hide();
                     continue;
                 }
-                var text = m_Occupant[i] >= 0 ? UiText.Get(TermFor(m_Stations[m_Occupant[i]].Target.Instrument), Localization.Current) : "+";
+                var text = m_Occupant[i] >= 0 ? UiText.NameAndKind(m_Stations[m_Occupant[i]].Target.Instrument, Localization.Current, 45) : "+";
                 if (reposition || !spot.Shown)
                 {
                     var box = m_Candidates[i].Box;
@@ -829,13 +907,6 @@ namespace RoomOrchestra
                 else spot.SetText(text);
             }
         }
-
-        static UiTerm TermFor(InstrumentType instrument) => instrument switch
-        {
-            InstrumentType.Udu => UiTerm.Udu,
-            InstrumentType.Mbira => UiTerm.Mbira,
-            _ => UiTerm.Erhu
-        };
 
         /// <summary>
         /// A tap on a spot: the next instrument lives there (udu, mbira, erhu, then none). If it lived on another spot,

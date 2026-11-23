@@ -109,5 +109,40 @@ namespace RoomOrchestra.Tests
             Pump(40);
             Assert.AreEqual("1|3", hostGot.Single(m => m.Type == "SCORE").Payload);
         }
+
+        [Test]
+        public void ACalledNoteOnAnInstrumentTheEchoerLacksIsMatchedByTheSameNoteOnTheirs()
+        {
+            var call = new[] { new PhraseNote(InstrumentType.Ocarina, 2, 0), new PhraseNote(InstrumentType.Mbira, 1, 4) };
+            var echo = new[] { new PhraseNote(InstrumentType.Erhu, 2, 0), new PhraseNote(InstrumentType.Mbira, 1, 4) };
+            Assert.AreEqual(EchoBattleRules.ExactPoints, EchoBattleRules.Score(call, echo), "the same rooms: the instrument has to match");
+            Assert.AreEqual(2 * EchoBattleRules.ExactPoints, EchoBattleRules.Score(call, echo, type => type != InstrumentType.Ocarina),
+                "no ocarina in the echoer's room: the same note on any of their instruments counts");
+            var wrong = new[] { new PhraseNote(InstrumentType.Udu, 1, 4) };
+            Assert.AreEqual(0, EchoBattleRules.Score(new[] { call[1] }, wrong, type => type != InstrumentType.Ocarina), "an instrument they do have still has to match");
+        }
+
+        [Test]
+        public void TheHostsInstrumentsTravelAndTheJoinersRoomIsMatchedToThem()
+        {
+            var host = new[] { InstrumentType.Udu, InstrumentType.Handpan, InstrumentType.SlitDrum };
+            Assert.AreEqual("UHS", EchoBattleRules.EncodeSet(host));
+            Assert.IsTrue(EchoBattleRules.TryDecodeSet("UHS", out var set));
+            CollectionAssert.AreEqual(host, set);
+            Assert.IsFalse(EchoBattleRules.TryDecodeSet("", out _), "an empty set");
+            Assert.IsFalse(EchoBattleRules.TryDecodeSet("UXU", out _), "not an instrument");
+            Assert.IsFalse(EchoBattleRules.TryDecodeSet("UU", out _), "a repeat");
+
+            var here = new HashSet<InstrumentType> { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu };
+            CollectionAssert.AreEqual(new[] { InstrumentType.Handpan, InstrumentType.SlitDrum }, EchoBattleRules.Missing(host, here, 3));
+            // a tap gives a piece the first missing one
+            Assert.AreEqual(InstrumentType.Handpan, EchoBattleRules.NextWanted(host, here, InstrumentType.Mbira));
+            here = new HashSet<InstrumentType> { InstrumentType.Udu, InstrumentType.Handpan, InstrumentType.SlitDrum };
+            Assert.IsEmpty(EchoBattleRules.Missing(host, here, 3), "matched");
+            Assert.AreEqual(InstrumentType.Handpan, EchoBattleRules.NextWanted(host, here, InstrumentType.Udu), "then a tap only moves the host's instruments round");
+            // a room with two pieces of furniture only has to fill the two it has
+            Assert.IsEmpty(EchoBattleRules.Missing(host, new HashSet<InstrumentType> { InstrumentType.Udu, InstrumentType.Handpan }, 2));
+            Assert.IsNotEmpty(EchoBattleRules.Missing(host, new HashSet<InstrumentType> { InstrumentType.Udu, InstrumentType.Erhu }, 2));
+        }
     }
 }

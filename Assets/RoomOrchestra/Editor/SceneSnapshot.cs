@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using UnityEditor;
@@ -337,6 +338,135 @@ namespace RoomOrchestra.EditorTools
             var room = Object.FindFirstObjectByType<VirtualRoom>();
             foreach (var panel in room.Panels) panel.localScale = Vector3.one * 0.0001f; // out of the shot
             CaptureCloseUp(path, new Vector3(0.3f, 1.35f, 0.9f), new Vector3(0f, 0.55f, 2.4f), 62f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>The meadow from the seat at eye level (V4 review: geometry, smooth ground, the sky's edge): -snapshotPath
+        /// prefix writes -left.png (trees and rocks), -right.png and -horizon.png (where the grass meets the sky, behind the
+        /// player). Unity's renderer; never saved.</summary>
+        public static void CaptureMeadow()
+        {
+            string path = "docs/evidence/meadow";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") path = args[i + 1];
+            OpenScene();
+            var eye = new Vector3(0f, 1.15f, 0f);
+            CaptureCloseUp($"{path}-left.png", eye, eye + new Vector3(-1f, -0.12f, 0.35f), 75f);
+            CaptureCloseUp($"{path}-right.png", eye, eye + new Vector3(1f, -0.15f, 0.6f), 75f);
+            CaptureCloseUp($"{path}-horizon.png", eye, eye + new Vector3(0.3f, -0.03f, -1f), 60f);
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// A storyboard of an Echo Battle on two headsets (owner, 2026-11-16: "show me a video of what the multiplayer
+        /// simulation might look like"): each step drawn twice, once as the host's room and once as the joining
+        /// player's, with the card's real words (UiText) and the furniture's real instruments. -snapshotPath folder:
+        /// writes NN-host.png and NN-join.png plus steps.txt (one caption a line). Unity's renderer on one machine,
+        /// never two headsets; the scene is never saved.
+        /// </summary>
+        public static void CaptureBattleStory()
+        {
+            string dir = "docs/evidence/battle-story";
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-snapshotPath") dir = args[i + 1];
+            OpenScene();
+            Object.FindFirstObjectByType<IntroSequence>().Finish();
+            var tray = Object.FindFirstObjectByType<MenuTray>();
+            if (tray != null) tray.transform.localScale = Vector3.one * MenuTray.ClosedScale; // the leaf's menu closed, as in play
+            var battle = Object.FindFirstObjectByType<EchoBattleDirector>();
+            var so = new SerializedObject(battle);
+            battle.Card.localPosition = so.FindProperty("cardHome").vector3Value;
+            battle.Card.localScale = so.FindProperty("cardScale").vector3Value;
+            var status = (TMPro.TMP_Text)so.FindProperty("status").objectReferenceValue;
+            var score = (TMPro.TMP_Text)so.FindProperty("score").objectReferenceValue;
+            var buttons = battle.Card.GetComponentsInChildren<EchoBattleButton>(true);
+            var library = Object.FindFirstObjectByType<InstrumentIconLibrary>();
+            var furniture = Object.FindFirstObjectByType<InstrumentPacks>().Furniture.ToArray(); // left to right: table, chair, lamp
+            const UiLanguage en = UiLanguage.English;
+            string T(UiTerm term, params object[] a) => a.Length > 0 ? string.Format(UiText.Get(term, en), a) : UiText.Get(term, en);
+            string Names(params InstrumentType[] t) => UiText.Names(t, en);
+            string Score(int round, int me, int them) => string.Format(UiText.Get(UiTerm.BattleRound, en), round) + "\n" + string.Format(UiText.Get(UiTerm.BattleScore, en), me, them);
+
+            void Room(InstrumentType[] places, bool choosing, string say, string board, int flash = -1)
+            {
+                for (int i = 0; i < furniture.Length; i++)
+                {
+                    var piece = furniture[i];
+                    piece.SetInstrument(places[i]);
+                    foreach (var mix in piece.GetComponentsInParent<Transform>().Last().GetComponentsInChildren<MixButton>(true))
+                        if (mix.Target == piece) mix.Label.text = MixButton.TextFor(places[i], 0, en);
+                    foreach (var label in Object.FindObjectsByType<LocalizedLabel>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                        if (label.Text != null) label.Text.text = label.TextFor(en);
+                    foreach (var icon in Object.FindObjectsByType<InstrumentIcon>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    {
+                        var column = icon.GetComponentInParent<PitchColumn>();
+                        if (column != null && column.Target == piece && library != null) icon.GetComponent<MeshFilter>().sharedMesh = library.MeshFor(places[i]);
+                    }
+                    // a flashing piece: its column lit, as a heard note lights it
+                    var col = Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None).FirstOrDefault(c => c.Target == piece);
+                    if (col != null)
+                        foreach (var r in col.GetComponentsInChildren<Renderer>())
+                        {
+                            if (!r.name.StartsWith("PitchTile") && r.name != "MixTile") continue;
+                            var block = new MaterialPropertyBlock();
+                            if (i == flash) block.SetColor("_BaseColor", new Color(1f, 0.82f, 0.25f));
+                            r.SetPropertyBlock(i == flash ? block : null);
+                        }
+                }
+                foreach (var b in buttons) b.gameObject.SetActive(b.ButtonKind == EchoBattleButton.Kind.Leave || choosing);
+                status.text = say;
+                score.text = board;
+                status.ForceMeshUpdate(true, true);
+                score.ForceMeshUpdate(true, true);
+            }
+
+            var hostSet = new[] { InstrumentType.Udu, InstrumentType.Handpan, InstrumentType.SlitDrum };
+            var joinOwn = new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu };
+            var joinHalf = new[] { InstrumentType.Udu, InstrumentType.Handpan, InstrumentType.Erhu };
+            var steps = new List<(string caption, InstrumentType[] host, bool hostChoosing, string hostSay, string hostBoard, int hostFlash,
+                                  InstrumentType[] join, bool joinChoosing, string joinSay, string joinBoard, int joinFlash)>
+            {
+                ("Both players open the Echo Battle card. The host has set their furniture to udu, handpan and slit drum.",
+                 hostSet, true, T(UiTerm.BattleFound), "", -1, joinOwn, true, T(UiTerm.BattleFound), "", -1),
+                ("The host taps HOST: their three instruments are locked in. HOST and JOIN go away; only LEAVE stays.",
+                 hostSet, false, T(UiTerm.BattleWaiting, Names(hostSet)), T(UiTerm.BattleHostSet, Names(hostSet)), -1, joinOwn, true, T(UiTerm.BattleFound), "", -1),
+                ("The other player taps JOIN. Their card lists the host's instruments that their room is missing.",
+                 hostSet, false, T(UiTerm.BattleTheyPlace, Names(hostSet)), T(UiTerm.BattleHostSet, Names(hostSet)), -1,
+                 joinOwn, false, T(UiTerm.BattleNeed, Names(InstrumentType.Handpan, InstrumentType.SlitDrum)), T(UiTerm.BattleHostSet, Names(hostSet)), -1),
+                ("They tap Change on the chair: it takes the handpan, the first one missing. One left.",
+                 hostSet, false, T(UiTerm.BattleTheyPlace, Names(hostSet)), T(UiTerm.BattleHostSet, Names(hostSet)), -1,
+                 joinHalf, false, T(UiTerm.BattleNeed, Names(InstrumentType.SlitDrum)), T(UiTerm.BattleHostSet, Names(hostSet)), -1),
+                ("Change on the lamp: slit drum. The rooms match, both are locked in, and play starts.",
+                 hostSet, false, T(UiTerm.BattlePlaced), T(UiTerm.BattleHostSet, Names(hostSet)), -1,
+                 hostSet, false, T(UiTerm.BattlePlaced), T(UiTerm.BattleHostSet, Names(hostSet)), -1),
+                ("The host is counted in (3, 2, 1) on the shared beat.",
+                 hostSet, false, "3", Score(1, 0, 0), -1, hostSet, false, T(UiTerm.BattleTheyCall), Score(1, 0, 0), -1),
+                ("GO: the host plays up to four notes in one bar.",
+                 hostSet, false, T(UiTerm.BattleYourCall), Score(1, 0, 0), 1, hostSet, false, T(UiTerm.BattleTheyCall), Score(1, 0, 0), -1),
+                ("The joining headset plays the host's notes on its own furniture, lighting each piece as it sounds.",
+                 hostSet, false, T(UiTerm.BattleTheyEcho), Score(1, 0, 0), -1, hostSet, false, T(UiTerm.BattleListen, 3), Score(1, 0, 0), 1),
+                ("Then it's their turn: GO, echo it back in the next bar.",
+                 hostSet, false, T(UiTerm.BattleTheyEcho), Score(1, 0, 0), -1, hostSet, false, T(UiTerm.BattleEcho), Score(1, 0, 0), 2),
+                ("Each matching note scores (2 on the beat, 1 a 16th off). Then they swap: three rounds each.",
+                 hostSet, false, T(UiTerm.BattleGotPoints, 5), Score(1, 0, 5), -1, hostSet, false, T(UiTerm.BattleGotPoints, 5), Score(1, 5, 0), -1),
+                ("After three rounds the card names the winner. HOST and JOIN come back for a rematch; each player's own instruments return.",
+                 hostSet, true, T(UiTerm.BattleWin), Score(3, 26, 21), -1, joinOwn, true, T(UiTerm.BattleLose), Score(3, 21, 26), -1),
+            };
+            Directory.CreateDirectory(dir);
+            var eye = new Vector3(0f, 1.15f, 0.15f);
+            var look = new Vector3(-0.12f, 1.0f, 1.5f);
+            for (int k = 0; k < steps.Count; k++)
+            {
+                var s = steps[k];
+                Room(s.host, s.hostChoosing, s.hostSay, s.hostBoard, s.hostFlash);
+                CaptureCloseUp(Path.Combine(dir, $"{k:00}-host.png"), eye, look, 62f);
+                Room(s.join, s.joinChoosing, s.joinSay, s.joinBoard, s.joinFlash);
+                CaptureCloseUp(Path.Combine(dir, $"{k:00}-join.png"), eye, look, 62f);
+            }
+            File.WriteAllLines(Path.Combine(dir, "steps.txt"), steps.Select(s => s.caption));
+            Debug.Log($"[RoomOrchestra] Battle storyboard: {steps.Count} steps in {dir}");
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
     }

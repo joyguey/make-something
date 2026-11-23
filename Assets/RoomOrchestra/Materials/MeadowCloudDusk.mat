@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: MeadowCloudDusk
-  m_Shader: {fileID: 4800000, guid: d34214bc6e8454dd3a0b8f4f93919ab8, type: 3}
+  m_Shader: {fileID: 4800000, guid: e1c79a539b94e42a9bd350c1956975fd, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []

@@ -209,7 +209,8 @@ namespace RoomOrchestra.Tests
             for (int i = 0; i < JungleGrowth.NotesPerVine / 2; i++) director.NoteAdded(InstrumentType.Udu);
             Assert.AreEqual(4, uduVine.Shown, "half the notes: half the table vine");
             Assert.AreEqual(0, lampVine.Shown, "the lamp waits for erhu");
-            Assert.AreEqual(System.Linq.Enumerable.Count(JungleGrowth.MushroomAt, n => n <= JungleGrowth.NotesPerVine / 2), System.Linq.Enumerable.Count(shrooms, s => s.Sprouted));
+            Assert.AreEqual(director.Growth.MushroomsSprouted, System.Linq.Enumerable.Count(shrooms, s => s.Sprouted));
+            Assert.AreEqual(1, System.Linq.Enumerable.Count(shrooms, s => s.Sprouted), "one instrument half done: the first toadstool only");
             yield return null;
         }
 
