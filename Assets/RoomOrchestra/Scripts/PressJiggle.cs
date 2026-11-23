@@ -31,6 +31,12 @@ namespace RoomOrchestra
                 flash.Flash();
                 return true;
             }
+            // a toy button presses down instead of wobbling (owner, 2026-11-19)
+            if (target.TryGetComponent<ToyPress>(out var toy) && toy.Cap != null)
+            {
+                toy.Press();
+                return true;
+            }
             var jiggle = target.GetComponent<PressJiggle>();
             if (jiggle == null) jiggle = target.gameObject.AddComponent<PressJiggle>();
             jiggle.Begin(swell);

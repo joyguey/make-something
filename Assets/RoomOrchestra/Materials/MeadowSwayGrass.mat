@@ -27,7 +27,7 @@ Material:
     m_Floats:
     - _AOStrength: 0.65
     - _RimAmount: 0
-    - _Smoothness: 0.35
+    - _Smoothness: 0.06
     - _SwayAmount: 0.035
     - _SwayHeight: 0.35
     m_Colors:

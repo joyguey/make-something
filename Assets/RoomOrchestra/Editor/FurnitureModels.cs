@@ -77,8 +77,46 @@ namespace RoomOrchestra.EditorTools
                         placed++;
                     }
             }
+            // The chair's cushion (owner, 2026-11-19): a cream fabric with four button tufts, its own mesh in the seat's
+            // space, so it rides on the seat like the seat's old built-in cushion did. No collider: balls land on the seat.
+            var seat = furniture.Find("Chair")?.Cast<Transform>().FirstOrDefault(t => t.name == "Seat");
+            if (seat != null && meshes.TryGetValue("Furniture_ChairCushion", out var cushionMesh))
+            {
+                var cushion = seat.Find("Cushion");
+                if (cushion == null)
+                {
+                    cushion = new GameObject("Cushion").transform;
+                    cushion.SetParent(seat, false);
+                }
+                cushion.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                cushion.localScale = Vector3.one;
+                if (!cushion.TryGetComponent<MeshFilter>(out var filter)) filter = cushion.gameObject.AddComponent<MeshFilter>(); // never ?? on a component (Unity's fake null)
+                filter.sharedMesh = cushionMesh;
+                if (!cushion.TryGetComponent<MeshRenderer>(out var look)) look = cushion.gameObject.AddComponent<MeshRenderer>();
+                look.sharedMaterial = BakedAO.For(cushionMesh, CushionFabric(seat.GetComponent<MeshRenderer>()));
+                placed++;
+            }
             Debug.Log($"[RoomOrchestra] Furniture models: {placed} parts");
             return placed > 0;
+        }
+
+        const string CushionPath = "Assets/RoomOrchestra/Materials/ChairCushion.mat";
+
+        static Material CushionFabric(MeshRenderer seat)
+        {
+            var m = AssetDatabase.LoadAssetAtPath<Material>(CushionPath);
+            if (m == null)
+            {
+                var chair = AssetDatabase.LoadAssetAtPath<Material>("Assets/RoomOrchestra/Materials/Chair.mat") ; if (chair == null && seat != null) chair = seat.sharedMaterial;
+                m = new Material(chair) { name = "ChairCushion" };
+                AssetDatabase.CreateAsset(m, CushionPath);
+            }
+            var cream = new Color(0.918f, 0.839f, 0.706f); // #EAD6B4
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", cream);
+            m.color = cream;
+            if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", 0.05f); // fabric: matte
+            EditorUtility.SetDirty(m);
+            return m;
         }
     }
 }

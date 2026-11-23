@@ -42,7 +42,9 @@ namespace RoomOrchestra.Tests
             Assert.IsNotNull(Object.FindFirstObjectByType<ViewButton>(), "a View button on the leaf");
             Assert.Greater(view.Labels.Count, 10, "the leaf's labels grow");
             Assert.IsTrue(view.Labels.All(l => !l.enableAutoSizing), "words that fit their tiles are left alone");
-            Assert.Greater(view.Slabs.Count, 20, "buttons and tiles darken");
+            // The toy buttons' plum caps and the instrument-tinted tiles keep their colours in high contrast (the default
+            // view): their white words and gold icons already clear 4.5:1 (GameplayLookTests). The plain dark plates still darken.
+            Assert.Greater(view.Slabs.Count, 2, "the plain plates darken");
             Assert.Greater(view.Icons.Count, 8, "icons brighten");
             Assert.IsFalse(view.Icons.Any(r => r.GetComponentInParent<OrbToken>() != null), "the characters keep their colours");
         }
