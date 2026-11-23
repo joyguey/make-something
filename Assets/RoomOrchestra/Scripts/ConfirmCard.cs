@@ -70,6 +70,7 @@ namespace RoomOrchestra
             QuitButton _ => (UiTerm.ConfirmQuit, UiTerm.Quit),
             TutorialReplayButton _ => (UiTerm.ConfirmLesson, UiTerm.ConfirmRestart),
             StartOverButton _ => (UiTerm.ConfirmStartOver, UiTerm.ConfirmRestart),
+            PlacesButton _ => (UiTerm.ConfirmPlaces, UiTerm.ConfirmRestart),
             EchoBattleButton _ => (UiTerm.ConfirmLeave, UiTerm.BattleLeave),
             _ => (UiTerm.ConfirmClear, UiTerm.Clear),
         };

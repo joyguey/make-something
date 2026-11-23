@@ -134,7 +134,11 @@ namespace RoomOrchestra
                     label.transform.SetParent(transform, false);
                     var tmp = label.AddComponent<TextMeshPro>();
                     tmp.font = labelStyle.font;
-                    tmp.fontSharedMaterial = labelStyle.fontSharedMaterial;
+                    // Owner, headset 2026-11-22: "the dark rectangles underneath the note names on the real furniture"
+                    // are ugly. The letters carry their own dark outline now (NoteLabelOutline, built with the scene),
+                    // which reads against any room without a box; the old backing is only the fallback.
+                    var outlined = OutlineMaterial();
+                    tmp.fontSharedMaterial = outlined != null ? outlined : labelStyle.fontSharedMaterial;
                     tmp.fontSize = labelStyle.fontSize;
                     tmp.alignment = TextAlignmentOptions.Center;
                     tmp.textWrappingMode = TextWrappingModes.NoWrap;
@@ -144,7 +148,7 @@ namespace RoomOrchestra
                     m_Labels[i] = tmp;
                     var letters = label.GetComponent<MeshRenderer>();
                     if (letters != null) letters.sortingOrder = 10;
-                    if (look != null)
+                    if (look != null && outlined == null)
                     {
                         var back = GameObject.CreatePrimitive(PrimitiveType.Quad);
                         back.name = "NoteLabelBacking";
@@ -187,6 +191,22 @@ namespace RoomOrchestra
                 m_Caption.color = SelectedLabel;
             }
             WorldBounds = ComputeWorldBounds();
+        }
+
+        /// <summary>The note names' outlined letters (Resources/NoteLabelOutline: the label font's material with a dark
+        /// outline, saved as an asset so the build keeps the outline); null if missing.</summary>
+        public const string OutlineMaterialName = "NoteLabelOutline";
+        static Material s_Outline;
+        static bool s_OutlineLooked;
+
+        public static Material OutlineMaterial()
+        {
+            if (!s_OutlineLooked)
+            {
+                s_OutlineLooked = true;
+                s_Outline = Resources.Load<Material>(OutlineMaterialName);
+            }
+            return s_Outline;
         }
 
         static void SetColor(Material m, Color c)

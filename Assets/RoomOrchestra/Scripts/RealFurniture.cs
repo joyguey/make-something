@@ -349,7 +349,7 @@ namespace RoomOrchestra
         /// <summary>A hand at <paramref name="hand"/> takes hold of a kept virtual piece there; false if there is none.</summary>
         public bool TryBeginMove(Vector3 hand)
         {
-            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return false;
+            if (m_Phase != Phase.Placed) return false; // not while choosing (owner, headset 2026-11-22: a pinch to keep the lamp grabbed it)
             foreach (var s in m_Stations)
             {
                 if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
@@ -379,7 +379,7 @@ namespace RoomOrchestra
         /// one along <paramref name="ray"/> (when given); null if none. A held fist must stay on the same one.</summary>
         public string WouldTake(Vector3 hand, Ray? ray)
         {
-            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return null;
+            if (m_Phase != Phase.Placed) return null;
             foreach (var s in m_Stations)
             {
                 if (s.Removed || s.Root == null || s.MoveStart >= 0f) continue;
@@ -428,7 +428,7 @@ namespace RoomOrchestra
         /// <summary>A grip along <paramref name="ray"/> takes hold of the kept virtual piece it points at; false if none.</summary>
         public bool TryBeginMoveByRay(Ray ray)
         {
-            if (m_Phase != Phase.Placed && m_Phase != Phase.Choosing) return false;
+            if (m_Phase != Phase.Placed) return false; // not while choosing (owner, headset 2026-11-22: a pinch to keep the lamp grabbed it)
             Station best = null;
             float bestDistance = MoveRange;
             foreach (var s in m_Stations)
@@ -463,7 +463,7 @@ namespace RoomOrchestra
         {
             var s = m_Moving;
             if (s == null) return;
-            SetRoot(s, FloorPoint(ray, s.Root.position - m_RayOffset) + m_RayOffset);
+            SetRoot(s, Keep(FloorPoint(ray, s.Root.position - m_RayOffset) + m_RayOffset));
         }
 
         static void SetRoot(Station s, Vector3 p)
@@ -478,7 +478,43 @@ namespace RoomOrchestra
         {
             var s = m_Moving;
             if (s == null) return;
-            SetRoot(s, hand + m_MoveOffset);
+            SetRoot(s, Keep(hand + m_MoveOffset));
+        }
+
+        /// <summary>A held piece goes no farther than this from where the player sits (m), so it is never lost in or
+        /// behind a wall (owner, headset 2026-11-22: the lamp slid 5.5 m away along the gaze).</summary>
+        public const float MaxFromSeat = 3.5f;
+
+        static Vector3 Keep(Vector3 p)
+        {
+            var seat = SeatFloor();
+            var flat = new Vector3(p.x - seat.x, 0f, p.z - seat.z);
+            if (flat.magnitude > MaxFromSeat) flat = flat.normalized * MaxFromSeat;
+            return new Vector3(seat.x + flat.x, p.y, seat.z + flat.z);
+        }
+
+        Vector3 m_HandStart, m_PieceStart;
+        float m_HandGain = 1f;
+
+        /// <summary>A bare hand took the piece from afar: from now on it follows the hand's own movement, scaled up a
+        /// little for a far piece, never the gaze's spot on the floor (which jumps metres for a small head turn).</summary>
+        public void BeginHandDrag(Vector3 hand, Vector3 eye)
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            m_HandStart = hand;
+            m_PieceStart = s.Root.position;
+            var d = new Vector3(m_PieceStart.x - eye.x, 0f, m_PieceStart.z - eye.z).magnitude;
+            m_HandGain = Mathf.Clamp(d / 0.6f, 1.5f, 3.5f);
+        }
+
+        public void DragByHand(Vector3 hand)
+        {
+            var s = m_Moving;
+            if (s == null) return;
+            var delta = hand - m_HandStart;
+            delta.y = 0f;
+            SetRoot(s, Keep(m_PieceStart + delta * m_HandGain));
         }
 
         public void EndMove()
@@ -577,10 +613,17 @@ namespace RoomOrchestra
             _ => UiTerm.PlaceErhu
         };
 
+        /// <summary>After each choice, presses wait this long before the next instrument can be placed (owner, headset
+        /// 2026-11-22: a few quick pinches placed all three at once, "the tutorial just went crazy").</summary>
+        public const float ChoicePause = 0.8f;
+        float m_ChoiceOpenAt;
+        bool ChoiceWaiting => Time.time < m_ChoiceOpenAt;
+
         void AskWhere()
         {
             var target = ChoosingTarget;
             if (target == null) return;
+            m_ChoiceOpenAt = Time.time + ChoicePause;
             Debug.Log($"[RoomOrchestra] Real furniture: where should the {target.Instrument} live?");
             if (!Application.isEditor) TutorialDirector.Instance?.Announce(PlaceLine(target.Instrument), SayPlaceSeconds);
         }
@@ -670,6 +713,7 @@ namespace RoomOrchestra
         /// <summary>The player pressed on the room's surface: the instrument being placed lives on that real object now.</summary>
         public void PlaceAt(Vector3 point)
         {
+            if (ChoiceWaiting) return; // the last choice has only just been made
             var s = ChoosingStation;
             if (s == null) return;
             var box = m_HasPreview && (m_PreviewBox.Contains(point) || (point - m_PreviewPoint).sqrMagnitude < 0.04f * 0.04f) ? m_PreviewBox : ObjectAt(point);
@@ -684,6 +728,7 @@ namespace RoomOrchestra
         /// <summary>The player pressed the instrument itself: it stays on its virtual furniture (its notes along it too).</summary>
         public void KeepVirtual()
         {
+            if (ChoiceWaiting) return; // the last choice has only just been made
             var s = ChoosingStation;
             if (s == null) return;
             Debug.Log($"[RoomOrchestra] Real furniture: the {s.Target.Instrument} stays on its virtual furniture");
@@ -914,6 +959,7 @@ namespace RoomOrchestra
         /// </summary>
         public void Tap(RealSpot spot)
         {
+            if (ChoiceWaiting) return; // the last choice has only just been made
             if (m_Phase != Phase.Placed || spot == null) return;
             int i = spot.Index;
             if (i < 0 || i >= m_Candidates.Count) return;

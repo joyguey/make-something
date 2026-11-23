@@ -92,6 +92,9 @@ namespace RoomOrchestra.Tests
 
         IEnumerator Press(Vector3 from, Vector3 at)
         {
+            // while choosing, a press only counts a moment after the last choice (owner, headset 2026-11-22)
+            var placer = RealFurniture.Instance;
+            if (placer != null && placer.Choosing) yield return new WaitForSeconds(RealFurniture.ChoicePause + 0.05f);
             Point(from, at, false);
             yield return null;
             Point(from, at, true);
@@ -174,6 +177,12 @@ namespace RoomOrchestra.Tests
             var flat = vine.position - DeskTop;
             flat.y = 0f;
             Assert.Less(flat.magnitude, 1f, "its vine grows around the desk now");
+
+            // a second press right after a choice is not taken as the next choice (owner, headset 2026-11-22: quick
+            // pinches placed every instrument at once)
+            var waiting = placer.ChoosingTarget;
+            placer.KeepVirtual();
+            Assert.AreSame(waiting, placer.ChoosingTarget, "too soon after the last choice: nothing happens");
 
             // a press on the next instrument itself keeps it on its virtual furniture; the last too
             for (int i = 0; i < 2; i++)
@@ -296,12 +305,13 @@ namespace RoomOrchestra.Tests
                 Assert.AreEqual(UiText.Tile(new MusicalNote(home.Target.Instrument, i), Localization.Current), label.text);
             }
             Assert.Greater(home.LabelOf(rightBand).transform.lossyScale.x, home.LabelOf(leftBand).transform.lossyScale.x * 1.5f, "the pointed band's label is the biggest");
-            var backing = home.LabelOf(rightBand).transform.Find("NoteLabelBacking");
-            Assert.IsNotNull(backing, "on a dark backing that reads against the room");
-            // owner, headset 2026-11-08: the names didn't show; the backing was drawn over the letters
-            var letters = home.LabelOf(rightBand).GetComponent<MeshRenderer>();
-            Assert.Less(backing.GetComponent<MeshRenderer>().sharedMaterial.renderQueue, letters.sharedMaterial.renderQueue, "the backing is drawn before the letters");
-            Assert.Greater(letters.sortingOrder, backing.GetComponent<MeshRenderer>().sortingOrder);
+            // owner, headset 2026-11-22: no dark rectangles under the names; the letters carry a dark outline instead
+            Assert.IsNull(home.LabelOf(rightBand).transform.Find("NoteLabelBacking"), "no backing box");
+            var outlined = home.LabelOf(rightBand).fontSharedMaterial;
+            Assert.AreEqual(RealHome.OutlineMaterialName, outlined.name);
+            Assert.IsTrue(outlined.IsKeywordEnabled("OUTLINE_ON"), "the outline is on");
+            Assert.Greater(outlined.GetFloat("_OutlineWidth"), 0.2f, "thick enough to read against a bright room");
+            Assert.AreSame(home.LabelOf(rightBand).font.atlasTexture, outlined.mainTexture, "on the label font's own letters");
             Assert.AreEqual(RealHome.SelectedLabel, home.LabelOf(rightBand).color, "the pointed note's name is yellow");
             Assert.AreEqual(RealHome.OtherLabel, home.LabelOf(leftBand).color, "the others white");
 
