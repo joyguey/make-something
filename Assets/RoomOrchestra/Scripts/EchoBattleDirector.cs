@@ -15,18 +15,14 @@ namespace RoomOrchestra
     /// battle is a separate mode that never takes over normal play (owner): the player's own song is set aside (kept,
     /// silent) while a battle runs and plays on as before when they leave it.
     /// Taps, the controller and thrown balls all play notes, as everywhere else.
-    /// Since 2026-11-22 (owner: "an easier way to access than the easter egg"; smooth "even though I don't have two
-    /// headsets") Menu > Play together brings the card out too, and SOLO battles the game on this one headset
-    /// (<see cref="EchoBattlePartner"/>, the same messages over loopback). With nobody found after
-    /// <see cref="StillLookingSeconds"/> the card says what to check.
+    /// Since 2026-11-22 (owner: "an easier way to access than the easter egg") Menu > Play together brings the card
+    /// out too. With nobody found after <see cref="StillLookingSeconds"/> the card says what to check.
     /// </summary>
     public class EchoBattleDirector : MonoBehaviour
     {
         public const float ParkedScale = 0.12f, ResultSeconds = 2.5f; // 12%: the street card still fits the cloud, and its thinnest drip stays above 1 mm
-        /// <summary>After this long without the other headset, the card says what to check, and that SOLO is there.</summary>
+        /// <summary>After this long without the other headset, the card says what to check.</summary>
         public const float StillLookingSeconds = 20f;
-        /// <summary>SOLO's two ends talk over loopback on their own ports, so a real battle nearby never hears them.</summary>
-        public const int SoloPort = 47787;
 
         public enum Phase { Hidden, Menu, Pairing, CountIn, Recording, WaitingForThem, Listening, Between, Over, Setup }
 
@@ -59,15 +55,8 @@ namespace RoomOrchestra
         InstrumentType[] m_OwnPlaces; // the joining player's own arrangement, put back when the battle ends
         bool m_Hosting, m_ReadySent;
         float m_SayAgainAt = -1f;
-        // SOLO: the game is the other headset (EchoBattlePartner), on this one
-        EchoBattlePartner m_Partner;
-        bool m_Solo;
         float m_PairingSince;
         bool m_StillLookingSaid;
-
-        /// <summary>Is this battle against the game (SOLO)?</summary>
-        public bool Solo => m_Solo;
-        public EchoBattlePartner Partner => m_Partner;
 
         /// <summary>The instruments this battle is played on (the host's).</summary>
         public IReadOnlyList<InstrumentType> Instruments => m_Set;
@@ -160,7 +149,6 @@ namespace RoomOrchestra
                 if (park != null && card != null && card.position != park.position) Park();
                 return;
             }
-            m_Partner?.Tick(Time.time, BarSeconds);
             if (m_Link != null)
             {
                 foreach (var message in m_Link.Poll(Time.time)) Handle(message);
@@ -190,7 +178,7 @@ namespace RoomOrchestra
             Show();
         }
 
-        /// <summary>Menu, Play together: the card, saying how to play (two headsets, or SOLO). Already out: it stays as it is.</summary>
+        /// <summary>Menu, Play together: the card, saying how to play (two headsets on one Wi-Fi). Already out: it stays as it is.</summary>
         public void ShowFromMenu()
         {
             TutorialDirector.Instance?.Dismiss(); // Flutter's bubble never covers the card (owner, 2026-11-22)
@@ -250,9 +238,6 @@ namespace RoomOrchestra
                 case EchoBattleButton.Kind.Join:
                     if (State == Phase.Menu || State == Phase.Over) Open(EchoBattleLink.Role.Guest);
                     break;
-                case EchoBattleButton.Kind.Solo: // this headset hosts; the game joins as the other one
-                    if (State == Phase.Menu || State == Phase.Over) Open(EchoBattleLink.Role.Host, solo: true);
-                    break;
                 case EchoBattleButton.Kind.Leave:
                     if (State == Phase.Menu || State == Phase.Over)
                     {
@@ -267,27 +252,13 @@ namespace RoomOrchestra
             }
         }
 
-        void Open(EchoBattleLink.Role role, bool solo = false)
+        void Open(EchoBattleLink.Role role)
         {
             Leave(sendBye: true);
             conductor?.SetSongMuted(true); // the player's own song waits, kept and silent
-            m_Solo = solo;
-            if (solo)
-            {
-                // both ends on this headset, over loopback: nothing goes out on the Wi-Fi
-                m_Link = new EchoBattleLink(role, SoloPort, SoloPort + 1, System.Net.IPAddress.Loopback);
-                m_Partner = new EchoBattlePartner(SoloPort + 1, SoloPort, System.Environment.TickCount);
-            }
-            else
-            {
-                m_Multicast = AndroidMulticast.Acquire();
-                m_Link = new EchoBattleLink(role, m_LocalPort, m_PeerPort, m_Broadcast);
-            }
-            try
-            {
-                m_Link.Open();
-                m_Partner?.Open();
-            }
+            m_Multicast = AndroidMulticast.Acquire();
+            m_Link = new EchoBattleLink(role, m_LocalPort, m_PeerPort, m_Broadcast);
+            try { m_Link.Open(); }
             catch (System.Net.Sockets.SocketException e)
             {
                 Debug.LogWarning($"[RoomOrchestra] Echo Battle: couldn't open the network ({e.SocketErrorCode})");
@@ -310,12 +281,11 @@ namespace RoomOrchestra
                 if (places != null) foreach (var type in places) if (!m_Set.Contains(type)) m_Set.Add(type);
                 foreach (var target in InstrumentTarget.Active) if (!m_Set.Contains(target.Instrument)) m_Set.Add(target.Instrument);
                 InstrumentPacks.Locked = true;
-                if (solo) Say(UiTerm.BattleSoloOn);
-                else Say(UiTerm.BattleWaiting, SetNames());
+                Say(UiTerm.BattleWaiting, SetNames());
                 SetScore(string.Format(UiText.Get(UiTerm.BattleHostSet, Localization.Current), SetNames()));
             }
             else Say(UiTerm.BattleLooking);
-            Debug.Log($"[RoomOrchestra] Echo Battle: {(solo ? "solo, against the game" : role == EchoBattleLink.Role.Host ? "hosting" : "looking for a host")}");
+            Debug.Log($"[RoomOrchestra] Echo Battle: {(role == EchoBattleLink.Role.Host ? "hosting" : "looking for a host")}");
         }
 
         void Leave(bool sendBye)
@@ -383,8 +353,6 @@ namespace RoomOrchestra
         {
             m_Link?.Dispose();
             m_Link = null;
-            m_Partner?.Dispose();
-            m_Partner = null;
             m_Multicast?.Release();
             m_Multicast = null;
         }
@@ -407,7 +375,7 @@ namespace RoomOrchestra
                     if (!m_Hosting || State != Phase.Pairing) return;
                     m_Link.Send("SET", EchoBattleRules.EncodeSet(m_Set));
                     State = Phase.Setup;
-                    if (!m_Solo) Say(UiTerm.BattleTheyPlace, SetNames()); // SOLO: the game is ready at once
+                    Say(UiTerm.BattleTheyPlace, SetNames());
                     break;
                 case "SET": // we joined: put the host's instruments on this room's furniture
                     if (m_Hosting || State != Phase.Pairing || !EchoBattleRules.TryDecodeSet(message.Payload, out var set)) return;
@@ -460,7 +428,6 @@ namespace RoomOrchestra
 
         // ---- Turns, on the music clock ----
         long Bar => conductor != null && conductor.Clock != null ? conductor.Clock.BarIndex(AudioSettings.dspTime) : 0;
-        float BarSeconds => conductor != null && conductor.Clock != null ? (float)conductor.Clock.BarDuration : 4f * 60f / 88f;
 
         void BeginTurn()
         {
@@ -538,7 +505,7 @@ namespace RoomOrchestra
             }
             switch (State)
             {
-                case Phase.Pairing: // nobody yet: say what to check, and that SOLO is there (once)
+                case Phase.Pairing: // nobody yet: say what to check (once)
                     if (!m_StillLookingSaid && Time.time - m_PairingSince >= StillLookingSeconds)
                     {
                         m_StillLookingSaid = true;

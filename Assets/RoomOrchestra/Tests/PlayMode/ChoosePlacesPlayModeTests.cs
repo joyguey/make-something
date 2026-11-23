@@ -249,7 +249,11 @@ namespace RoomOrchestra.Tests
                 Rotation = rig != null ? Quaternion.Inverse(rig.rotation) * look : look,
                 GripPosition = rig != null ? rig.InverseTransformPoint(awayFromLeaf) : awayFromLeaf,
             };
-            m_Pointers.Frames[1].HandPosition = m_Pointers.Frames[1].GripPosition;
+            // the hand points at the piece (furniture follows the hand, never the eyes: owner, headset 2026-11-22);
+            // the eyes look elsewhere, and must not matter
+            m_Pointers.Frames[1].HandPosition = m_Pointers.Frames[1].Position;
+            m_Pointers.Frames[1].HandRotation = m_Pointers.Frames[1].Rotation;
+            m_Pointers.Frames[1].Rotation = rig != null ? Quaternion.Inverse(rig.rotation) * Quaternion.LookRotation(Vector3.up) : Quaternion.LookRotation(Vector3.up);
             yield return null;
             yield return null;
             Assert.IsFalse(placer.Moving, "a passing fist takes nothing");

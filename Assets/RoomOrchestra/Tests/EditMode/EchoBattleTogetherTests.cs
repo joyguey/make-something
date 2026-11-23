@@ -6,29 +6,10 @@ using UnityEngine;
 
 namespace RoomOrchestra.Tests
 {
-    /// <summary>
-    /// Echo Battle without the secret (owner, 2026-11-22: "an easier way to access than the easter egg", smooth "even
-    /// though I don't have two headsets"): Menu > Play together, and SOLO against the game.
-    /// </summary>
-    public class EchoBattleSoloTests
+    /// <summary>Echo Battle without the secret (owner, 2026-11-22: "an easier way to access than the easter egg"): Menu >
+    /// Play together; and joining puts the host's instruments on the furniture by itself.</summary>
+    public class EchoBattleTogetherTests
     {
-        [Test]
-        public void ThePartnersCallsGrowFromTwoNotesToFourOnEighthNotes()
-        {
-            using var partner = new EchoBattlePartner(47901, 47902, seed: 7);
-            for (int round = 1; round <= EchoBattleRules.Rounds; round++)
-                for (int k = 0; k < 50; k++)
-                {
-                    var call = partner.Compose(round);
-                    Assert.AreEqual(round + 1, call.Count, $"round {round}");
-                    Assert.IsTrue(call.All(n => n.Step % 2 == 0), "on 8th notes: easy to follow");
-                    CollectionAssert.AllItemsAreUnique(call.Select(n => n.Step));
-                    CollectionAssert.IsOrdered(call.Select(n => n.Step));
-                    Assert.IsTrue(call.All(n => n.Note >= 0 && n.Note < NoteMapping.Count));
-                    Assert.IsTrue(EchoBattleRules.TryDecode(EchoBattleRules.Encode(call), out var back) && back.SequenceEqual(call), "it travels like a player's call");
-                }
-        }
-
         [Test]
         public void JoiningPutsTheHostsInstrumentsOnTheFurnitureByItself()
         {
@@ -43,22 +24,7 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
-        public void ThePartnerIsBeatableButNoPushover()
-        {
-            using var partner = new EchoBattlePartner(47903, 47904, seed: 11);
-            int got = 0, most = 0;
-            for (int k = 0; k < 400; k++)
-            {
-                var call = partner.Compose(1 + k % 3);
-                got += EchoBattleRules.Score(call, partner.Imitate(call));
-                most += EchoBattleRules.MaxScore(call.Count);
-            }
-            float share = got / (float)most;
-            Assert.That(share, Is.InRange(0.55f, 0.85f), $"it scores {share:P0} of what a perfect echo would");
-        }
-
-        [Test]
-        public void PlayTogetherIsOnTheMenuAndTheCardHasSoloBesideHostJoinAndLeave()
+        public void PlayTogetherIsOnTheMenuAndTheCardKeepsHostJoinAndLeave()
         {
             EditorSceneManager.OpenScene("Assets/RoomOrchestra/Scenes/RoomOrchestra.unity", OpenSceneMode.Single);
             var together = Object.FindFirstObjectByType<TogetherButton>(FindObjectsInactive.Include);
@@ -69,8 +35,8 @@ namespace RoomOrchestra.Tests
 
             var director = Object.FindFirstObjectByType<EchoBattleDirector>();
             var buttons = director.Card.GetComponentsInChildren<EchoBattleButton>(true);
-            CollectionAssert.AreEquivalent(new[] { EchoBattleButton.Kind.Host, EchoBattleButton.Kind.Join, EchoBattleButton.Kind.Solo, EchoBattleButton.Kind.Leave }, buttons.Select(b => b.ButtonKind));
-            // all four stickers on the poster, none overlapping (in the card's own space)
+            CollectionAssert.AreEquivalent(new[] { EchoBattleButton.Kind.Host, EchoBattleButton.Kind.Join, EchoBattleButton.Kind.Leave }, buttons.Select(b => b.ButtonKind));
+            // the stickers on the poster, none overlapping (in the card's own space)
             var panel = director.Card.Find("BattlePanel");
             float half = panel.localScale.x / 2f;
             var spans = new List<(float min, float max)>();

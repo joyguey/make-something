@@ -158,7 +158,16 @@ namespace RoomOrchestra
                 return;
             }
 
-            if (Choose(hand, ray, origin, pressed)) return;
+            // Choosing where furniture goes follows the hand's own pointing, never the eyes (owner, headset 2026-11-22:
+            // "Didn't I get to choose where the furniture went with my hand and pointing?"); buttons and tiles keep
+            // look-and-pinch.
+            var handRay = ray;
+            if (frame.Gaze)
+            {
+                var handFrom = rig != null ? rig.TransformPoint(frame.HandPosition) : frame.HandPosition;
+                handRay = new Ray(handFrom, (rig != null ? rig.rotation * frame.HandRotation : frame.HandRotation) * Vector3.forward);
+            }
+            if (Choose(hand, handRay, handRay.origin, pressed)) return;
 
             bool touching = Aim(ray, out var hit);
             var target = touching ? hit.collider.gameObject : null;

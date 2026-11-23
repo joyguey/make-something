@@ -31,10 +31,14 @@ namespace RoomOrchestra
         bool m_ByHand;    // ... and moved by the bare hand's own movement
 
         // The pointer's ray in scene space: the controller's, or the eyes' with the hands (look and pinch).
+        // Furniture is taken by the hand's own pointing, never the eyes (owner, headset 2026-11-22): with bare hands
+        // (look and pinch), the hand's aim ray, not the gaze.
         static Ray PointerRay(PointerFrame frame, Transform rig)
         {
-            var origin = rig != null ? rig.TransformPoint(frame.Position) : frame.Position;
-            var dir = (rig != null ? rig.rotation * frame.Rotation : frame.Rotation) * Vector3.forward;
+            var at = frame.Gaze ? frame.HandPosition : frame.Position;
+            var turn = frame.Gaze ? frame.HandRotation : frame.Rotation;
+            var origin = rig != null ? rig.TransformPoint(at) : at;
+            var dir = (rig != null ? rig.rotation * turn : turn) * Vector3.forward;
             return new Ray(origin, dir);
         }
         Renderer m_Leaf;
