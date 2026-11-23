@@ -172,6 +172,109 @@ namespace RoomOrchestra.Tests
             Assert.AreSame(ownSong, EchoConductor.Instance.Echoes.Single(), "exactly as it was");
         }
 
+        // Owner, 2026-11-22: an easier way in than the secret, and a smooth battle with one headset.
+        [UnityTest]
+        public IEnumerator PlayTogetherOnTheMenuThenSoloPlaysAWholeBattleAgainstTheGame()
+        {
+            var battle = EchoBattleDirector.Instance;
+            OrbSelector.Instance.PlaceOnTile(Object.FindObjectsByType<PitchTile>(FindObjectsSortMode.None).First(t => t.Target.Instrument == InstrumentType.Erhu));
+            yield return null;
+            var ownSong = EchoConductor.Instance.Echoes.Single();
+
+            MenuTray.Instance.SetOpen(true);
+            yield return new WaitForSeconds(MenuTray.OpenSeconds + 0.1f);
+            var together = Object.FindFirstObjectByType<TogetherButton>();
+            Assert.IsTrue(InstrumentInputRouter.Activate(together.GetComponentInChildren<Collider>().gameObject), "Play together takes a tap");
+            Assert.IsTrue(battle.Shown, "the card comes out, no secret needed");
+            yield return null; // its buttons come out with it
+            Assert.IsFalse(MenuTray.Instance.Open, "the menu folds away so the card is in view");
+            StringAssert.StartsWith("Two headsets", battle.StatusText);
+            StringAssert.Contains("SOLO", battle.StatusText, "and says what to do with one headset");
+
+            var solo = battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Solo);
+            Assert.IsTrue(InstrumentInputRouter.Activate(solo.GetComponentInChildren<Collider>().gameObject));
+            Assert.IsTrue(battle.Solo);
+            Assert.IsTrue(EchoConductor.Instance.SongMuted, "the player's song is set aside, as in any battle");
+            float start = Time.realtimeSinceStartup;
+            while (battle.Match == null && Time.realtimeSinceStartup < start + 5f) yield return null;
+            Assert.IsNotNull(battle.Match, "the game joins at once: no waiting for a second headset");
+            Assert.IsTrue(battle.Match.ICall, "the player calls first");
+
+            // three rounds: the player calls two notes each time; the game echoes, then calls and the player listens
+            var tiles = Object.FindObjectsByType<PitchTile>(FindObjectsSortMode.None).Where(t => t.Target.Instrument == InstrumentType.Mbira).OrderBy(t => t.Petal).ToArray();
+            int calls = 0, heard = 0;
+            var lastState = battle.State;
+            while (battle.State != EchoBattleDirector.Phase.Over && Time.realtimeSinceStartup < start + 150f)
+            {
+                if (battle.State != lastState)
+                {
+                    if (battle.State == EchoBattleDirector.Phase.Recording && battle.Match.ICall)
+                    {
+                        calls++;
+                        OrbSelector.Instance.PlaceOnTile(tiles[1]);
+                        yield return new WaitForSeconds(0.35f);
+                        OrbSelector.Instance.PlaceOnTile(tiles[3]);
+                    }
+                    if (battle.State == EchoBattleDirector.Phase.Listening)
+                    {
+                        heard++;
+                        Assert.AreEqual(Mathf.Min(battle.Match.Round + 1, 4), battle.Match.LastCall.Count, "the game's calls grow, 2 to 4 notes");
+                        Assert.Greater(InstrumentTarget.Active.Sum(t => t.ScheduledCount), 0, "its call is played on this room's furniture");
+                    }
+                    lastState = battle.State;
+                }
+                yield return null;
+            }
+            Assert.AreEqual(EchoBattleDirector.Phase.Over, battle.State, $"a whole battle in time (stuck at {battle.State}, round {battle.Match.Round})");
+            Assert.AreEqual(3, calls, "the player called in each of 3 rounds");
+            Assert.AreEqual(3, heard, "and heard the game's call in each");
+            Assert.Greater(battle.Match.TheirScore, 0, "the game echoed the player's calls");
+            StringAssert.IsMatch("WIN|DRAW", battle.StatusText.ToUpperInvariant(), "the result is said");
+            Assert.IsNull(battle.Partner, "the game has left the battle");
+            Assert.IsFalse(EchoConductor.Instance.SongMuted, "the player's own song plays on");
+            Assert.IsFalse(InstrumentPacks.Locked);
+            Assert.AreSame(ownSong, EchoConductor.Instance.Echoes.Single(), "exactly as it was");
+        }
+
+        // Owner, headset 2026-11-22: an x to close Flutter's bubble; the two-player card must never open behind it.
+        [UnityTest]
+        public IEnumerator FlutterBubbleHasAnXAndGivesWayToTheCard()
+        {
+            var lesson = TutorialDirector.Instance;
+            if (lesson.Active) lesson.Skip();
+            yield return new WaitForSeconds(1.5f);
+            Assert.IsNull(Object.FindFirstObjectByType<BubbleCloseButton>(), "no x while nothing is said");
+            lesson.Announce(UiTerm.PlaceDone, 30f);
+            yield return null;
+            Assert.IsTrue(lesson.BubbleOut);
+            var x = Object.FindFirstObjectByType<BubbleCloseButton>();
+            Assert.IsNotNull(x, "the x shows on a line after the lesson");
+            Assert.IsTrue(x.GetComponent<Collider>().enabled, "and takes taps");
+            Assert.IsTrue(InstrumentInputRouter.Activate(x.gameObject));
+            Assert.IsFalse(lesson.BubbleOut, "the x closes it at once");
+            yield return new WaitForSeconds(1.5f);
+            lesson.Announce(UiTerm.PlaceDone, 30f);
+            yield return null;
+            Assert.IsTrue(lesson.BubbleOut);
+            EchoBattleDirector.Instance.ShowFromMenu();
+            Assert.IsFalse(lesson.BubbleOut, "Play together sends the bubble away: the card is never behind it");
+        }
+
+        [UnityTest]
+        public IEnumerator NobodyToJoinTheCardSaysWhatToCheckAndOffersSolo()
+        {
+            var battle = EchoBattleDirector.Instance;
+            battle.UseTestNetwork(47821, 47822); // nobody on the other end
+            battle.ShowFromMenu();
+            battle.Press(EchoBattleButton.Kind.Join);
+            Assert.AreEqual(EchoBattleDirector.Phase.Pairing, battle.State);
+            yield return new WaitForSeconds(EchoBattleDirector.StillLookingSeconds + 0.5f);
+            StringAssert.StartsWith("Still looking", battle.StatusText);
+            StringAssert.Contains("SOLO", battle.StatusText);
+            battle.Press(EchoBattleButton.Kind.Leave);
+            Assert.AreEqual(EchoBattleDirector.Phase.Menu, battle.State, "LEAVE goes back to the card's buttons, SOLO among them");
+        }
+
         [UnityTest]
         public IEnumerator JoiningHearsTheOtherHeadsetsCallOnThisRoomsFurniture()
         {
@@ -193,21 +296,14 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(InstrumentInputRouter.Activate(battle.Card.GetComponentsInChildren<EchoBattleButton>().First(b => b.ButtonKind == EchoBattleButton.Kind.Join).GetComponentInChildren<Collider>().gameObject));
             yield return Pump(5f, () => got.Any(m => m.Type == "JOIN"));
             Assert.IsTrue(got.Any(m => m.Type == "JOIN"), "we asked to join");
-            // the host plays udu, handpan and erhu: this room (udu, mbira, erhu) must get a handpan before play starts
-            m_Other.Send("SET", "UHE");
-            yield return Pump(4f, () => battle.State == EchoBattleDirector.Phase.Setup);
-            Assert.AreEqual(EchoBattleDirector.Phase.Setup, battle.State);
-            StringAssert.Contains("handpan", battle.StatusText, "the card names what is still missing");
-            StringAssert.DoesNotContain("erhu", battle.StatusText, "and only that");
-            yield return Pump(0.6f);
-            Assert.IsFalse(got.Any(m => m.Type == "READY"), "not ready while an instrument is missing");
-            Assert.IsNull(battle.Match);
-            // Change on the chair (the mbira is not in the host's set): one tap gives it the missing handpan
+            // the host plays udu, handpan and erhu: this room (udu, mbira, erhu) gets the handpan by itself (owner,
+            // 2026-11-22: "make joining automatic"), on the chair, the one piece not already playing one of the host's
             var chairPiece = InstrumentTarget.Find(InstrumentType.Mbira);
-            var change = Object.FindObjectsByType<ChangeInstrumentButton>(FindObjectsSortMode.None).First(b => b.Target == chairPiece);
-            Assert.IsTrue(InstrumentInputRouter.Activate(change.GetComponentInChildren<Collider>().gameObject));
-            Assert.AreEqual(InstrumentType.Handpan, chairPiece.Instrument);
+            m_Other.Send("SET", "UHE");
             yield return Pump(4f, () => got.Any(m => m.Type == "READY"));
+            Assert.AreEqual(InstrumentType.Handpan, chairPiece.Instrument, "the chair took the host's handpan, no taps needed");
+            Assert.IsNotNull(InstrumentTarget.Find(InstrumentType.Udu));
+            Assert.IsNotNull(InstrumentTarget.Find(InstrumentType.Erhu), "the pieces already matching kept theirs");
             Assert.IsTrue(got.Any(m => m.Type == "READY"), "the room matches the host's: ready");
             Assert.IsFalse(InstrumentPacks.Instance.ChangeInstrument(chairPiece), "and its instruments are locked in too");
             Assert.AreEqual("Udu,Mbira,Erhu", PlayerPrefs.GetString(InstrumentPacks.PlacesPrefKey, "Udu,Mbira,Erhu"), "the player's own arrangement stays the remembered one");

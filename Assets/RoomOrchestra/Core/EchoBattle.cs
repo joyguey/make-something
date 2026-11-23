@@ -147,6 +147,37 @@ namespace RoomOrchestra
             return missing;
         }
 
+        /// <summary>The joining player's furniture given the host's instruments at once (owner, 2026-11-22: "make joining
+        /// automatic"): a piece already playing one of the host's keeps it; the others take the missing ones in the host's
+        /// order. A room with fewer pieces than the host's set gets as many as it has room for.</summary>
+        public static InstrumentType[] MatchPlaces(IReadOnlyList<InstrumentType> wanted, IReadOnlyList<InstrumentType> places)
+        {
+            var result = new InstrumentType[places.Count];
+            var keep = new bool[places.Count];
+            var placed = new HashSet<InstrumentType>();
+            for (int i = 0; i < places.Count; i++)
+            {
+                result[i] = places[i];
+                if (Contains(wanted, places[i]) && placed.Add(places[i])) keep[i] = true;
+            }
+            int next = 0;
+            for (int i = 0; i < places.Count; i++)
+            {
+                if (keep[i]) continue;
+                while (next < wanted.Count && placed.Contains(wanted[next])) next++;
+                if (next >= wanted.Count) break;
+                result[i] = wanted[next];
+                placed.Add(wanted[next]);
+            }
+            return result;
+        }
+
+        static bool Contains(IReadOnlyList<InstrumentType> list, InstrumentType type)
+        {
+            for (int i = 0; i < list.Count; i++) if (list[i] == type) return true;
+            return false;
+        }
+
         /// <summary>Which instrument a tap on a piece playing <paramref name="current"/> gives it while the room is
         /// being matched to the host's set: the first missing one; with none missing, the next of the host's set.</summary>
         public static InstrumentType NextWanted(IReadOnlyList<InstrumentType> wanted, ICollection<InstrumentType> here, InstrumentType current)

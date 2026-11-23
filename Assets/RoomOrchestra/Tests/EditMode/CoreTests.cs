@@ -482,16 +482,23 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(0, growth.FlowersSprouted(20), "no flower yet");
             growth.NoteAdded(InstrumentType.Erhu);
             Assert.AreEqual(1, growth.MushroomsSprouted, "the third note wakes the floor");
-            Assert.AreEqual(1, growth.FlowersSprouted(20), "and the first flower");
+            Assert.AreEqual(2, growth.FlowersSprouted(20), "and the first flowers: half the erhu's ring is a sixth of the song (of 12 flowers)");
             Assert.AreEqual(0.5f, growth.VineProgress(InstrumentType.Erhu), 1e-6f, "each note added creeps the vine of its own instrument");
             Assert.AreEqual(0f, growth.VineProgress(InstrumentType.Udu), "other vines wait for their own instrument");
-            Assert.AreEqual(JungleGrowth.MushroomAt.Count(n => n <= JungleGrowth.NotesPerVine / 2), growth.MushroomsSprouted, "toadstools follow the total");
+            Assert.AreEqual(1, growth.MushroomsSprouted, "toadstools follow the song's completeness");
+            // owner, headset 2026-11-22: one instrument alone, however many notes, never fills the room
+            for (int i = 0; i < 30; i++) growth.NoteAdded(InstrumentType.Erhu);
+            Assert.AreEqual(1f / 3f, growth.SongComplete, 1e-5f);
+            Assert.AreEqual(4, growth.FlowersSprouted(20), "a third of the 12 flowers");
+            Assert.AreEqual(2, growth.MushroomsSprouted, "a third of the 7 toadstools");
             foreach (var type in new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu })
                 for (int i = 0; i < JungleGrowth.NotesPerVine; i++) growth.NoteAdded(type);
             Assert.IsTrue(growth.AllVinesGrown);
             Assert.AreEqual(1f, growth.VineProgress(InstrumentType.Erhu), "never beyond full length");
-            Assert.AreEqual(growth.TotalNotes - JungleGrowth.NotesBeforeGrowth + 1, growth.FlowersSprouted(100), "a flower for every note since growth began");
-            Assert.AreEqual(5, growth.FlowersSprouted(5), "never more than there are");
+            Assert.AreEqual(1f, growth.SongComplete, 1e-5f, "a full ring on each of the three instruments: the song is complete");
+            Assert.AreEqual(12, growth.FlowersSprouted(20), "the room is filled: 60% of the flowers, no more");
+            Assert.AreEqual(JungleGrowth.MushroomAt.Length, growth.MushroomsSprouted, "and every toadstool");
+            Assert.AreEqual(3, growth.FlowersSprouted(5), "never more than the share of those there are");
 
             var clock = new MusicClock(0.0);
             var loop = new EchoSequencer(clock);

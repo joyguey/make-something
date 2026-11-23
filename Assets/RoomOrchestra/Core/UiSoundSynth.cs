@@ -3,7 +3,7 @@ using System;
 namespace RoomOrchestra
 {
     /// <summary>The interface's own sounds (V3 review: "Needs UI sound effects").</summary>
-    public enum UiSound { Hover, Press, Open, Close, Confirm, Cancel, Place }
+    public enum UiSound { Hover, Press, Open, Close, Confirm, Cancel, Place, Select } // Select appended (2026-11-22)
 
     /// <summary>
     /// Synthesises the interface sounds: short, soft and in the song's key (D major pentatonic, like the bounce
@@ -24,6 +24,7 @@ namespace RoomOrchestra
             UiSound.Press => 0.40f,
             UiSound.Open or UiSound.Close => 0.28f,
             UiSound.Confirm or UiSound.Place => 0.30f,
+            UiSound.Select => 0.34f,
             _ => 0.25f,
         };
 
@@ -36,6 +37,9 @@ namespace RoomOrchestra
             UiSound.Confirm => Bell(new[] { D5, Fs5, A5 }, 0.055f, 0.196f, sampleRate),
             UiSound.Cancel => Bell(new[] { A4, D4 }, 0.07f, 0.14f, sampleRate),
             UiSound.Place => Bell(new[] { D5, A5, D6 }, 0.05f, 0.245f, sampleRate),
+            // a tile chosen (owner, headset 2026-11-22: "more obvious with the selection sound when I decide to choose
+            // between wobble, slap, etc."): a quick bright rise, A5 to D6, clearly not the hover tick or a button's pop
+            UiSound.Select => Bell(new[] { A5, D6 }, 0.045f, 0.15f, sampleRate),
             _ => new float[1],
         };
 

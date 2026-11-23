@@ -207,8 +207,9 @@ namespace RoomOrchestra.Tests
             yield return null;
             Assert.AreEqual(keptFrom.x + shift.x, kept.transform.position.x, 0.02f, "it follows the hand across the floor");
             Assert.AreEqual(keptFrom.z + shift.z, kept.transform.position.z, 0.02f);
-            Assert.AreEqual(keptFrom.y, kept.transform.position.y, 0.02f, "and stays on the floor");
+            Assert.AreEqual(keptFrom.y + RealFurniture.HoldLift, kept.transform.position.y, 0.02f, "lifted a little while held, so it shows it is taken (owner, 2026-11-22)");
             placer.EndMove();
+            Assert.AreEqual(keptFrom.y, kept.transform.position.y, 0.02f, "and set back on the floor");
             Assert.IsFalse(placer.Moving);
             Assert.IsFalse(placer.TryBeginMove(new Vector3(9f, 1f, 9f)), "nothing to take far from any furniture");
             // owner, headset 2026-11-12: "do I need to walk up to it?" no: point at it from the seat and drag
@@ -225,6 +226,38 @@ namespace RoomOrchestra.Tests
             placer.EndMove();
             Assert.Less(Mathf.Abs(kept.transform.position.y - keptFrom.y), 0.02f, "still on the floor");
             Assert.IsFalse(placer.TryBeginMoveByRay(new Ray(seatEye, Vector3.up)), "pointing at the sky takes nothing");
+
+            // owner, headset 2026-11-22: "I couldn't tell when I was suddenly dragging the virtual furniture". A bare
+            // hand's fist, the gaze on the piece, takes it only once held a moment; a flicker open doesn't drop it.
+            var rig = XrRig.Instance != null ? XrRig.Instance.transform : null;
+            var middle = kept.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((x, y) => { x.Encapsulate(y); return x; }).center;
+            var look = Quaternion.LookRotation(middle - seatEye);
+            var awayFromLeaf = new Vector3(2.5f, 0.3f, -2.5f);
+            m_Pointers.Frames[1] = new PointerFrame
+            {
+                Tracked = true, Gaze = true, Grip = true,
+                Position = rig != null ? rig.InverseTransformPoint(seatEye) : seatEye,
+                Rotation = rig != null ? Quaternion.Inverse(rig.rotation) * look : look,
+                GripPosition = rig != null ? rig.InverseTransformPoint(awayFromLeaf) : awayFromLeaf,
+            };
+            m_Pointers.Frames[1].HandPosition = m_Pointers.Frames[1].GripPosition;
+            yield return null;
+            yield return null;
+            Assert.IsFalse(placer.Moving, "a passing fist takes nothing");
+            yield return new WaitForSecondsRealtime(LeafGrab.HandHoldSeconds + 0.15f);
+            Assert.IsTrue(placer.Moving, "a fist held a moment takes it");
+            Assert.AreEqual(RealFurniture.HoldLift, placer.Lifted, 1e-5f, "and it lifts");
+            m_Pointers.Frames[1].Grip = false;
+            yield return null;
+            Assert.IsTrue(placer.Moving, "a flicker open doesn't drop it");
+            yield return new WaitForSecondsRealtime(LeafGrab.HandLetGoSeconds + 0.15f);
+            Assert.IsFalse(placer.Moving, "opened a moment: put down");
+            Assert.AreEqual(0f, placer.Lifted);
+            m_Pointers.Frames[1] = default;
+            // and Flutter says how, on a line of its own, once the furniture is chosen with a virtual piece kept
+            float waited = 0f;
+            while (!placer.MoveHintSaid && waited < 8f) { waited += Time.deltaTime; yield return null; }
+            Assert.IsTrue(placer.MoveHintSaid, "the move gesture is explained");
             Assert.IsFalse(RealWalls.ShowScan, "the room stops glowing");
             yield return null;
             Assert.IsTrue(RealWalls.Occlude, "and now real walls and furniture hide what is behind them");

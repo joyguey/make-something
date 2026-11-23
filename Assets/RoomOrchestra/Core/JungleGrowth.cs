@@ -20,7 +20,8 @@ namespace RoomOrchestra
         public const int NotesPerVine = 6;
         /// <summary>Notes the song needs before anything grows.</summary>
         public const int NotesBeforeGrowth = 3;
-        /// <summary>Total notes added at which each toadstool sprouts, in order.</summary>
+        /// <summary>The toadstools (one entry each). Until 2026-11-22 the total notes at which each sprouted; now they
+        /// follow <see cref="SongComplete"/>.</summary>
         public static readonly int[] MushroomAt = { 3, 4, 6, 8, 10, 13, 16 };
 
         readonly int[] m_Notes = new int[System.Enum.GetValues(typeof(InstrumentType)).Length];
@@ -38,21 +39,44 @@ namespace RoomOrchestra
         public float VineProgress(InstrumentType instrument) =>
             TotalNotes < NotesBeforeGrowth ? 0f : Math.Min(1f, m_Notes[(int)instrument] / (float)NotesPerVine);
 
-        /// <summary>Floor flowers out of <paramref name="count"/>: the first with the growth, one more each note.</summary>
-        public int FlowersSprouted(int count) => Math.Max(0, Math.Min(count, TotalNotes - NotesBeforeGrowth + 1));
+        /// <summary>Of the floor flowers, the share that ever grows (owner, headset 2026-11-22: "dial down the number of
+        /// flowers and mushrooms that grow everywhere").</summary>
+        public const float FlowerShare = 0.6f;
+
+        /// <summary>
+        /// How complete the three-instrument song is, 0 to 1: each of the three instruments counts fully once it has
+        /// <see cref="NotesPerVine"/> notes (its ring's worth). Owner, 2026-11-22: "there should be a complete
+        /// 3-instrument song before the room is filled": the floor fills with this, so one instrument alone, however
+        /// many notes, grows a third of it.
+        /// </summary>
+        public float SongComplete
+        {
+            get
+            {
+                if (TotalNotes < NotesBeforeGrowth) return 0f;
+                float sum = 0f;
+                foreach (var type in new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu })
+                    sum += Math.Min(1f, m_Notes[(int)type] / (float)NotesPerVine);
+                return sum / 3f;
+            }
+        }
+
+        /// <summary>Floor flowers out of <paramref name="count"/>: the first with the growth, then as the
+        /// three-instrument song completes, up to <see cref="FlowerShare"/> of them.</summary>
+        public int FlowersSprouted(int count)
+        {
+            if (TotalNotes < NotesBeforeGrowth || count <= 0) return 0;
+            int most = Math.Max(1, (int)Math.Round(count * FlowerShare));
+            return Math.Max(1, Math.Min(most, (int)Math.Floor(most * SongComplete + 1e-4f)));
+        }
 
         public bool AllVinesGrown =>
             VineProgress(InstrumentType.Udu) >= 1f && VineProgress(InstrumentType.Mbira) >= 1f && VineProgress(InstrumentType.Erhu) >= 1f;
 
-        public int MushroomsSprouted
-        {
-            get
-            {
-                int n = 0;
-                while (n < MushroomAt.Length && TotalNotes >= MushroomAt[n]) n++;
-                return n;
-            }
-        }
+        /// <summary>Toadstools out of <see cref="MushroomAt"/>'s count: the first with the growth, all of them only
+        /// once the three-instrument song is complete (owner, 2026-11-22).</summary>
+        public int MushroomsSprouted =>
+            TotalNotes < NotesBeforeGrowth ? 0 : Math.Max(1, (int)Math.Floor(MushroomAt.Length * SongComplete + 1e-4f));
 
         /// <summary>
         /// Butterflies out for the song as it stands: one once two instruments play together, two with

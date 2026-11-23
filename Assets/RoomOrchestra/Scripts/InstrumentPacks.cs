@@ -81,8 +81,9 @@ namespace RoomOrchestra
             return places;
         }
 
-        /// <summary>Puts a whole arrangement back (the player's own, after a battle).</summary>
-        public void SetPlaces(IReadOnlyList<InstrumentType> places)
+        /// <summary>Puts a whole arrangement on the furniture: the player's own, after a battle; or, not remembered, the
+        /// host's set while a battle runs (so the player's own stays the saved one).</summary>
+        public void SetPlaces(IReadOnlyList<InstrumentType> places, bool remember = true)
         {
             if (places == null || furniture == null || places.Count != furniture.Length) return;
             bool changed = false;
@@ -94,7 +95,7 @@ namespace RoomOrchestra
                 }
             if (!changed) return;
             ApplySounds();
-            Remember();
+            if (remember) Remember();
             Changed?.Invoke();
         }
 

@@ -256,6 +256,7 @@ namespace RoomOrchestra
         void Begin()
         {
             ShowSkip(true);
+            ShowCloseX(false);
             InstrumentPacks.Instance?.ResetPlaces(); // the lesson is about the chair's mbira, the lamp's erhu, the table's udu
             // Notes played during the opening (a ball thrown before Flutter spoke) are not part of the tune: one sat
             // where "had" belongs and jammed the lesson (owner, emulator).
@@ -473,9 +474,30 @@ namespace RoomOrchestra
                 m_PopStart = Time.time;
             }
             BubbleTaps(false);
+            ShowCloseX(true);
             m_Announcing = true;
             m_CloseAt = Time.time + seconds;
             Debug.Log($"[RoomOrchestra] Flutter says: {UiText.Get(term, UiLanguage.English)}");
+        }
+
+        /// <summary>The x on the bubble (or something that needs the space, like the Echo Battle card): a line after the
+        /// lesson goes back into Flutter now. The lesson's own lines stay (Skip ends the lesson).</summary>
+        public void Dismiss()
+        {
+            if (!m_Announcing || !m_BubbleOut) return;
+            Debug.Log("[RoomOrchestra] Flutter's bubble: closed with its x");
+            Close();
+        }
+
+        Transform m_CloseX;
+
+        // The x shows (and takes taps) only on a line after the lesson.
+        void ShowCloseX(bool on)
+        {
+            if (m_CloseX == null && bubble != null) m_CloseX = bubble.Find("BubbleCloseButton");
+            if (m_CloseX == null) return;
+            m_CloseX.gameObject.SetActive(on);
+            foreach (var c in m_CloseX.GetComponentsInChildren<Collider>(true)) c.enabled = on;
         }
 
         void Say(UiTerm term)
@@ -533,6 +555,7 @@ namespace RoomOrchestra
         void ParkBubble()
         {
             BubbleTaps(false);
+            ShowCloseX(false);
             if (bubble == null || park == null) return;
             bubble.position = park.position;
             bubble.localScale = bubbleScale * ParkedScale;

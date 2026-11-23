@@ -167,6 +167,19 @@ namespace RoomOrchestra
             bool tappable = ball || owner != null;
             // a soft tick as the pointer comes onto something new to press (not the instruments' own notes)
             var hoverOn = tappable && !(owner is InstrumentTarget) ? (owner != null ? (Component)owner : hit.collider) : null;
+            // Look and pinch: the gaze must rest on something a moment before the highlight (and the pinch) moves to it
+            // (owner, headset 2026-11-22: choosing the udu's Wobble or Slap was "a bit erratic because it's following my
+            // gaze"; the head and eyes drift across the stacked tiles). The controller's ray moves it at once.
+            var raw = hoverOn;
+            if (m_Gaze[hand] && hoverOn != m_Hovering[hand])
+            {
+                if (hoverOn != m_HoverNext[hand])
+                {
+                    m_HoverNext[hand] = hoverOn;
+                    m_HoverNextSince[hand] = Time.unscaledTime;
+                }
+                if (Time.unscaledTime - m_HoverNextSince[hand] < GazeSettleSeconds) hoverOn = m_Hovering[hand];
+            }
             if (hoverOn != m_Hovering[hand])
             {
                 m_Hovering[hand] = hoverOn;
@@ -176,6 +189,12 @@ namespace RoomOrchestra
             ShowRay(hand, true, origin, touching ? hit.point : origin + dir * RayIdleLength, touching, tappable);
             // on an instrument's real object: its five note bands show, the one under the pointer lit (owner, 2026-11-08)
             if (owner is InstrumentTarget instrument && instrument.Home != null) instrument.Home.Point(hit.point);
+            // a pinch acts on the lit one, even if the gaze has just slipped onto its neighbour
+            if (pressed && m_Gaze[hand] && hoverOn != null && hoverOn != raw)
+            {
+                target = hoverOn.gameObject;
+                ball = launcher != null && launcher.IsReadyBall(target);
+            }
             if (!pressed || target == null) return;
             PressPoint = hit.point;
             if (ball)
@@ -195,6 +214,10 @@ namespace RoomOrchestra
         static int GrabId(int hand) => 100 + hand;
         readonly bool[] m_Gaze = new bool[2];
         readonly Component[] m_Hovering = new Component[2];
+        readonly Component[] m_HoverNext = new Component[2];
+        readonly float[] m_HoverNextSince = new float[2];
+        /// <summary>How long the gaze rests on something before the highlight follows it (look and pinch only).</summary>
+        public const float GazeSettleSeconds = 0.15f;
 
         // After the lesson the player chooses where each instrument lives (owner, headset 2026-11-08): the ray touches
         // the scanned room, a glowing spot previews the place, and a press puts the instrument there. A press on that
@@ -421,7 +444,9 @@ namespace RoomOrchestra
             if (owner == null || owner is InstrumentTarget || owner is EchoMini) return;
             PressJiggle.Play(owner, swell: !(owner is OrbToken));
             // the menu and the confirm card play their own sounds; everything else pops (V3 review: UI sound effects)
-            if (!(owner is MenuButton) && !(owner is ConfirmChoice)) UiSounds.Play(UiSound.Press, owner);
+            // a note tile (the udu's Deep, Soft, Slap, Wobble, Tap among them) chimes as it is chosen (owner, 2026-11-22)
+            if (owner is PitchTile) UiSounds.Play(UiSound.Select, owner);
+            else if (!(owner is MenuButton) && !(owner is ConfirmChoice)) UiSounds.Play(UiSound.Press, owner);
         }
 
         static bool Dispatch(GameObject hit)
