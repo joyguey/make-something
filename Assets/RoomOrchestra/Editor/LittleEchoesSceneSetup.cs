@@ -2375,6 +2375,7 @@ namespace RoomOrchestra.EditorTools
             go.transform.SetParent(holder, false);
             var tmp = go.AddComponent<TextMeshPro>();
             tmp.font = LabelFont.Ensure(); // English and Chinese
+            NoteLabelOutline(tmp.font);
             tmp.text = text;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
@@ -2626,6 +2627,35 @@ namespace RoomOrchestra.EditorTools
         }
 
         // A soft self-glow in the body colour so characters stay bright in a dim room (owner: "brighter").
+        // The note names on real furniture: the label font's own material with a dark plum outline, no backing box
+        // (owner, headset 2026-11-22). Saved under Resources so the build keeps the shader's outline variant, and
+        // remade on every setup so it follows the font's atlas.
+        const string NoteLabelOutlinePath = "Assets/RoomOrchestra/Resources/" + RealHome.OutlineMaterialName + ".mat";
+        public const float NoteOutlineWidth = 0.28f;
+        public static readonly Color NoteOutlineColor = new(0.10f, 0.05f, 0.16f, 1f);
+
+        static int s_OutlineFrame = -1;
+
+        static void NoteLabelOutline(TMP_FontAsset font)
+        {
+            if (font == null || font.material == null || s_OutlineFrame == Time.frameCount) return; // once per setup
+            s_OutlineFrame = Time.frameCount;
+            if (!AssetDatabase.IsValidFolder("Assets/RoomOrchestra/Resources")) AssetDatabase.CreateFolder("Assets/RoomOrchestra", "Resources");
+            var m = AssetDatabase.LoadAssetAtPath<Material>(NoteLabelOutlinePath);
+            if (m == null)
+            {
+                m = new Material(font.material) { name = RealHome.OutlineMaterialName };
+                AssetDatabase.CreateAsset(m, NoteLabelOutlinePath);
+            }
+            m.shader = font.material.shader;
+            m.CopyPropertiesFromMaterial(font.material);
+            m.EnableKeyword("OUTLINE_ON");
+            m.SetFloat("_OutlineWidth", NoteOutlineWidth);
+            m.SetColor("_OutlineColor", NoteOutlineColor);
+            m.SetFloat("_FaceDilate", 0.15f); // a touch bolder, so the outline doesn't thin the letters
+            EditorUtility.SetDirty(m);
+        }
+
         static Material Glow(Material material, Color color)
         {
             if (!material.HasProperty("_EmissionColor")) return material;

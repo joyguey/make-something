@@ -409,6 +409,8 @@ namespace RoomOrchestra
                 case QuitButton _:
                 case StartOverButton _:
                     return true;
+                case PlacesButton _: // forgets every chosen place (owner, headset 2026-11-22)
+                    return RealFurniture.Instance != null && RealFurniture.Instance.State == RealFurniture.Phase.Placed;
                 case EchoBattleButton battle:
                     var director = EchoBattleDirector.Instance;
                     return battle.ButtonKind == EchoBattleButton.Kind.Leave && director != null

@@ -28,6 +28,7 @@ namespace RoomOrchestra
         int m_Hand = -1;
         bool m_Furniture; // holding a kept virtual piece of furniture, not the leaf
         bool m_ByRay;     // ... from afar, along the pointer (or the gaze)
+        bool m_ByHand;    // ... and moved by the bare hand's own movement
 
         // The pointer's ray in scene space: the controller's, or the eyes' with the hands (look and pinch).
         static Ray PointerRay(PointerFrame frame, Transform rig)
@@ -61,7 +62,13 @@ namespace RoomOrchestra
                 float now = Time.unscaledTime;
                 if (grip)
                 {
-                    if (closed) { m_GripSince[hand] = now; m_GripUsed[hand] = false; m_Aimed[hand] = null; }
+                    if (closed)
+                    {
+                        m_GripSince[hand] = now;
+                        m_Aimed[hand] = null;
+                        // a hand that was already pinching (pressing something) curls into a "fist": not a grab
+                        m_GripUsed[hand] = bareHand && frame.Select;
+                    }
                     m_OpenSince[hand] = -1f;
                 }
                 else if (m_OpenSince[hand] < 0f) m_OpenSince[hand] = now;
@@ -80,7 +87,8 @@ namespace RoomOrchestra
                     bool holding = grip || (m_Furniture && bareHand && now - m_OpenSince[hand] < HandLetGoSeconds);
                     if (holding)
                     {
-                        if (m_Furniture && m_ByRay) furniture?.MoveAlong(PointerRay(frame, rig));
+                        if (m_Furniture && m_ByRay && m_ByHand) furniture?.DragByHand(at);
+                        else if (m_Furniture && m_ByRay) furniture?.MoveAlong(PointerRay(frame, rig));
                         else if (m_Furniture) furniture?.MoveTo(at);
                         else tray.MoveGrab(at);
                     }
@@ -109,6 +117,8 @@ namespace RoomOrchestra
                         m_ByRay = took;
                     }
                     m_GripUsed[hand] = true; // one try per fist: no grab later in the same fist as the head turns
+                    m_ByHand = took && m_ByRay && bareHand;
+                    if (m_ByHand) furniture.BeginHandDrag(at, PointerRay(frame, rig).origin);
                     if (took)
                     {
                         m_Hand = hand;

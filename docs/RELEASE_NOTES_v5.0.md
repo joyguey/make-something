@@ -22,3 +22,10 @@
 - **Fewer flowers and mushrooms:** the floor fills with how complete the three-instrument song is (a full ring on each instrument); one instrument alone grows a third; full is 12 flowers (was 20) and all 7 toadstools.
 - **An x on Flutter's bubble** closes it (lines after the lesson); Play together closes it too, so the card is never behind it.
 - **Not yet confirmed on the headset:** these fixes.
+
+## Second headset round (2026-11-22, signed 5.0.0 build)
+- **Furniture grabs only once everything is placed**, never while choosing; a pinch that curls up never counts as a fist. With hands, a held piece follows the hand's own movement (a little more for a far piece), no longer the gaze's spot on the floor, which sent the lamp 5.5 m into a wall. Nothing goes more than 3.5 m from the seat.
+- **Choosing furniture can't run away:** after each choice, presses wait 0.8 s; Menu > Choose furniture asks "Sure?" first.
+- **No dark rectangles under the note names on real furniture:** the letters carry a dark plum outline instead (Resources/NoteLabelOutline, kept in the build).
+- **The room scan after Skip** starts only on a device that can scan (fixed a regression in the editor tests).
+- Tests: EditMode 277/277, PlayMode 123/123. Signed with the owner's release key.
