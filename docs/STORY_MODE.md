@@ -25,9 +25,10 @@ Cut order if late: Chord Discords, boss phases, Level 3. Sandbox and Battle must
 
 ## Done so far
 - 2026-11-22: concept renders in `~/Desktop/Story mode preview/` (Level 1 portal; side-scroller layout, plain and annotated); scripts in `ArtSource/StoryMode/`.
-- 2026-11-22: `Core/StoryRules.cs`: `DiscordKind`, `StoryRules.Beats/Matches`, `FriendQueue` (shuffled sets, next two, Hold once per flick), `DiscordMeter` (per loose Discord per second, relief when beaten, assist). Tests `Tests/EditMode/StoryRulesTests.cs`. **Written at the end of a session and not yet compiled or run**: run the EditMode tests first next time.
+- 2026-11-22: `Core/StoryRules.cs`: `DiscordKind`, `StoryRules.Beats/Matches`, `FriendQueue` (shuffled sets, next two, Hold once per flick), `DiscordMeter` (per loose Discord per second, relief when beaten, assist). Tests `Tests/EditMode/StoryRulesTests.cs` (pass).
+- 2026-11-24: **feel prototype** (`Scripts/StoryDirector.cs`, `Scripts/FlickDetector.cs`, commit 4f31a0e): "Story test" sticker beside the leaf; portal ring; Squeak/Wobbler/Clang placeholders; real friend model on the left palm, next two at the wrist; flick = quick right-hand move from beside the friend (pinch/trigger = aim and launch); left pinch/trigger = Hold (palm flip after the checkpoint); wrong friend = Discord grows; loose Discords thicken a grey mist (meter); both fists = leave. EditMode 282/282, PlayMode 123/123. APK `Builds/LittleEchoes-story-proto1.apk` (owner's key). **Not yet on the headset.**
 
 ## Next
-1. Run EditMode tests (fix anything in StoryRules).
-2. Feel prototype in the scene: a palm anchor on the left hand (hand tracking and controller), the current friend shown there (real model, small), a flick detector (fingertip speed and direction from the right hand; pinch-release fallback), a launched friend flying out, one Discord kind spawning from a placeholder portal, hit/miss, Hold by palm flip (palm normal turning down then up).
+1. Install `Builds/LittleEchoes-story-proto1.apk` (adb install -r) and run the Nov 25 checkpoint: flick feel (speed threshold 1.1 m/s, reach 22 cm), aim assist, Hold, readability of the three kinds, the mist.
+2. (Done in grey-box) Feel prototype in the scene: a palm anchor on the left hand (hand tracking and controller), the current friend shown there (real model, small), a flick detector (fingertip speed and direction from the right hand; pinch-release fallback), a launched friend flying out, one Discord kind spawning from a placeholder portal, hit/miss, Hold by palm flip (palm normal turning down then up).
 3. Build to the headset for the Nov 25 checkpoint.
