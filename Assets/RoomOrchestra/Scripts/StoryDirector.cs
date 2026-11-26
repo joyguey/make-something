@@ -1,48 +1,138 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace RoomOrchestra
 {
     /// <summary>
-    /// Story mode, feel prototype for the owner's headset checkpoint (2026-11-25; docs/STORY_MODE.md). Grey-box on
-    /// purpose: it tests how flicking a friend feels, not the look. A "Story test" sticker beside the leaf starts it:
-    /// a portal ring opens ahead; Discords (Squeak = small ball, Wobbler = tall capsule, Clang = cube) drift out toward
-    /// the player; the current friend (the real model, small) floats above the left hand, the next two at the wrist;
-    /// a quick right-hand move from beside it flicks it (a pinch or the trigger aims and launches instead: the
-    /// accessible way); the left hand's pinch (or its trigger) is Hold. The right friend beats a Discord; the wrong one
-    /// makes it grow. Discords that reach the player drift in the room and fill the Discord meter (a grey mist thickens
-    /// round the player); full = lost. Beat them all = won. Sandbox input pauses while it runs and comes back after.
-    /// Everything here is built at runtime, so the Sandbox scene is untouched.
+    /// Story mode, Level 1: The Seed (owner, 2026-11-22 design; 2026-11-25: "a polished lvl 1 ... an entirely new
+    /// feature and not affect the rest of the game"). A portal opens in the player's room with a painted meadow inside;
+    /// Discords come through it. The friend on the open left palm is flicked at them with the right index finger:
+    /// Flutter pierces Squeaks, Bop ricochets to Wobblers, Boom's shockwave cracks Clangs. The wrong friend makes a
+    /// Discord grow. Discords that reach the player get loose in the room and grey it (the mist); full, the level is
+    /// lost. Flip the left hand over and back to Hold. Matches fill Harmony (more on the beat); full, the next flick is a
+    /// Chorus. Four waves, then the Grumble.
+    ///
+    /// Separate from the sandbox: everything is built at runtime under its own object. While it plays, the sandbox's
+    /// pictures are hidden (only switched off, never changed), its input and song pause; leaving puts them back exactly.
+    /// Controllers: point and pull the trigger to launch, left trigger to Hold (no flick needed). Easy aim (saved)
+    /// lets a hand pinch aim too, slows the Discords and the mist. Pause and Leave are always there.
     /// </summary>
     public class StoryDirector : MonoBehaviour
     {
-        public const int Waves = 12;
-        public const float SpawnEvery = 3.2f, DriftSpeed = 0.22f, EscapeDistance = 0.9f, HitRadius = 0.16f;
+        public enum Stage { Off, Intro, WaveCue, Wave, BossCue, Boss, Won, Lost }
+
+        public const float EscapeDistance = 0.95f, HitRadius = 0.13f, LeaveHold = 1.2f, PortalAhead = 2.0f;
+        public const string EasyPref = "LittleEchoes.Story.Easy";
 
         public static StoryDirector Instance { get; private set; }
-        public bool Running { get; private set; }
+        public Stage Current { get; private set; } = Stage.Off;
+        public bool Running => Current != Stage.Off;
+        public bool Paused { get; private set; }
+        public bool Easy { get; private set; }
+        public StoryLevel Level { get; private set; }
+        public int WaveIndex { get; private set; }
         public FriendQueue Queue { get; private set; }
         public DiscordMeter Meter { get; private set; }
+        public HarmonyMeter Harmony { get; private set; }
+        public BossDiscord Boss { get; private set; }
+        public int Beaten { get; private set; }
+        public int Wrong { get; private set; }
+        public float MeterPeak { get; private set; }
+        public int Stars { get; private set; }
+        public int Alive => m_Discords.Count;
+        /// <summary>Sandbox renderers switched off while story plays (for tests).</summary>
+        /// <summary>Whether the headset camera is drawing only story mode now (tests).</summary>
+        public bool CameraOnStory => m_Camera != null && m_Camera.cullingMask == 1 << StoryArt.Layer;
 
-        sealed class Discord { public DiscordKind Kind; public Transform Body; public bool Loose; public float Size = 1f; public float Phase; }
-        sealed class Shot { public OrbType Friend; public Transform Body; public Vector3 Velocity; public float Until; public HashSet<Discord> Hit = new(); }
+        sealed class Discord
+        {
+            public DiscordKind Kind; public Transform Root, Body, Badge; public Transform[] Wings;
+            public bool Loose; public float Size = 1f, Born, Seed; public Vector3 Aim;
+            // first it walks up the meadow's path inside the portal, then hops out through the opening into the room
+            public bool Inside; public float InsideFor; public Vector3 Start, Mid, Cross;
+            public List<(Renderer r, Material[] mats)> Back;
+        }
+
+        sealed class Note { public Transform T; public Vector3 From, To; public float Born; }
+
+        sealed class Shot
+        {
+            public OrbType Friend; public Transform Body; public Vector3 Velocity; public float Until, Born;
+            public readonly HashSet<object> Hit = new(); public int Bounces; public bool OnBeat, Chorus, HitAny; public object Target;
+        }
+
+        sealed class Bit { public Transform T; public Vector3 V; public float Born, Life; public Material M; public Color C; public float Grow; }
 
         readonly List<Discord> m_Discords = new();
         readonly List<Shot> m_Shots = new();
+        readonly List<Bit> m_Bits = new();
+        readonly List<(GameObject go, int layer)> m_HandLayers = new();
+        Camera m_Camera;
+        int m_CameraMask = ~0;
         readonly FlickDetector m_Flick = new();
-        Transform m_Root, m_Portal, m_PalmFriend, m_Mist;
+        readonly PalmFlip m_Flip = new();
+        readonly StoryButton[] m_Buttons = new StoryButton[3];
+        readonly bool[] m_WasSelect = new bool[2];
         readonly Transform[] m_Wrist = new Transform[FriendQueue.Preview];
-        TMP_Text m_Status;
-        int m_Spawned, m_Beaten;
-        float m_NextSpawn, m_EndAt = -1f;
-        bool m_WasRightSelect, m_WasLeftSelect;
+
+        Transform m_Root, m_Hud, m_PalmFriend, m_Held, m_Mist, m_Cursor;
+        LineRenderer m_PalmRing, m_HeldRing, m_RightRay;
+        StoryArt.Portal m_Portal;
+        StoryArt.Grumble m_Grumble;
+        TMP_Text m_Title, m_Caption, m_Banner, m_WavePips;
         Material m_MistMat;
+        StoryAudio m_Audio;
         InstrumentInputRouter m_Router;
         LeafGrab m_LeafGrab;
+        GameObject m_Sign, m_EndStars;
+        List<DiscordKind> m_Dealt;
+        int m_Spawned;
+        float m_T, m_StageAt, m_NextSpawn, m_BannerUntil, m_BothFistsSince = -1f, m_PortalScale = 1f, m_PortalTarget = 1f, m_NextPalmLog, m_GrumbleHitAt = -9f, m_NextMinion;
+        bool m_LeaveArmed, m_UsingHands = true, m_ChorusShown, m_HoldTaught; // hands by default (owner, 2026-11-25)
+        Transform m_Card, m_SandboxCard;
+        bool m_CardHands, m_CardCollected;
+        GameObject m_SignCardIcon;
+        Vector3 m_Forward, m_Right;
+        float m_StageScale = 1f;
+        // the story: the meadow's colour (0 grey, 1 full), brought back by each Discord turned into a note
+        readonly List<Note> m_Notes = new();
+        float m_Bloom, m_BloomTarget, m_Progress, m_GreyPulse, m_WatchFlashUntil = -9f, m_StreakLostUntil = -9f;
+        int m_Restored;
+        bool m_ChorusBossDone;
+        TMP_Text m_BossText, m_SignBadge;
+        InstrumentLore Lore => StoryLore.Levels[0];
+        float m_FlashRingUntil = -9f, m_LeaveAskedUntil = -9f, m_LastFlickAt = -9f;
+        Vector3 m_FriendAt = Vector3.one * 999f;
+        const float LeaveAskSeconds = 3f;
+        const float InsideSeconds = 3.4f, NoteSeconds = 0.8f;
+        StoryDiorama m_World;
+        readonly List<Transform> m_AimDots = new();
+        readonly List<(Transform t, Vector3 home, float seed, Material m)> m_Motes = new();
+        Material m_AimMat;
+        float m_PopAt = -9f, m_FlashUntil = -9f;
+        const int AimDotCount = 14;
+        Transform m_Watch;
+        LineRenderer m_WatchFill;
+        const float WatchRadius = 0.04f;
+        float m_NextHandLog;
+        TMP_Text m_Streak;
+        int m_LastStreakShown;
+        float MeterAssist => Easy ? 3f : 1.6f; // Level 1 is gentle: the room fills slowly (headset 2026-11-25: lost in 30 s)
 
+        // ---------- start-up: one director per scene that has the sandbox ----------
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            Ensure();
+        }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode) => Ensure();
+
+        static void Ensure()
         {
             if (FindFirstObjectByType<StoryDirector>() != null || FindFirstObjectByType<InstrumentInputRouter>() == null) return;
             new GameObject("StoryDirector").AddComponent<StoryDirector>();
@@ -51,305 +141,1503 @@ namespace RoomOrchestra
         void OnEnable() => Instance = this;
         void OnDisable() { if (Instance == this) Instance = null; }
 
-        void Start() => MakeStartSticker();
-
-        // ---------- entry: a temporary "Story test" sticker beside the leaf (prototype only) ----------
-        void MakeStartSticker()
+        void Start()
         {
-            var intro = IntroSequence.Instance;
-            var leaf = intro != null ? intro.Leaf : null;
-            if (leaf == null) return;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "StoryTestSticker";
-            go.transform.SetParent(leaf, false);
-            go.transform.localPosition = new Vector3(-0.62f, 0.12f, 0.05f);
-            go.transform.localScale = new Vector3(0.14f, 0.05f, 0.08f);
-            Paint(go, new Color(1f, 0.82f, 0.25f), 0.4f);
-            go.AddComponent<StoryStartSticker>();
-            Words(go.transform, "Story\ntest", new Vector3(0f, 0.9f, 0f), 0.35f);
+            Easy = PlayerPrefs.GetInt(EasyPref, 0) == 1;
+            StoryArt.PrepareFriends(transform);
+            m_Audio = new GameObject("StoryAudio").AddComponent<StoryAudio>();
+            m_Audio.transform.SetParent(transform, false);
+            MakeStartSign();
         }
 
+        // ---------- the entry: a "Play Story" sign standing above the leaf's own row ----------
+        void MakeStartSign()
+        {
+            // owner, headset 2026-11-25: the first sticker (beside the leaf) was hard to find. A big upright sign above
+            // the middle of the leaf's row (Come here, Menu, Undo, Pause, Clear), facing the player. Static.
+            var menu = GameObject.Find("MenuButton");
+            var intro = IntroSequence.Instance;
+            var anchor = menu != null ? menu.transform : intro != null ? intro.Leaf : null;
+            if (anchor == null) return;
+            var sign = new GameObject("StoryTestSign").transform;
+            sign.SetParent(anchor.parent != null ? anchor.parent : anchor, true);
+            var head = Camera.main != null ? Camera.main.transform.position : anchor.position - anchor.forward;
+            var away = Vector3.ProjectOnPlane(anchor.position - head, Vector3.up);
+            if (away.sqrMagnitude < 1e-4f) away = Vector3.forward;
+            sign.rotation = Quaternion.LookRotation(away.normalized); // reads toward the player
+            // beside the leaf's right end (render check 2026-11-25: above the row it covered the friends on the leaf)
+            float rightEnd = Vector3.Dot(anchor.position, sign.right) + 0.6f;
+            if (intro != null && intro.Leaf != null)
+                foreach (var lr in intro.Leaf.GetComponentsInChildren<Renderer>(true))
+                {
+                    var b = lr.bounds; if (b.size == Vector3.zero) continue;
+                    float reach = Vector3.Dot(b.center, sign.right) + Mathf.Abs(sign.right.x) * b.extents.x + Mathf.Abs(sign.right.z) * b.extents.z;
+                    if (reach < Vector3.Dot(anchor.position, sign.right) + 1.2f) rightEnd = Mathf.Max(rightEnd, reach);
+                }
+            sign.position = anchor.position + sign.right * (rightEnd - Vector3.Dot(anchor.position, sign.right) + 0.2f) + Vector3.up * 0.12f;
+            var panel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            panel.name = "StoryTestSticker";
+            panel.transform.SetParent(sign, false);
+            panel.transform.localScale = new Vector3(0.28f, 0.09f, 0.025f);
+            var r = panel.GetComponent<MeshRenderer>(); r.sharedMaterial = StoryArt.Lit(new Color(1f, 0.82f, 0.3f), 0.5f); r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            panel.AddComponent<StoryStartSticker>();
+            StoryArt.Words(sign, "Play Story", new Vector3(0f, 0f, -0.014f), 0.05f, new Color(0.227f, 0.176f, 0.333f), 0.5f).textWrappingMode = TextWrappingModes.NoWrap;
+            // the three friends standing on top, small
+            var friends = new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom };
+            for (int i = 0; i < 3; i++)
+            {
+                var f = StoryArt.Friend(friends[i], 0.04f, sign);
+                f.localPosition = new Vector3((i - 1) * 0.07f, 0.07f, 0f);
+                f.localRotation = Quaternion.identity; // the sign's +z is away from the player, so their faces show
+            }
+            m_SignBadge = StoryArt.Words(sign, "", new Vector3(0f, -0.085f, -0.014f), 0.03f, new Color(1f, 0.8f, 0.3f), 0.5f);
+            m_SignBadge.textWrappingMode = TextWrappingModes.NoWrap;
+            var icon = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            icon.name = "StoryCardIcon";
+            icon.transform.SetParent(sign, false);
+            icon.transform.localPosition = new Vector3(0.2f, -0.085f, -0.005f);
+            icon.transform.localScale = new Vector3(0.045f, 0.06f, 0.008f);
+            var ir = icon.GetComponent<MeshRenderer>(); ir.sharedMaterial = StoryArt.Lit(StoryArt.CardGold, 0.6f); ir.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            icon.AddComponent<StoryCardIcon>();
+            m_SignCardIcon = icon;
+            RefreshSignBadge();
+            StoryArt.SetLayer(sign.gameObject, 0); // the sign belongs to the sandbox's view, not story mode's
+            m_Sign = sign.gameObject;
+            Debug.Log($"[RoomOrchestra] Story: Play Story sign above the leaf at {sign.position}");
+        }
+
+        /// <summary>The Play Story sign turns where it stands to face the player (headset 2026-11-25: it faced off to the
+        /// right: it was aimed once while the leaf was still floating in). It never moves toward the player.</summary>
+        void FaceSign()
+        {
+            if (m_Sign == null || !m_Sign.activeInHierarchy || Camera.main == null) return;
+            var away = Vector3.ProjectOnPlane(m_Sign.transform.position - Camera.main.transform.position, Vector3.up);
+            if (away.sqrMagnitude < 1e-4f) return;
+            m_Sign.transform.rotation = Quaternion.Slerp(m_Sign.transform.rotation, Quaternion.LookRotation(away.normalized), Time.deltaTime * 4f);
+        }
+
+        /// <summary>Under the Play Story sign: the instruments the player has restored (a bonus to show, never a lock).</summary>
+        void RefreshSignBadge()
+        {
+            if (m_SignBadge == null) return;
+            var restored = new List<string>();
+            foreach (var lore in StoryLore.Levels) if (PlayerPrefs.GetInt(StoryLore.RestoredKey(lore.Instrument), 0) == 1) restored.Add(lore.Name);
+            m_SignBadge.text = restored.Count == 0 ? "" : $"Restored: {string.Join(", ", restored)}";
+            if (m_SignCardIcon != null) m_SignCardIcon.SetActive(restored.Count > 0);
+        }
+
+        // ---------- begin and end ----------
         public void Begin()
         {
             if (Running) return;
-            Running = true;
+            if (EchoBattleDirector.Instance != null && EchoBattleDirector.Instance.Shown) return; // not during a battle
+            var lesson = TutorialDirector.Instance;
+            if (lesson != null && lesson.Active) lesson.Skip();
+            MenuTray.Instance?.SetOpen(false);
+            StoryArt.PrepareFriends(transform); // before hiding the sandbox: copies come from the leaf's friends
             m_Router = FindFirstObjectByType<InstrumentInputRouter>();
             m_LeafGrab = FindFirstObjectByType<LeafGrab>();
             if (m_LeafGrab != null) m_LeafGrab.enabled = false;
-            if (m_Router != null) m_Router.enabled = false; // Sandbox taps and throws pause; its pointer source is still read here
+            if (m_Router != null) m_Router.enabled = false; // the sandbox's taps pause; its pointer source is still read here
             EchoConductor.Instance?.SetSongMuted(true);
-            Queue = new FriendQueue(System.Environment.TickCount);
-            Meter = new DiscordMeter(1f);
-            m_Spawned = m_Beaten = 0;
-            m_NextSpawn = Time.time + 2f;
-            m_EndAt = -1f;
-            m_Root = new GameObject("StoryPrototype").transform;
-            var head = Head();
-            var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up).normalized;
-            // the portal: a glowing ring 1.7 m ahead and a little right, at eye height
-            m_Portal = new GameObject("Portal").transform;
-            m_Portal.SetParent(m_Root);
-            m_Portal.position = head.position + fwd * 1.7f + Vector3.Cross(Vector3.up, fwd) * 0.35f;
-            m_Portal.rotation = Quaternion.LookRotation(-fwd);
-            var ring = m_Portal.gameObject.AddComponent<LineRenderer>();
-            ring.loop = true; ring.positionCount = 64; ring.useWorldSpace = false; ring.widthMultiplier = 0.025f;
-            for (int i = 0; i < 64; i++) { float a = i / 64f * Mathf.PI * 2f; ring.SetPosition(i, new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * 0.5f); }
-            ring.material = Glow(new Color(1f, 0.85f, 0.5f));
-            m_PalmFriend = FriendModel(Queue.Current, 0.07f);
-            for (int i = 0; i < m_Wrist.Length; i++) m_Wrist[i] = FriendModel(Queue.Next[i], 0.035f);
-            // the Discord meter: a grey mist round the player, thicker as the room fills
-            var mist = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Destroy(mist.GetComponent<Collider>());
-            mist.name = "DiscordMist"; m_Mist = mist.transform; m_Mist.SetParent(m_Root); m_Mist.localScale = Vector3.one * 3.2f;
-            m_MistMat = Paint(mist, new Color(0.45f, 0.44f, 0.47f, 0f), 0f, transparent: true, cullFront: true);
-            var status = new GameObject("StoryStatus").transform; status.SetParent(m_Root);
-            status.position = m_Portal.position + Vector3.up * 0.65f; status.rotation = m_Portal.rotation * Quaternion.Euler(0, 180, 0);
-            m_Status = Words(status, "", Vector3.zero, 0.07f);
-            Say("Flick the friend on your left palm at the Discords!\nFlutter beats Squeaks (balls), Bop beats Wobblers (tall), Boom beats Clangs (cubes).");
-            Debug.Log("[RoomOrchestra] Story prototype: started");
+            HideSandbox();
+            if (m_SandboxCard != null) { Destroy(m_SandboxCard.gameObject); m_SandboxCard = null; }
+            if (m_Sign != null) m_Sign.SetActive(false);
+            BuildStage();
+            StartLevel();
+            Debug.Log($"[RoomOrchestra] Story: started Level 1 (easy aim {(Easy ? "on" : "off")}; camera on story only: {CameraOnStory})");
         }
 
-        void End(string why)
+        /// <summary>Leave story mode: everything back as it was.</summary>
+        public void Leave(string why = "left")
         {
-            Debug.Log($"[RoomOrchestra] Story prototype: {why}");
-            Running = false;
+            if (!Running) return;
+            Debug.Log($"[RoomOrchestra] Story: {why} (stage {Current}, wave {WaveIndex + 1}, beaten {Beaten}, wrong {Wrong}, Discord peak {MeterPeak:F2})");
+            if (Current == Stage.Won) SaveRestored(); // won but not collected: it is still theirs
+            Current = Stage.Off;
+            Paused = false;
+            m_Audio.Stop();
+            ClearLevel();
+            m_World?.Destroy(); m_World = null;
+            m_AimDots.Clear(); m_Motes.Clear();
             if (m_Root != null) Destroy(m_Root.gameObject);
-            m_Discords.Clear(); m_Shots.Clear();
-            if (m_PalmFriend != null) Destroy(m_PalmFriend.gameObject);
-            for (int i = 0; i < m_Wrist.Length; i++) if (m_Wrist[i] != null) Destroy(m_Wrist[i].gameObject);
+            m_Root = null;
+            ShowSandbox();
             if (m_LeafGrab != null) m_LeafGrab.enabled = true;
             if (m_Router != null) m_Router.enabled = true;
             EchoConductor.Instance?.SetSongMuted(false);
+            if (m_Sign != null) m_Sign.SetActive(true);
+            RefreshSignBadge();
         }
 
+        void OnApplicationPause(bool paused) { if (paused && Running && !Paused && Current != Stage.Won && Current != Stage.Lost) SetPaused(true); }
+
+        void OnDestroy() { if (Running) ShowSandbox(); }
+
+        // The sandbox is hidden by the camera, not by touching it: while story plays the headset camera draws only story
+        // mode's own layer (StoryArt.Layer) and the player's hands (moved onto it for the while). The room scan's depth
+        // walls are on their own layer, so they stop hiding the level too. Leaving restores the camera and the hands.
+        void HideSandbox()
+        {
+            m_Camera = Camera.main;
+            if (m_Camera == null)
+                foreach (var c in FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    if (c.CompareTag("MainCamera")) { m_Camera = c; break; }
+            if (m_Camera != null) { m_CameraMask = m_Camera.cullingMask; m_Camera.cullingMask = 1 << StoryArt.Layer; }
+            m_HandLayers.Clear();
+            var hands = GameObject.Find("PlayerHands");
+            if (hands == null) foreach (var o in FindObjectsByType<HandOutline>(FindObjectsInactive.Include, FindObjectsSortMode.None)) { hands = o.gameObject; break; }
+            if (hands != null)
+                foreach (var t in hands.GetComponentsInChildren<Transform>(true)) { m_HandLayers.Add((t.gameObject, t.gameObject.layer)); t.gameObject.layer = StoryArt.Layer; }
+        }
+
+        void ShowSandbox()
+        {
+            if (m_Camera != null) m_Camera.cullingMask = m_CameraMask;
+            m_Camera = null;
+            foreach (var (go, layer) in m_HandLayers) if (go != null) go.layer = layer;
+            m_HandLayers.Clear();
+        }
+
+        // ---------- building the stage ----------
+        void BuildStage()
+        {
+            m_Root = new GameObject("StoryStage").transform;
+            m_Root.SetParent(transform, false);
+            var head = Head();
+            m_Forward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            if (m_Forward.sqrMagnitude < 1e-4f) m_Forward = Vector3.forward;
+            m_Forward.Normalize();
+            m_Right = Vector3.Cross(Vector3.up, m_Forward);
+            // in front of the nearest real wall or furniture straight ahead, never inside it
+            float ahead = PortalAhead;
+            if (Physics.Raycast(head.position, m_Forward, out var wall, PortalAhead + 0.4f, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore))
+                ahead = Mathf.Clamp(wall.distance - 0.4f, 1.5f, PortalAhead);
+            m_StageScale = ahead / PortalAhead;
+            var centre = head.position + m_Forward * ahead + Vector3.up * 0.15f * m_StageScale;
+            Debug.Log($"[RoomOrchestra] Story: portal {ahead:F2} m ahead{(ahead < PortalAhead ? " (a wall is near)" : "")}");
+            var facing = Quaternion.LookRotation(m_Forward);
+            m_Portal = StoryArt.BuildPortal(m_Root);
+            m_Portal.Root.SetPositionAndRotation(centre, facing);
+            // the world behind the opening (StoryDiorama), seen only through it
+            m_World = new StoryDiorama();
+            m_World.Build(m_Root);
+            m_World.Root.SetPositionAndRotation(centre, facing);
+            m_World.Root.localScale = Vector3.one * m_StageScale;
+            m_World.AddInstrument(Lore.Instrument);
+            // fireflies drifting in the room, like the preview's (soft, slow, never toward the face)
+            var random = new System.Random(8);
+            for (int i = 0; i < 28; i++)
+            {
+                var dir = Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f) * Vector3.forward;
+                var home = head.position + dir * (0.9f + (float)random.NextDouble() * 1.8f) + Vector3.up * ((float)random.NextDouble() * 1.3f - 0.7f);
+                var m = StoryArt.Glow(new Color(1f, 0.97f, 0.85f, 0.8f), transparent: true, queueOffset: 12);
+                var mote = StoryArt.Part(PrimitiveType.Sphere, m_Root, Vector3.zero, Vector3.one * (0.008f + 0.006f * (float)random.NextDouble()), m, "Firefly");
+                mote.transform.position = home;
+                m_Motes.Add((mote.transform, home, (float)random.NextDouble() * 100f, m));
+            }
+            // the aim line: glowing dots from the friend on the palm to a Discord it can beat (the preview's dotted trail)
+            m_AimMat = StoryArt.Glow(new Color(1f, 0.97f, 0.88f, 0.85f), transparent: true, queueOffset: 13);
+            for (int i = 0; i < AimDotCount; i++)
+            {
+                var dot = StoryArt.Part(PrimitiveType.Sphere, m_Root, Vector3.zero, Vector3.one * 0.007f, m_AimMat, "AimDot");
+                dot.SetActive(false);
+                m_AimDots.Add(dot.transform);
+            }
+            m_Hud = new GameObject("Hud").transform;
+            m_Hud.SetParent(m_Root, false);
+            m_Hud.SetPositionAndRotation(centre + m_Forward * -0.03f, facing);
+            m_Hud.localScale = Vector3.one * m_StageScale;
+            var plum = new Color(0.227f, 0.176f, 0.333f);
+            var cream = new Color(0.98f, 0.95f, 0.88f);
+            m_Title = StoryArt.Words(m_Hud, "Level 1: The Seed", new Vector3(0f, 1.06f, 0f), 0.08f, cream, 2f);
+            m_WavePips = StoryArt.Words(m_Hud, "", new Vector3(0f, 0.97f, 0f), 0.045f, cream, 2f);
+            m_Banner = StoryArt.Words(m_Hud, "", new Vector3(0f, 0.87f, 0f), 0.065f, new Color(1f, 0.9f, 0.5f), 2.2f);
+            m_Caption = StoryArt.Words(m_Hud, "", new Vector3(0f, -0.92f, 0f), 0.05f, cream, 1.9f);
+            StoryArt.Words(m_Hud, "Harmony", new Vector3(0.98f, 0f, 0f), 0.04f, new Color(1f, 0.82f, 0.4f), 0.5f);
+            StoryArt.Words(m_Hud, "Discord", new Vector3(-0.98f, 0f, 0f), 0.04f, new Color(0.75f, 0.72f, 0.82f), 0.5f);
+            // the buttons, under the caption
+            for (int i = 0; i < 3; i++)
+            {
+                int k = i;
+                m_Buttons[i] = StoryButton.Create(m_Hud, new Vector3((i - 1) * 0.36f, -1.16f, 0f), cream, plum, () => Press(k), $"StoryButton_{i}");
+            }
+            // the mist: a grey veil round the player, thicker as Discord fills the room
+            var mist = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Destroy(mist.GetComponent<Collider>());
+            mist.name = "DiscordMist"; mist.layer = StoryArt.Layer; m_Mist = mist.transform; m_Mist.SetParent(m_Root, false); m_Mist.localScale = Vector3.one * 3.2f;
+            m_MistMat = StoryArt.Glow(new Color(0.42f, 0.41f, 0.46f, 0f), transparent: true, queueOffset: 40, cullFront: true);
+            mist.GetComponent<MeshRenderer>().sharedMaterial = m_MistMat;
+            // the palm: a ring where the hand is seen, the friend above it, the next two by the wrist, the held one
+            m_PalmRing = Ring(m_Root, 0.045f, 0.006f, new Color(1f, 0.95f, 0.8f, 0.8f));
+            m_HeldRing = Ring(m_Root, 0.03f, 0.004f, new Color(0.8f, 0.9f, 1f, 0.8f));
+            m_RightRay = new GameObject("ControllerRay") { layer = StoryArt.Layer }.AddComponent<LineRenderer>();
+            m_RightRay.transform.SetParent(m_Root, false);
+            m_RightRay.positionCount = 2; m_RightRay.widthMultiplier = 0.004f; m_RightRay.useWorldSpace = true;
+            m_RightRay.sharedMaterial = StoryArt.Glow(new Color(1f, 1f, 1f, 0.5f), transparent: true);
+            // the Harmony watch round the right wrist (headset 2026-11-25: "wraps around my right hand like a wristwatch
+            // that is being charged up ... there's too much going on on the left hand"): a dark band with a gold ring
+            // that charges round it with every match, faster on the beat and in a streak; the streak shows above it
+            m_Watch = new GameObject("HarmonyWatch") { layer = StoryArt.Layer }.transform; m_Watch.SetParent(m_Root, false);
+            StoryArt.Circle(m_Watch, "Band", WatchRadius, 0.016f, new Color(0.2f, 0.17f, 0.26f, 0.6f), 4);
+            m_WatchFill = StoryArt.Circle(m_Watch, "Charge", WatchRadius, 0.011f, new Color(1f, 0.8f, 0.3f), 6, 0f, 0.001f, 48);
+            m_WatchFill.transform.localPosition = new Vector3(0f, 0f, -0.001f);
+            m_Streak = StoryArt.Words(m_Root, "", Vector3.zero, 0.022f, new Color(1f, 0.88f, 0.5f), 0.3f);
+            m_Streak.textWrappingMode = TextWrappingModes.NoWrap;
+            var cursor = StoryArt.Part(PrimitiveType.Sphere, m_Root, Vector3.zero, Vector3.one * 0.018f, StoryArt.Glow(new Color(1f, 0.95f, 0.7f)), "Cursor");
+            m_Cursor = cursor.transform; cursor.SetActive(false);
+        }
+
+        static LineRenderer Ring(Transform parent, float radius, float width, Color c)
+        {
+            var lr = new GameObject("Ring") { layer = StoryArt.Layer }.AddComponent<LineRenderer>();
+            lr.transform.SetParent(parent, false);
+            lr.loop = true; lr.positionCount = 32; lr.useWorldSpace = false; lr.widthMultiplier = width;
+            lr.alignment = LineAlignment.TransformZ;
+            lr.sharedMaterial = StoryArt.Glow(c, transparent: true, queueOffset: 5);
+            lr.startColor = lr.endColor = c;
+            for (int i = 0; i < 32; i++) { float a = i / 32f * Mathf.PI * 2f; lr.SetPosition(i, new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * radius); }
+            return lr;
+        }
+
+        void StartLevel()
+        {
+            ClearLevel();
+            Level = StoryLevel.Level1;
+            Queue = new FriendQueue(System.Environment.TickCount);
+            Meter = new DiscordMeter(MeterAssist);
+            Harmony = new HarmonyMeter();
+            m_LastStreakShown = 0;
+            Boss = null;
+            Beaten = Wrong = 0; MeterPeak = 0f; Stars = 0; WaveIndex = 0;
+            m_T = 0f; m_PortalScale = 0.2f; m_PortalTarget = 0.7f; m_ChorusShown = false; m_HoldTaught = false;
+            m_Restored = 0; m_Bloom = m_BloomTarget = 0.12f; m_Progress = 0f; m_GreyPulse = 0f;
+            foreach (var n in m_Notes) if (n.T != null) Destroy(n.T.gameObject);
+            m_Notes.Clear();
+            StoryDiorama.SetBloom(m_Bloom);
+            m_World?.SetProgress(0f);
+            for (int i = 0; i < 2; i++) m_WasSelect[i] = true; // the press that started the story doesn't launch or Hold
+            m_LeaveArmed = false; m_BothFistsSince = -1f;
+            m_Flick.Lost(); m_Flip.Reset();
+            Paused = false;
+            m_Audio.Begin(Level.Bpm);
+            m_Audio.Layers = 0;
+            m_Audio.SetSour(0f);
+            RefreshHand();
+            if (m_EndStars != null) Destroy(m_EndStars);
+            SetStage(Stage.Intro);
+            m_Banner.text = "";
+            m_CardCollected = false;
+            Say("");
+            ShowIntroCard();
+            Labels();
+        }
+
+        void ClearLevel()
+        {
+            foreach (var d in m_Discords) if (d.Root != null) Destroy(d.Root.gameObject);
+            foreach (var s in m_Shots) if (s.Body != null) Destroy(s.Body.gameObject);
+            foreach (var b in m_Bits) if (b.T != null) Destroy(b.T.gameObject);
+            m_Discords.Clear(); m_Shots.Clear(); m_Bits.Clear();
+            if (m_Grumble != null && m_Grumble.Root != null) Destroy(m_Grumble.Root.gameObject);
+            m_Grumble = null;
+        }
+
+        void SetStage(Stage s)
+        {
+            Current = s;
+            m_StageAt = m_T;
+            if (s == Stage.WaveCue)
+            {
+                var wave = Level.Waves[WaveIndex];
+                m_Dealt = StoryLevel.Deal(wave, System.Environment.TickCount + WaveIndex);
+                m_Spawned = 0;
+                m_Audio.Layers = WaveIndex >= 1 ? 1 : 0;
+                Say((WaveIndex > 0 ? "The friends walk on toward the World Tree... " : "") + Cue(wave.Cue));
+                m_Banner.text = $"Wave {WaveIndex + 1}";
+                m_BannerUntil = m_T + 2.5f;
+            }
+            Pips();
+        }
+
+        string Cue(StoryCue cue) => cue switch
+        {
+            StoryCue.MeetSqueaks => "Squeaks! Tiny, spiky and fast. Flutter (the tall one) flies straight through a whole line of them. Every Discord you beat becomes a note that brings colour back to the meadow.",
+            StoryCue.MeetWobblers => Hands()
+                ? "Wobblers! They sway about. Bop (the round one) bounces off your walls to reach them. Not the friend you need? Flip your left hand over and back to swap it with your held friend."
+                : "Wobblers! They sway about. Bop (the round one) bounces off your walls to reach them. Not the friend you need? Pull the left trigger to swap it with your held friend.",
+            StoryCue.MeetClangs => "Clangs! They wear armour. Only Boom (the wide one) can crack it with a big shockwave.",
+            StoryCue.AllTogether => "Here they all come! Each Discord carries a little picture of the friend that beats it.",
+            StoryCue.BossComing => "The World Tree is close... but the Grumble blocks the way! Its shell shows which friend can crack it: spikes for Flutter, jelly for Bop, armour for Boom. Crack all three shells!",
+            _ => "",
+        };
+
+        // ---------- the instrument's card ----------
+        // Before the stage: the instrument, its story and how to play, and Begin (owner, 2026-11-25: introduce it "in
+        // the beginning before the stage starts"). After a win: its card to collect, with all its real history.
+
+        Vector3 CardSpot => m_Portal != null ? m_Portal.Root.position - m_Forward * 0.35f : Head().position + m_Forward;
+
+        void PlaceCard(Transform card)
+        {
+            card.SetPositionAndRotation(CardSpot, Quaternion.LookRotation(m_Forward));
+            card.localScale = Vector3.one * m_StageScale;
+        }
+
+        void ClearCard() { if (m_Card != null) Destroy(m_Card.gameObject); m_Card = null; }
+
+        string HowToPlay() => Hands()
+            ? "HOW TO PLAY\nHold your left hand open: a friend sits on your palm. Curl your right index finger against your thumb beside it, then flick it at a Discord. Each Discord shows the friend that beats it. Flip your left hand over and back to swap friends."
+            : "HOW TO PLAY\nA friend sits by your left controller. Point your right controller at a Discord and pull the trigger. Each Discord shows the friend that beats it. Pull the left trigger to swap friends.";
+
+        void ShowIntroCard()
+        {
+            ClearCard();
+            m_CardHands = Hands();
+            var body = $"A clay pot drum from {Lore.People}.\n\n{Lore.Broken} Help Flutter, Bop and Boom mend it!\n\n{HowToPlay()}";
+            m_Card = StoryArt.Card(m_Root, Lore.Instrument, $"Level 1: The {Lore.Name}", body, 0.9f, 1.2f);
+            StoryButton.Create(m_Card, new Vector3(0f, -0.68f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, BeginLevel, "CardButton").SetLabel("Begin");
+            PlaceCard(m_Card);
+        }
+
+        void BeginLevel()
+        {
+            if (Current != Stage.Intro) return;
+            UiSounds.Play(UiSound.Confirm, CardSpot);
+            ClearCard();
+            Debug.Log("[RoomOrchestra] Story: Begin");
+            SetStage(Stage.WaveCue);
+        }
+
+        void ShowCollectCard()
+        {
+            ClearCard();
+            m_Card = StoryArt.Card(m_Root, Lore.Instrument, $"The {Lore.Name}", $"Restored! Collect its card to read its story.", 0.55f, 0.62f, bodySize: 0.04f);
+            StoryButton.Create(m_Card, new Vector3(0f, -0.22f, -0.02f), StoryArt.CardGold, StoryArt.CardInk, CollectCard, "CardButton").SetLabel("Collect"); // on the card, clear of the ring
+            PlaceCard(m_Card);
+        }
+
+        string FullCardText() => $"A clay pot drum from {Lore.People}.\n\n" + string.Join("\n\n", Lore.Facts);
+
+        void CollectCard()
+        {
+            UiSounds.Play(UiSound.Place, CardSpot);
+            SaveRestored();
+            ClearCard();
+            m_Card = StoryArt.Card(m_Root, Lore.Instrument, $"The {Lore.Name}", FullCardText(), 1.05f, 1.42f, bodySize: 0.034f);
+            StoryButton.Create(m_Card, new Vector3(0f, -0.8f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, CloseCard, "CardButton").SetLabel("Close");
+            PlaceCard(m_Card);
+            m_Card.position += Vector3.up * 0.12f * m_StageScale;
+            // the card has the stage to itself while it is open
+            m_SaidBeforeCard = m_Caption.text; Say("");
+            if (m_EndStars != null) m_EndStars.SetActive(false);
+            m_Banner.text = "";
+        }
+
+        string m_SaidBeforeCard = "";
+
+        void CloseCard()
+        {
+            UiSounds.Play(UiSound.Close, CardSpot);
+            ClearCard();
+            if (m_EndStars != null) m_EndStars.SetActive(true);
+            Say(m_SaidBeforeCard);
+            Banner("Card collected! Find it beside the Play Story sign.", 4f);
+        }
+
+        void SaveRestored()
+        {
+            if (m_CardCollected) return;
+            m_CardCollected = true;
+            bool first = PlayerPrefs.GetInt(StoryLore.RestoredKey(Lore.Instrument), 0) == 0;
+            PlayerPrefs.SetInt(StoryLore.RestoredKey(Lore.Instrument), 1); // a bonus only: nothing in the sandbox is ever locked
+            PlayerPrefs.Save();
+            Debug.Log($"[RoomOrchestra] Story: the {Lore.Name} card collected{(first ? " (first time)" : "")}");
+        }
+
+        /// <summary>In the sandbox: the collected card beside the Play Story sign, shown and put away by its little icon.</summary>
+        public void ToggleSandboxCard()
+        {
+            if (m_SandboxCard != null) { Destroy(m_SandboxCard.gameObject); m_SandboxCard = null; UiSounds.Play(UiSound.Close, m_Sign.transform.position); return; }
+            if (m_Sign == null || PlayerPrefs.GetInt(StoryLore.RestoredKey(Lore.Instrument), 0) == 0) return;
+            m_SandboxCard = StoryArt.Card(m_Sign.transform, Lore.Instrument, $"The {Lore.Name}", FullCardText(), 1.05f, 1.42f, layer: 0, bodySize: 0.034f);
+            m_SandboxCard.localPosition = new Vector3(0.62f, 0.25f, 0.02f);
+            m_SandboxCard.localRotation = Quaternion.identity;
+            m_SandboxCard.localScale = Vector3.one * 0.55f;
+            UiSounds.Play(UiSound.Open, m_Sign.transform.position);
+        }
+
+        void Pips()
+        {
+            if (Level == null || m_WavePips == null) return;
+            m_WavePips.text = Current switch
+            {
+                Stage.Intro => "Get ready",
+                Stage.BossCue or Stage.Boss => "The Grumble",
+                Stage.Won => "Complete!",
+                Stage.Lost => $"Wave {WaveIndex + 1} of {Level.Waves.Count}",
+                _ => $"Wave {WaveIndex + 1} of {Level.Waves.Count}, then the Grumble",
+            };
+        }
+
+        bool Hands() => m_UsingHands;
+
+        void Say(string text) { if (m_Caption != null) m_Caption.text = text; }
+        void Banner(string text, float seconds = 2f) { if (m_Banner != null) { m_Banner.text = text; m_BannerUntil = m_T + seconds; } }
+
+        // ---------- buttons: Pause / Resume / Try again, Easy aim, Leave ----------
+        void Labels()
+        {
+            if (m_Buttons[0] == null) return;
+            m_Buttons[0].SetLabel(Current == Stage.Won ? "Play again" : Current == Stage.Lost ? "Try again" : Paused ? "Resume" : "Pause");
+            m_Buttons[1].SetLabel(Easy ? "Easy aim: on" : "Easy aim: off");
+            m_Buttons[2].SetLabel(Time.time < m_LeaveAskedUntil ? "Sure? Leave" : "Leave");
+        }
+
+        void Press(int which)
+        {
+            UiSounds.Play(UiSound.Press, m_Buttons[which].transform.position);
+            if (which == 0)
+            {
+                if (Current == Stage.Won || Current == Stage.Lost) StartLevel();
+                else SetPaused(!Paused);
+            }
+            else if (which == 1)
+            {
+                Easy = !Easy;
+                PlayerPrefs.SetInt(EasyPref, Easy ? 1 : 0);
+                if (Current != Stage.Won && Current != Stage.Lost)
+                {
+                    float level = Meter.Level;
+                    Meter = new DiscordMeter(MeterAssist);
+                    if (level > 0f) Meter.Tick(level / DiscordMeter.PerSecondEach * Meter.Assist, 1); // keep how grey the room is
+                }
+                Banner(Easy ? "Easy aim on: slower Discords, stronger aim help" : "Easy aim off", 2.5f);
+            }
+            else if (Time.time < m_LeaveAskedUntil) Leave("left with the Leave button");
+            else
+            {
+                // asks first, like the sandbox's Clear and Quit (headset 2026-11-25: a flick pressed Leave by accident)
+                m_LeaveAskedUntil = Time.time + LeaveAskSeconds;
+                Banner("Press Leave again to go back to the sandbox", LeaveAskSeconds);
+            }
+            Labels();
+        }
+
+        public void SetPaused(bool paused)
+        {
+            if (!Running || Current == Stage.Won || Current == Stage.Lost) return;
+            Paused = paused;
+            m_Audio.Paused = paused;
+            if (paused) { m_SaidBeforePause = m_Caption.text; Say("Paused. Nothing moves until you press Resume."); }
+            else Say(m_SaidBeforePause);
+            Labels();
+        }
+
+        string m_SaidBeforePause = "";
+
+        // ---------- each frame ----------
         void Update()
         {
-            if (!Running) return;
-            float dt = Time.deltaTime, now = Time.time;
-            if (m_EndAt > 0f) { if (now >= m_EndAt) End(m_Status != null ? m_Status.text : "over"); return; }
+            if (!Running) { FaceSign(); return; }
+            float dt = Time.deltaTime;
             var pointers = m_Router != null ? m_Router.Pointers : null;
             var rig = XrRig.Instance != null ? XrRig.Instance.transform : null;
             PointerFrame left = pointers != null ? pointers.Read(0) : default, right = pointers != null ? pointers.Read(1) : default;
-            Vector3 W(Vector3 p) => rig != null ? rig.TransformPoint(p) : p;
             var head = Head();
-            if (left.Grip && right.Grip) { End("left by the player (both fists)"); return; }  // a way out at any time
-            // the friend floats above the left palm (or in front, low, if the left hand isn't seen)
-            var palm = (left.Tracked || left.BarePalm) ? W(left.GripPosition) : head.position + head.forward * 0.35f - head.up * 0.25f - head.right * 0.12f;
-            var friendAt = palm + Vector3.up * 0.09f;
-            Place(m_PalmFriend, friendAt, head.position, now);
-            for (int i = 0; i < m_Wrist.Length; i++) Place(m_Wrist[i], palm - head.right * 0.02f + Vector3.down * (0.05f + 0.045f * i) + head.forward * -0.02f, head.position, now);
-            // Hold: the left hand's pinch or trigger (the palm flip comes after the checkpoint)
-            if (left.Select && !m_WasLeftSelect && Queue.Hold()) { UiSounds.Play(UiSound.Open, friendAt); RefreshHand(); }
-            m_WasLeftSelect = left.Select;
-            // flick: a quick right-hand move from beside the friend; or pinch / trigger to aim and launch
-            var rightHand = right.Tracked || right.BarePalm ? W(right.Gaze ? right.HandPosition : right.GripPosition) : Vector3.positiveInfinity;
-            if (!float.IsInfinity(rightHand.x) && m_Flick.Step(rightHand, friendAt, now, dt, out var dir)) Launch(friendAt, dir, "flick");
-            else if (right.Select && !m_WasRightSelect)
+            m_UsingHands = left.Joints || right.Joints || (!left.Tracked && !right.Tracked && m_UsingHands);
+            Vector3 W(Vector3 p) => rig != null ? rig.TransformPoint(p) : p;
+            Vector3 D(Vector3 d) => rig != null ? rig.TransformDirection(d) : d;
+            Quaternion Q(Quaternion q) => rig != null ? rig.rotation * q : q;
+
+            // a way out at any time: both fists (or both grips) held a moment, after both were open once
+            if (!left.Grip && !right.Grip) m_LeaveArmed = true;
+            if (m_LeaveArmed && left.Grip && right.Grip)
             {
-                var aimFrom = W(right.Gaze ? right.HandPosition : right.Position);
-                var aimDir = (rig != null ? rig.rotation : Quaternion.identity) * (right.Gaze ? right.HandRotation : right.Rotation) * Vector3.forward;
-                Launch(friendAt, (aimFrom + aimDir * 3f - friendAt).normalized, "aim");
+                if (m_BothFistsSince < 0f) { m_BothFistsSince = Time.time; Banner("Keep both fists closed to leave...", LeaveHold + 0.3f); }
+                else if (Time.time - m_BothFistsSince >= LeaveHold) { Leave("left by the player (both fists)"); return; }
             }
-            m_WasRightSelect = right.Select;
-            Spawn(now);
+            else m_BothFistsSince = -1f;
+
+            // pointing at the buttons (eyes and pinch for hands, the controller's ray otherwise)
+            StoryButton hovered = null; int hoveredBy = -1;
+            for (int hand = 0; hand < 2; hand++)
+            {
+                var f = hand == 0 ? left : right;
+                if (!f.Tracked) continue;
+                var origin = W(f.Position); var dir = Q(f.Rotation) * Vector3.forward;
+                var b = StoryButton.Under(origin, dir, out var point);
+                if (b != null && (hovered == null || hand == 1)) { hovered = b; hoveredBy = hand; m_Cursor.position = point; }
+            }
+            foreach (var b in m_Buttons) if (b != null) b.SetHover(b == hovered);
+            m_Cursor.gameObject.SetActive(hovered != null);
+            bool rightController = right.Tracked && !right.Joints && !right.Gaze;
+            m_RightRay.enabled = rightController;
+            if (rightController) { var o = W(right.Position); m_RightRay.SetPosition(0, o); m_RightRay.SetPosition(1, o + Q(right.Rotation) * Vector3.forward * 1.5f); }
+
+            bool leftPress = left.Select && !m_WasSelect[0], rightPress = right.Select && !m_WasSelect[1];
+            m_WasSelect[0] = left.Select; m_WasSelect[1] = right.Select;
+            // a hand's pinch presses a button only when that hand is away from the friend and hasn't just flicked: a flick
+            // brushes thumb and finger together (headset 2026-11-25: a flick, eyes on the button row, pressed Leave)
+            // only while flicking is on (headset 2026-11-25: the intro card's Begin was blocked by a hand resting by the friend)
+            bool flicking = !Paused && (Current == Stage.WaveCue || Current == Stage.Wave || Current == Stage.BossCue || Current == Stage.Boss);
+            bool handsBusy = flicking && ((right.Joints && Vector3.Distance(W(right.IndexTip), m_FriendAt) < 0.25f) || Time.time - m_LastFlickAt < 1f);
+            if (flicking && hovered != null && hoveredBy == 0 && left.Joints && right.Joints) leftPress = false; // the left hand holds the friend
+            if (handsBusy && ((hoveredBy == 1 && right.Joints) || (hoveredBy == 0 && left.Joints))) { leftPress = false; rightPress = false; }
+            if (hovered != null && ((hoveredBy == 0 && leftPress) || (hoveredBy == 1 && rightPress)))
+            {
+                hovered.Press();
+                if (!Running) return;
+                if (hoveredBy == 0) leftPress = false; else rightPress = false;
+            }
+
+            AnimatePortal(dt);
+            UpdateBanner();
+            if (m_Card != null) { var model = m_Card.Find("CardModel"); if (model != null) model.Rotate(0f, 40f * Time.deltaTime, 0f, Space.Self); }
+            if (Current == Stage.Intro && m_Card != null && m_CardHands != Hands()) ShowIntroCard(); // controllers picked up: their instructions
+            if (m_LeaveAskedUntil > 0f && Time.time >= m_LeaveAskedUntil) { m_LeaveAskedUntil = -9f; Labels(); }
+            if (Paused) { PlaceHand(left, head, W, D); return; }
+            m_T += dt;
+            float now = m_T;
+
+            // the hand: the friend above the left palm, and the aim line from it
+            var friendAt = PlaceHand(left, head, W, D);
+            m_FriendAt = friendAt;
+            UpdateAimLine(friendAt);
+            PlaceWatch(right, head, W, Q);
+            // Hold: turn the left hand over and back (hands); the left trigger (controllers)
+            if (Current != Stage.Won && Current != Stage.Lost)
+            {
+                bool hold = false;
+                if (left.Joints)
+                {
+                    m_Flip.Settle(now);
+                    hold = m_Flip.Step(D(left.PalmUp), now);
+                    if (Time.time >= m_NextPalmLog) { m_NextPalmLog = Time.time + 4f; Debug.Log($"[RoomOrchestra] Story: left palm axis height {m_Flip.Height:F2}"); }
+                }
+                else if (leftPress && left.Tracked) hold = true;
+                if (hold) DoHold(friendAt);
+
+                // flick: the right index finger loaded against the thumb beside the friend, then snapping out
+                if (right.Joints)
+                {
+                    var hand = new FlickHand { Tip = W(right.IndexTip), Thumb = W(right.ThumbTip), Palm = W(right.GripPosition), Friend = friendAt };
+                    if (m_Flick.Step(hand, now, dt, out var dir)) { m_LastFlickAt = Time.time; Launch(friendAt, dir, "flick"); }
+                    if (Time.time >= m_NextHandLog && Vector3.Distance(hand.Tip, friendAt) < 0.35f)
+                    {
+                        m_NextHandLog = Time.time + 1.5f;
+                        Debug.Log($"[RoomOrchestra] Story: right hand by the friend: finger {m_Flick.Curl * 100f:F0} cm from palm, {m_Flick.Gap * 100f:F0} cm from thumb, tip {Vector3.Distance(hand.Tip, friendAt) * 100f:F0} cm from friend, snap {m_Flick.Speed:F2} m/s, ready {m_Flick.Near}");
+                    }
+                }
+                else m_Flick.Lost();
+                if (m_Flick.TakeMiss(out var peak)) Debug.Log($"[RoomOrchestra] Story: finger loaded by the friend, no flick: fastest snap {peak:F2} m/s (a flick needs {FlickDetector.MinSnap:F2})");
+                // controllers: point and pull the trigger (a hand's pinch never launches: a flick brushes thumb and
+                // finger together, and the pinch fired a second friend, headset 2026-11-25)
+                if (rightPress && rightController)
+                {
+                    var from = W(right.Position);
+                    var aim = Q(right.Rotation) * Vector3.forward;
+                    Launch(friendAt, (from + aim * 3f - friendAt).normalized, "aim");
+                }
+            }
+
+            RunStage(now, head.position);
             MoveDiscords(head.position, dt, now);
-            MoveShots(dt, now);
+            MoveGrumble(head.position, now);
+            MoveShots(dt, now, head.position);
+            MoveBits(now, dt);
+            MoveNotes(now);
+            m_Bloom = Mathf.MoveTowards(m_Bloom, m_BloomTarget, dt * 0.2f);
+            StoryDiorama.SetBloom(m_Bloom);
+            float repair = Mathf.Clamp01((m_Bloom - 0.12f) / 0.88f); // the instrument mends as the meadow's colour returns
+            m_World?.SetInstrument(repair);
+            m_Audio.SetRepair(repair);
+
+            // the room's Discord meter: the mist, the arc, the music souring
             int loose = 0; foreach (var d in m_Discords) if (d.Loose) loose++;
-            Meter.Tick(dt, loose);
-            m_MistMat.color = new Color(0.45f, 0.44f, 0.47f, Meter.Level * 0.7f);
+            if (Current != Stage.Won && Current != Stage.Lost) Meter.Tick(dt, loose);
+            MeterPeak = Mathf.Max(MeterPeak, Meter.Level);
+            // the room greys as loose Discords fill it: the earlier look (owner, headset 2026-11-25: "I liked how it looked
+            // before, it was similar to static"); a short pulse when one escapes
+            m_GreyPulse = Mathf.MoveTowards(m_GreyPulse, 0f, dt * 0.4f);
+            float greyness = Current == Stage.Won ? 0f : Mathf.Clamp01(Meter.Level * 0.55f + m_GreyPulse * 0.5f);
+            m_MistMat.color = new Color(0.42f, 0.41f, 0.46f, greyness);
             m_Mist.position = head.position;
-            if (Meter.Lost) { Say("The room filled with Discord. Level lost."); UiSounds.Play(UiSound.Cancel, head.position); m_EndAt = now + 3f; }
-            else if (m_Spawned >= Waves && m_Discords.Count == 0) { Say($"You did it! {m_Beaten} Discords turned back into music."); UiSounds.Play(UiSound.Place, head.position); m_EndAt = now + 3f; }
+            m_Audio.SetSour(Meter.Level);
+            if (Meter.Lost && Current != Stage.Lost && Current != Stage.Won) Lose();
         }
 
-        void Launch(Vector3 from, Vector3 direction, string how)
+        Vector3 PlaceHand(PointerFrame left, Transform head, System.Func<Vector3, Vector3> W, System.Func<Vector3, Vector3> D)
         {
-            var targets = new Vector3[m_Discords.Count];
-            for (int i = 0; i < targets.Length; i++) targets[i] = m_Discords[i].Body.position;
-            direction = FlickDetector.Assist(from, direction, targets, 22f);
-            var friend = Queue.Flick();
-            float speed = friend == OrbType.Flutter ? 6f : friend == OrbType.Bop ? 4.5f : 3.4f;
-            var body = FriendModel(friend, 0.07f);
-            body.SetParent(m_Root); body.position = from;
-            m_Shots.Add(new Shot { Friend = friend, Body = body, Velocity = direction * speed, Until = Time.time + 2.5f });
-            UiSounds.Play(UiSound.Press, from);
-            Debug.Log($"[RoomOrchestra] Story prototype: {friend} launched ({how}, hand speed {m_Flick.Speed:F1} m/s)");
-            RefreshHand();
+            Vector3 palm;
+            bool seen = left.Joints || left.BarePalm || (left.Tracked && !left.Gaze);
+            if (left.Joints || left.BarePalm) palm = W(left.GripPosition);
+            else if (left.Tracked && !left.Gaze) palm = W(left.Position);
+            else palm = head.position + m_Forward * 0.35f - Vector3.up * 0.3f - m_Right * 0.12f;
+            var friendAt = palm + Vector3.up * 0.085f;
+            float bob = Mathf.Sin(Time.time * 3f) * 0.005f;
+            float beat = m_Audio.BeatPhase();
+            float pulse = 1f + 0.25f * Mathf.Exp(-beat * 6f);
+            if (m_PalmFriend != null)
+            {
+                m_PalmFriend.position = friendAt + Vector3.up * bob;
+                Face(m_PalmFriend, head.position);
+                // the next friend pops in after a flick; it swells a little when the finger is close enough to flick it
+                float pop = Mathf.Clamp01((Time.time - m_PopAt) / 0.3f);
+                float grow = pop >= 1f ? 1f : 1f + 0.25f * Mathf.Sin(pop * Mathf.PI) * (1f - pop) + (pop - 1f);
+                float ready = m_Flick.Near ? 1.18f : 1f;
+                m_PalmFriend.localScale = Vector3.one * 0.07f * Mathf.Max(0.05f, grow) * ready;
+            }
+            m_PalmRing.transform.position = palm + Vector3.up * 0.02f;
+            m_PalmRing.transform.rotation = Quaternion.LookRotation(Vector3.up);
+            m_PalmRing.widthMultiplier = 0.006f * pulse * (Harmony != null && Harmony.Full ? 1.8f : 1f);
+            bool flash = Time.time < m_FlashUntil;
+            var ringColor = flash ? Color.white : Harmony != null && Harmony.Full ? new Color(1f, 0.8f, 0.3f, 0.9f) : m_Flick.Near ? new Color(1f, 1f, 1f, 1f) : new Color(1f, 0.95f, 0.8f, seen ? 0.6f : 0.25f);
+            if (m_Flick.Near || flash) m_PalmRing.widthMultiplier *= flash ? 2.4f : 1.6f;
+            m_PalmRing.startColor = m_PalmRing.endColor = ringColor;
+            // the next friends line up along the forearm, wrist first (headset 2026-11-25: "oriented along the rest of
+            // my wrist/arm"); without a tracked wrist, toward the player
+            var wrist = left.Joints ? W(left.Wrist) : palm - m_Forward * 0.06f;
+            var arm = wrist - palm; if (arm.sqrMagnitude < 1e-5f) arm = -m_Forward; arm.Normalize();
+            for (int i = 0; i < m_Wrist.Length; i++)
+                if (m_Wrist[i] != null) { m_Wrist[i].position = wrist + arm * (0.015f + 0.05f * i) + Vector3.up * 0.045f; Face(m_Wrist[i], head.position); }
+            var heldAt = palm - m_Right * 0.085f + Vector3.up * 0.03f;
+            m_HeldRing.gameObject.SetActive(m_Held != null || Queue != null);
+            m_HeldRing.transform.position = heldAt;
+            m_HeldRing.transform.rotation = Quaternion.LookRotation(heldAt - head.position);
+            if (m_Held != null) { m_Held.position = heldAt; Face(m_Held, head.position); }
+            return friendAt;
+        }
+
+        /// <summary>Turns a friend's face (its -z side) toward the player.</summary>
+        /// <summary>The Harmony watch round the right wrist: the gold charge goes round as Harmony fills.</summary>
+        void PlaceWatch(PointerFrame right, Transform head, System.Func<Vector3, Vector3> W, System.Func<Quaternion, Quaternion> Q)
+        {
+            if (m_Watch == null || Harmony == null) return;
+            bool seen = right.Joints || (right.Tracked && !right.Gaze);
+            m_Watch.gameObject.SetActive(seen);
+            m_Streak.gameObject.SetActive(seen);
+            if (!seen) return;
+            Vector3 wrist, axis; // axis: along the forearm, toward the hand
+            if (right.Joints) { wrist = W(right.Wrist); axis = W(right.GripPosition) - wrist; }
+            else { axis = Q(right.Rotation) * Vector3.forward; wrist = W(right.Position) - axis * 0.1f; }
+            if (axis.sqrMagnitude < 1e-6f) axis = m_Forward;
+            axis.Normalize();
+            var up = Vector3.ProjectOnPlane(Vector3.up, axis); if (up.sqrMagnitude < 1e-4f) up = Vector3.ProjectOnPlane(head.up, axis);
+            m_Watch.SetPositionAndRotation(wrist - axis * 0.015f, Quaternion.LookRotation(axis, up) * Quaternion.Euler(0f, 0f, 180f)); // the charge starts at the top
+            float h = Mathf.Clamp01(Harmony.Level);
+            StoryArt.SetArc(m_WatchFill, WatchRadius, 0f, Mathf.Max(0.002f, h));
+            var gold = new Color(1f, 0.8f, 0.3f);
+            var c = Time.time < m_WatchFlashUntil ? new Color(0.95f, 0.35f, 0.4f) : Harmony.Full ? Color.Lerp(gold, Color.white, 0.5f + 0.5f * Mathf.Sin(Time.time * 8f)) : gold;
+            m_WatchFill.startColor = m_WatchFill.endColor = c;
+            m_WatchFill.widthMultiplier = Harmony.Full ? 0.016f : 0.011f;
+            m_Streak.transform.position = wrist + up.normalized * 0.065f;
+            m_Streak.transform.rotation = Quaternion.LookRotation(m_Streak.transform.position - head.position);
+            m_Streak.text = Time.time < m_StreakLostUntil ? "streak lost" : Harmony.Full ? "CHORUS!" : Harmony.Streak >= 2 ? $"x{Harmony.Streak} streak" : "";
+        }
+
+        static void Emote(Transform friend, Expression e)
+        {
+            if (friend != null && friend.TryGetComponent<CharacterFace>(out var face)) face.Show(e);
+        }
+
+        static void Face(Transform t, Vector3 head)
+        {
+            var d = t.position - head; d.y = 0f;
+            if (d.sqrMagnitude > 1e-4f) t.rotation = Quaternion.LookRotation(d);
+        }
+
+        void DoHold(Vector3 at)
+        {
+            if (Queue.Hold())
+            {
+                UiSounds.Play(UiSound.Open, at);
+                Emote(m_PalmFriend, RoomOrchestra.Expression.Curious);
+                Puff(at, 0.25f);
+                RefreshHand();
+                Debug.Log($"[RoomOrchestra] Story: Hold, {Queue.Held} tucked away, {Queue.Current} on the palm");
+            }
+            else Banner("Flick first, then Hold again", 1.5f);
+        }
+
+        /// <summary>A flick shows: a white ring bursts from the palm, sparkles, and the next friend pops in.</summary>
+        void FlickBurst(Vector3 at, OrbType friend)
+        {
+            m_FlashUntil = Time.time + 0.18f;
+            m_PopAt = Time.time;
+            var ring = StoryArt.Part(PrimitiveType.Sphere, m_Root, Vector3.zero, Vector3.one * 0.05f, StoryArt.Glow(new Color(1f, 1f, 1f, 0.5f), transparent: true, queueOffset: 30), "FlickRing");
+            ring.transform.position = at;
+            var m = ring.GetComponent<MeshRenderer>().sharedMaterial;
+            m_Bits.Add(new Bit { T = ring.transform, Born = m_T, Life = 0.25f, M = m, C = m.color, Grow = 0.16f });
+            Burst(at, friend, 5);
+        }
+
+        /// <summary>Where the aim line points: the nearest Discord the palm friend beats (or the Grumble, if its shell
+        /// is that friend's).</summary>
+        Vector3? AimTarget(Vector3 from)
+        {
+            if (Queue == null) return null;
+            var friend = Queue.Current;
+            Vector3? best = null; float bestD = float.MaxValue;
+            foreach (var d in m_Discords)
+            {
+                if (!StoryRules.Matches(friend, d.Kind) || d.Root == null || d.Inside) continue;
+                float dist = Vector3.Distance(from, d.Root.position);
+                if (dist < bestD) { bestD = dist; best = d.Root.position; }
+            }
+            if (m_Grumble != null && Boss != null && !Boss.Defeated && StoryRules.Matches(friend, Boss.Shell))
+            {
+                float dist = Vector3.Distance(from, m_Grumble.Root.position);
+                if (dist < bestD) best = m_Grumble.Root.position;
+            }
+            return best;
+        }
+
+        void UpdateAimLine(Vector3 from)
+        {
+            var target = Current == Stage.Won || Current == Stage.Lost ? null : AimTarget(from);
+            bool show = target.HasValue && m_PalmFriend != null && Time.time - m_PopAt > 0.3f;
+            for (int i = 0; i < m_AimDots.Count; i++)
+            {
+                var dot = m_AimDots[i];
+                if (dot.gameObject.activeSelf != show) dot.gameObject.SetActive(show);
+                if (!show) continue;
+                // a gentle arc, the dots flowing toward the Discord; nearer dots shown, far ones fading out
+                float f = ((i + Time.time * 1.6f) % AimDotCount) / AimDotCount;
+                var a = from; var b = target.Value;
+                var mid = (a + b) * 0.5f + Vector3.up * (0.12f + 0.08f * Vector3.Distance(a, b));
+                var p = Vector3.Lerp(Vector3.Lerp(a, mid, f), Vector3.Lerp(mid, b, f), f);
+                dot.position = p;
+                dot.localScale = Vector3.one * (m_Flick.Near ? 0.011f : 0.007f) * (1f - 0.5f * f);
+            }
         }
 
         void RefreshHand()
         {
-            ReplaceModel(ref m_PalmFriend, Queue.Current, 0.07f);
-            for (int i = 0; i < m_Wrist.Length; i++) ReplaceModel(ref m_Wrist[i], Queue.Next[i], 0.035f);
+            Replace(ref m_PalmFriend, Queue.Current, 0.07f);
+            for (int i = 0; i < m_Wrist.Length; i++) Replace(ref m_Wrist[i], Queue.Next[i], 0.032f);
+            if (Queue.Held.HasValue) Replace(ref m_Held, Queue.Held.Value, 0.04f);
+            else if (m_Held != null) { Destroy(m_Held.gameObject); m_Held = null; }
         }
 
-        void ReplaceModel(ref Transform slot, OrbType friend, float size)
+        void Replace(ref Transform slot, OrbType friend, float size)
         {
             if (slot != null) Destroy(slot.gameObject);
-            slot = FriendModel(friend, size);
+            slot = StoryArt.Friend(friend, size, m_Root);
         }
 
-        void Spawn(float now)
+        // ---------- the level's flow ----------
+        void RunStage(float now, Vector3 head)
         {
-            if (m_Spawned >= Waves || now < m_NextSpawn) return;
-            m_NextSpawn = now + SpawnEvery * (m_Spawned < 4 ? 1.3f : 1f);
-            var kind = (DiscordKind)Random.Range(0, 3);
-            var shape = kind == DiscordKind.Squeak ? PrimitiveType.Sphere : kind == DiscordKind.Wobbler ? PrimitiveType.Capsule : PrimitiveType.Cube;
-            var go = GameObject.CreatePrimitive(shape);
-            Destroy(go.GetComponent<Collider>());
-            go.name = $"Discord_{kind}";
-            go.transform.SetParent(m_Root);
-            var r = Random.insideUnitCircle * 0.3f;
-            go.transform.position = m_Portal.TransformPoint(new Vector3(r.x, r.y, -0.05f));
-            go.transform.localScale = kind == DiscordKind.Wobbler ? new Vector3(0.11f, 0.12f, 0.11f) : Vector3.one * (kind == DiscordKind.Squeak ? 0.1f : 0.14f);
-            Paint(go, kind == DiscordKind.Squeak ? new Color(0.95f, 0.4f, 0.6f) : kind == DiscordKind.Wobbler ? new Color(0.6f, 0.4f, 0.95f) : new Color(0.55f, 0.55f, 0.6f), 0.5f);
-            m_Discords.Add(new Discord { Kind = kind, Body = go.transform, Phase = Random.value * 10f });
-            m_Spawned++;
+            float since = now - m_StageAt;
+            switch (Current)
+            {
+                case Stage.Intro:
+                    break; // the intro card waits for Begin
+                    break;
+                case Stage.WaveCue:
+                    if (since > 4.5f) { SetStage(Stage.Wave); m_NextSpawn = now; }
+                    break;
+                case Stage.Wave:
+                {
+                    var wave = Level.Waves[WaveIndex];
+                    float beat = 60f / (float)Level.Bpm;
+                    if (m_Spawned < wave.Count && now >= m_NextSpawn)
+                    {
+                        Spawn(m_Dealt[m_Spawned], null);
+                        m_Spawned++;
+                        m_NextSpawn = now + wave.BeatsApart * beat * (Easy ? 1.3f : 1f);
+                    }
+                    if (m_Spawned >= wave.Count && m_Discords.Count == 0)
+                    {
+                        Banner("Wave cleared!", 2f);
+                        UiSounds.Play(UiSound.Confirm, m_Portal.Root.position);
+                        WaveIndex++;
+                        if (WaveIndex < Level.Waves.Count) SetStage(Stage.WaveCue);
+                        else if (Level.Boss) { SetStage(Stage.BossCue); Say(Cue(StoryCue.BossComing)); m_Audio.Layers = 2; }
+                        else Win();
+                    }
+                    break;
+                }
+                case Stage.BossCue:
+                    if (since > 1.5f && m_Grumble == null) SummonGrumble();
+                    if (since > 5f) { SetStage(Stage.Boss); m_NextMinion = now + 6f; }
+                    break;
+                case Stage.Boss:
+                    if (now >= m_NextMinion && m_Discords.Count < 3 && m_Grumble != null)
+                    {
+                        // the Grumble spits out a little Discord now and then
+                        var kind = (DiscordKind)Random.Range(0, 3);
+                        Spawn(kind, m_Grumble.Root.position);
+                        m_NextMinion = now + 8f * (60f / (float)Level.Bpm) * (Easy ? 1.5f : 1f);
+                    }
+                    break;
+            }
         }
+
+        void UpdateBanner()
+        {
+            if (m_Banner != null && m_Banner.text.Length > 0 && m_T > m_BannerUntil && Current != Stage.Won && Current != Stage.Lost) m_Banner.text = "";
+            if (Harmony != null && Harmony.Full && !m_ChorusShown && Running && Current != Stage.Won && Current != Stage.Lost)
+            {
+                m_ChorusShown = true;
+                Banner(Hands() ? "Harmony full! Your next flick is a CHORUS!" : "Harmony full! Your next shot is a CHORUS!", 3f);
+                m_Audio.Play(StorySound.Chorus, Head().position, 0.6f);
+            }
+        }
+
+        void AnimatePortal(float dt)
+        {
+            if (m_Portal == null) return;
+            // the way to the World Tree opens wider as the meadow's colour comes back; wide for the Grumble; widest at the end
+            if (Current == Stage.Intro || Current == Stage.WaveCue || Current == Stage.Wave) m_PortalTarget = 0.7f + 0.45f * m_Bloom;
+            m_PortalScale = Mathf.MoveTowards(m_PortalScale, m_PortalTarget, dt * 0.5f);
+            m_Portal.Root.localScale = Vector3.one * m_PortalScale * m_StageScale;
+            float beat = m_Audio.BeatPhase();
+            m_Portal.Ring.widthMultiplier = 0.035f * (1f + 0.35f * Mathf.Exp(-beat * 5f)) * (Time.time < m_FlashRingUntil ? 2.2f : 1f); // pulses on the beat, flashes as a note arrives
+            // the journey: the friends walk on between waves (the meadow slides past, the World Tree comes nearer) and
+            // stop to face the Discords while a wave is on
+            float travel = Paused || Current == Stage.Lost ? 0f : Current == Stage.Won ? 0.35f : Current == Stage.Intro || Current == Stage.WaveCue ? 0.22f : 0f;
+            m_World?.Scroll(travel, dt);
+            if (Level != null)
+            {
+                float want = Current == Stage.Won ? 1f : (WaveIndex + (Current == Stage.BossCue || Current == Stage.Boss ? 1f : 0f)) / (Level.Waves.Count + 1f);
+                m_Progress = Mathf.MoveTowards(m_Progress, want, dt * 0.06f);
+                m_World?.SetProgress(m_Progress);
+            }
+            float grey = m_MistMat != null ? m_MistMat.color.a : 0f;
+            // fireflies drift and twinkle
+            foreach (var (t, home, seed, m) in m_Motes)
+            {
+                if (t == null) continue;
+                float k = Time.time * 0.25f + seed;
+                // as Discord greys the room the fireflies turn to grey static: flickering, jittering specks
+                float g = Mathf.Clamp01((grey - 0.08f) * 4f);
+                var jitter = g > 0f ? Random.insideUnitSphere * 0.03f * g : Vector3.zero;
+                t.position = home + new Vector3(Mathf.Sin(k * 1.3f), Mathf.Sin(k * 0.9f + 2f) * 0.6f, Mathf.Cos(k * 1.1f)) * 0.12f + jitter;
+                float a = Mathf.Lerp(0.35f + 0.55f * Mathf.Max(0f, Mathf.Sin(Time.time * 1.7f + seed * 3f)), Random.value * 0.9f, g);
+                var c = Color.Lerp(new Color(1f, 0.97f, 0.85f), new Color(0.5f, 0.5f, 0.55f), g); c.a = a; m.color = c;
+            }
+            for (int i = 0; i < m_Portal.Leaves.Length; i++)
+                m_Portal.Leaves[i].localRotation *= Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 1.3f + i) * 8f * dt);
+            if (Harmony != null) StoryArt.SetArc(m_Portal.HarmonyArc, 0.575f, 0.05f, 0.05f + 0.4f * Mathf.Max(0.002f, Harmony.Level));
+            if (Meter != null) StoryArt.SetArc(m_Portal.DiscordArc, 0.575f, 0.95f - 0.4f * Mathf.Max(0.002f, Meter.Level), 0.95f);
+        }
+
+        // ---------- Discords ----------
+        void Spawn(DiscordKind kind, Vector3? from)
+        {
+            var root = StoryArt.Discord(kind, m_Root, out var body, out var wings);
+            var d = new Discord { Kind = kind, Root = root, Body = body, Wings = wings, Born = m_T, Seed = Random.value * 100f };
+            Vector3 start;
+            if (from.HasValue || m_World == null) { start = from ?? m_Portal.Root.position; root.localScale = Vector3.one * 0.01f; }
+            else
+            {
+                // it comes up the meadow's path from far away, then hops out through the opening (headset 2026-11-25:
+                // "there needs to be more of a connection of what's happening in the middle")
+                var w = m_World.Root;
+                float fly = kind == DiscordKind.Squeak ? 0.35f : kind == DiscordKind.Wobbler ? 0.1f : 0.075f; // walkers' middles above the ground
+                float sx = Random.Range(-0.7f, 0.7f), sz = Random.Range(2.4f, 3.1f);
+                start = w.TransformPoint(new Vector3(sx, StoryDiorama.GroundY + StoryDiorama.GroundAt(sx, sz) + fly, sz));
+                d.Inside = true;
+                d.Start = start;
+                float mx = Random.Range(-0.3f, 0.3f);
+                d.Mid = w.TransformPoint(new Vector3(mx, StoryDiorama.GroundY + StoryDiorama.GroundAt(mx, 0.9f) + fly, 0.9f));
+                d.Cross = w.TransformPoint(new Vector3(Random.Range(-0.18f, 0.18f), Random.Range(-0.2f, 0.05f), -0.02f));
+                d.Back = StoryArt.ToPortal(root); // seen only through the opening while it is in the meadow
+                root.localScale = Vector3.one;
+            }
+            root.position = start;
+            // where it heads: somewhere round the player, never straight at the face
+            d.Aim = new Vector3(Random.Range(-0.55f, 0.55f), Random.Range(-0.25f, 0.15f), 0f);
+            // its badge: a little copy of the friend that beats it, floating above
+            d.Badge = StoryArt.Friend(StoryRules.Beats(kind), 0.04f, root);
+            d.Badge.localPosition = new Vector3(0f, kind == DiscordKind.Wobbler ? 0.17f : 0.13f, 0f);
+            m_Discords.Add(d);
+            m_Audio.Play(kind == DiscordKind.Squeak ? StorySound.SqueakCall : kind == DiscordKind.Wobbler ? StorySound.WobbleCall : StorySound.ClangCall, start, 0.8f);
+        }
+
+        float Speed(DiscordKind k) => (k == DiscordKind.Squeak ? 0.3f : k == DiscordKind.Wobbler ? 0.22f : 0.16f) * (Easy ? 0.7f : 1f);
 
         void MoveDiscords(Vector3 head, float dt, float now)
         {
             foreach (var d in m_Discords)
             {
-                var p = d.Body.position;
-                if (!d.Loose)
+                float age = now - d.Born;
+                float grow = d.Back != null ? 1f : Mathf.Clamp01(age / 0.7f);
+                d.Root.localScale = Vector3.one * d.Size * Mathf.SmoothStep(0.05f, 1f, grow);
+                var p = d.Root.position;
+                float t = now + d.Seed;
+                if (d.Inside)
                 {
-                    var to = head - p;
-                    p += to.normalized * DriftSpeed * dt + new Vector3(Mathf.Sin(now * 2f + d.Phase), Mathf.Cos(now * 1.7f + d.Phase), 0f) * 0.05f * dt;
-                    if (to.magnitude < EscapeDistance)
+                    // up the path, then a hop to the opening
+                    d.InsideFor += dt / (Easy ? 1.3f : 1f);
+                    float f = Mathf.Clamp01(d.InsideFor / InsideSeconds);
+                    p = f < 0.7f ? Vector3.Lerp(d.Start, d.Mid, f / 0.7f) : Vector3.Lerp(d.Mid, d.Cross, Mathf.SmoothStep(0f, 1f, (f - 0.7f) / 0.3f));
+                    if (f < 0.7f && d.Kind != DiscordKind.Squeak) p.y += Mathf.Abs(Mathf.Sin(t * 7f)) * 0.025f;
+                    if (f >= 1f) { d.Inside = false; StoryArt.Restore(d.Back); m_Audio.Play(d.Kind == DiscordKind.Squeak ? StorySound.SqueakCall : d.Kind == DiscordKind.Wobbler ? StorySound.WobbleCall : StorySound.ClangCall, p, 0.6f); }
+                }
+                else if (!d.Loose)
+                {
+                    var target = head + m_Right * d.Aim.x + Vector3.up * d.Aim.y;
+                    var to = target - p;
+                    var side = Vector3.Cross(Vector3.up, to.normalized);
+                    var step = to.normalized * Speed(d.Kind) * dt;
+                    if (d.Kind == DiscordKind.Squeak) step += (side * Mathf.Cos(t * 6f) * 0.5f + Vector3.up * Mathf.Sin(t * 4.3f) * 0.25f) * dt; // a zigzag
+                    else if (d.Kind == DiscordKind.Wobbler) step += side * Mathf.Cos(t * 1.8f) * 0.3f * dt; // a wide sway
+                    p += step;
+                    if (Vector3.Distance(p, head) < EscapeDistance)
                     {
                         d.Loose = true;
-                        UiSounds.Play(UiSound.Cancel, p);
-                        Debug.Log($"[RoomOrchestra] Story prototype: a {d.Kind} got into the room");
+                        m_GreyPulse = 0.35f;
+                        m_Audio.Play(StorySound.Escape, p);
+                        Banner("A Discord got into your room!", 1.5f);
+                        Emote(m_PalmFriend, RoomOrchestra.Expression.Scared);
+                        Debug.Log($"[RoomOrchestra] Story: a {d.Kind} got into the room");
                     }
                 }
-                else  // loose in the room: circling the player
+                else
                 {
-                    float a = now * 0.5f + d.Phase;
-                    var target = head + new Vector3(Mathf.Cos(a), Mathf.Sin(a * 0.7f) * 0.25f, Mathf.Sin(a)) * 1.1f;
-                    p = Vector3.MoveTowards(p, target, 0.4f * dt);
+                    // loose in the room: drifting round the player, greying the room until it is beaten
+                    float a = t * 0.35f;
+                    var target = head + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 1.15f + Vector3.up * (Mathf.Sin(a * 1.7f) * 0.2f - 0.05f);
+                    p = Vector3.MoveTowards(p, target, 0.3f * (Easy ? 0.7f : 1f) * dt);
                 }
-                d.Body.position = p;
-                d.Body.Rotate(0f, 90f * dt, 0f);
+                d.Root.position = p;
+                d.Root.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(p - head, Vector3.up).normalized + Vector3.up * 0.001f);
+                // each kind moves its own way
+                switch (d.Kind)
+                {
+                    case DiscordKind.Squeak:
+                        if (d.Wings != null) for (int s = 0; s < d.Wings.Length; s++) d.Wings[s].localRotation = Quaternion.Euler(0f, 0f, (s * 2 - 1) * Mathf.Sin(t * 40f) * 35f);
+                        d.Body.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 5f) * 15f);
+                        break;
+                    case DiscordKind.Wobbler:
+                        float sq = Mathf.Sin(t * 6f) * 0.12f;
+                        d.Body.localScale = new Vector3(1f - sq * 0.5f, 1f + sq, 1f - sq * 0.5f);
+                        d.Body.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 1.8f) * 12f);
+                        break;
+                    default:
+                        d.Body.localPosition = Vector3.up * Mathf.Abs(Mathf.Sin(t * 3f)) * 0.03f; // heavy stomping
+                        d.Body.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 3f) * 5f);
+                        break;
+                }
+                if (d.Badge != null) d.Badge.localRotation = Quaternion.Euler(0f, Mathf.Sin(t) * 25f, 0f); // its face toward the player
             }
         }
 
-        void MoveShots(float dt, float now)
+        // ---------- the Grumble ----------
+        void SummonGrumble()
+        {
+            Boss = new BossDiscord();
+            m_Grumble = StoryArt.BuildGrumble(m_Root);
+            m_Grumble.Root.position = m_Portal.Root.position;
+            m_Grumble.Root.localScale = Vector3.one * 0.01f;
+            m_PortalTarget = 1.45f;
+            ShowShell();
+            m_Audio.Play(StorySound.ClangCall, m_Grumble.Root.position, 1f);
+            m_Audio.Play(StorySound.WobbleCall, m_Grumble.Root.position, 1f);
+            Debug.Log("[RoomOrchestra] Story: the Grumble arrives");
+        }
+
+        void ShowShell()
+        {
+            if (m_Grumble == null) return;
+            for (int i = 0; i < 3; i++) m_Grumble.Shells[i].SetActive(!Boss.Defeated && BossDiscord.Shells[i] == Boss.Shell);
+            if (m_Grumble.Badge != null) Destroy(m_Grumble.Badge.gameObject);
+            if (!Boss.Defeated)
+            {
+                m_Grumble.Badge = StoryArt.Friend(StoryRules.Beats(Boss.Shell), 0.08f, m_Grumble.Root);
+                m_Grumble.Badge.localPosition = new Vector3(0f, 0.45f, 0f);
+            }
+            BossCount();
+        }
+
+        /// <summary>Above the Grumble: which shell, and how many more hits it takes.</summary>
+        void BossCount()
+        {
+            if (m_Grumble == null || Boss == null) return;
+            if (m_BossText == null || m_BossText.transform.parent != m_Grumble.Root)
+            {
+                m_BossText = StoryArt.Words(m_Grumble.Root, "", new Vector3(0f, 0.62f, 0f), 0.055f, new Color(1f, 0.92f, 0.7f), 1f);
+                m_BossText.textWrappingMode = TextWrappingModes.NoWrap;
+            }
+            var bars = new System.Text.StringBuilder();
+            for (int i = 0; i < BossDiscord.HitsPerShell; i++) bars.Append(i < Boss.HitsLeft ? "|" : ".");
+            m_BossText.text = Boss.Defeated ? "" : $"Shell {Boss.ShellIndex + 1} of {BossDiscord.Shells.Length}: needs {StoryRules.Beats(Boss.Shell)}  {bars}";
+        }
+
+        void MoveGrumble(Vector3 head, float now)
+        {
+            if (m_Grumble == null) return;
+            var r = m_Grumble.Root;
+            float k = Mathf.MoveTowards(r.localScale.x, 0.72f, Time.deltaTime * 0.5f); // big, but the meadow still shows round it
+            r.localScale = Vector3.one * k;
+            // it hovers out in front of the portal, swaying and grumbling
+            var home = m_Portal.Root.position - m_Forward * 0.45f + m_Right * Mathf.Sin(now * 0.6f) * 0.45f + Vector3.up * (Mathf.Sin(now * 1.1f) * 0.08f - 0.05f);
+            r.position = Vector3.Lerp(r.position, home, Time.deltaTime * 1.5f);
+            r.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(r.position - head, Vector3.up).normalized + Vector3.up * 0.001f);
+            float shake = Mathf.Clamp01(1f - (now - m_GrumbleHitAt) / 0.4f);
+            m_Grumble.Body.localPosition = Random.insideUnitSphere * 0.02f * shake;
+            m_Grumble.Body.localScale = Vector3.one * (1f + Mathf.Sin(now * 2.2f) * 0.04f);
+            if (m_Grumble.Badge != null) m_Grumble.Badge.localRotation = Quaternion.Euler(0f, Mathf.Sin(now) * 25f, 0f);
+        }
+
+        void HitGrumble(OrbType friend, Vector3 at, bool chorus)
+        {
+            if (Boss == null || Boss.Defeated) return;
+            var result = chorus ? Boss.Chorus() : Boss.Hit(friend);
+            m_GrumbleHitAt = m_T;
+            switch (result)
+            {
+                case BossHit.Wrong:
+                    Wrong++;
+                    Harmony.Wrong();
+                    m_Audio.Play(StorySound.Sour, at);
+                    Banner($"{friend} bounces off! It needs {StoryRules.Beats(Boss.Shell)}.", 2f);
+                    break;
+                case BossHit.Damaged:
+                    BossCount();
+                    m_Audio.Play(StorySound.ClangCall, at, 0.6f);
+                    m_Audio.MelodyNote(friend);
+                    Burst(at, friend, 6);
+                    Banner("Crack!", 1f);
+                    break;
+                case BossHit.ShellBroken:
+                    m_Audio.Play(StorySound.Shell, at);
+                    m_Audio.MelodyNote(friend);
+                    Puff(at, 1f);
+                    Burst(at, friend, 14);
+                    ShowShell();
+                    Banner($"Shell broken! Now it needs {StoryRules.Beats(Boss.Shell)}.", 2.5f);
+                    break;
+                case BossHit.Defeated:
+                    m_Audio.Play(StorySound.Shell, at);
+                    Puff(m_Grumble.Root.position, 2f);
+                    Burst(m_Grumble.Root.position, OrbType.Flutter, 12); Burst(m_Grumble.Root.position, OrbType.Bop, 12); Burst(m_Grumble.Root.position, OrbType.Boom, 12);
+                    Destroy(m_Grumble.Root.gameObject); m_Grumble = null;
+                    foreach (var d in m_Discords.ToArray()) BeatDiscord(d, OrbType.Flutter, false, quiet: true);
+                    Win();
+                    break;
+            }
+            if (result != BossHit.Wrong) Harmony.Matched(false);
+            Debug.Log($"[RoomOrchestra] Story: {friend} hit the Grumble: {result}");
+        }
+
+        // ---------- the friends flying ----------
+        void Launch(Vector3 from, Vector3 direction, string how)
+        {
+            if (Current == Stage.Won || Current == Stage.Lost || Current == Stage.Intro) return; // nothing to flick at yet
+            bool onBeat = m_Audio.OnBeat();
+            if (Harmony.Spend()) { Chorus(from); return; }
+            // the aim line's target first (the Discord this friend beats): a flick roughly its way goes to it
+            var lockOn = AimTarget(from);
+            if (lockOn.HasValue && Vector3.Angle(direction, lockOn.Value - from) < (Easy ? 55f : 40f))
+                direction = Vector3.Slerp(direction, (lockOn.Value - from).normalized, 0.85f).normalized;
+            else
+            {
+                var targets = new List<Vector3>();
+                foreach (var d in m_Discords) targets.Add(d.Root.position);
+                if (m_Grumble != null) targets.Add(m_Grumble.Root.position);
+                direction = FlickDetector.Assist(from, direction, targets.ToArray(), Easy ? 40f : 25f, Easy ? 0.85f : 0.65f);
+            }
+            var friend = Queue.Flick();
+            FlickBurst(from, friend);
+            var s = NewShot(friend, from, direction * (friend == OrbType.Flutter ? 5.5f : friend == OrbType.Bop ? 4.2f : 3.3f), onBeat);
+            m_Audio.Play(StorySound.Launch, from);
+            if (onBeat) { Banner("On the beat!", 0.8f); Burst(from, friend, 4); }
+            Debug.Log($"[RoomOrchestra] Story: {friend} launched ({how}, finger {m_Flick.Speed:F1} m/s{(onBeat ? ", on the beat" : "")})");
+            RefreshHand();
+            if (!m_HoldTaught && WaveIndex >= 1 && Hands()) m_HoldTaught = true;
+        }
+
+        Shot NewShot(OrbType friend, Vector3 from, Vector3 velocity, bool onBeat)
+        {
+            var body = StoryArt.Friend(friend, 0.07f, m_Root);
+            body.position = from;
+            var trail = body.gameObject.AddComponent<TrailRenderer>();
+            trail.time = 0.25f; trail.widthMultiplier = 0.03f; trail.minVertexDistance = 0.01f;
+            trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var c = onBeat ? new Color(1f, 0.85f, 0.35f) : StoryArt.FriendColor(friend);
+            trail.sharedMaterial = StoryArt.Glow(new Color(c.r, c.g, c.b, 0.7f), transparent: true, queueOffset: 6);
+            trail.startColor = new Color(c.r, c.g, c.b, 0.8f); trail.endColor = new Color(c.r, c.g, c.b, 0f);
+            var s = new Shot { Friend = friend, Body = body, Velocity = velocity, Born = m_T, Until = m_T + (friend == OrbType.Boom ? 1.5f : 1.8f), OnBeat = onBeat };
+            m_Shots.Add(s);
+            return s;
+        }
+
+        void Chorus(Vector3 from)
+        {
+            Queue.Flick();
+            RefreshHand();
+            m_ChorusShown = false;
+            Banner("CHORUS!", 2f);
+            m_ChorusBossDone = false;
+            m_Audio.Play(StorySound.Chorus, from);
+            var friends = new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom };
+            var targets = new List<object>();
+            foreach (var d in m_Discords) if (!d.Inside) targets.Add(d);
+            if (m_Grumble != null) targets.Add(m_Grumble);
+            int n = Mathf.Max(3, targets.Count);
+            for (int i = 0; i < n && i < 10; i++)
+            {
+                var friend = friends[i % 3];
+                var dir = Quaternion.AngleAxis((i % 3 - 1) * 20f, Vector3.up) * (m_Forward + Vector3.up * 0.2f);
+                var s = NewShot(friend, from, dir.normalized * 4f, true);
+                s.Chorus = true;
+                s.Target = i < targets.Count ? targets[i] : null;
+            }
+            Debug.Log($"[RoomOrchestra] Story: Chorus at {targets.Count} targets");
+        }
+
+        void MoveShots(float dt, float now, Vector3 head)
         {
             for (int i = m_Shots.Count - 1; i >= 0; i--)
             {
                 var s = m_Shots[i];
-                if (s.Friend == OrbType.Boom) s.Velocity += Vector3.down * 1.2f * dt; // a heavy lob
-                s.Body.position += s.Velocity * dt;
-                s.Body.Rotate(360f * dt, 0f, 0f);
+                var p = s.Body.position;
+                // a Chorus friend homes in on its target
+                if (s.Chorus && s.Target != null)
+                {
+                    var tp = s.Target is Discord td ? (td.Root != null ? td.Root.position : p) : m_Grumble != null ? m_Grumble.Root.position : p;
+                    s.Velocity = Vector3.Slerp(s.Velocity, (tp - p).normalized * 5f, dt * 6f);
+                }
+                else if (s.Friend == OrbType.Boom) s.Velocity += Vector3.down * 1.0f * dt; // a heavy lob
+                else if (s.Friend == OrbType.Bop && (s.Bounces > 0 || now - s.Born > 0.35f))
+                {
+                    // Bop's trick: after a bounce (or a moment in the air) it curves toward the nearest Wobbler
+                    var aim = Nearest(p, DiscordKind.Wobbler, 1.6f);
+                    if (aim.HasValue) s.Velocity = Vector3.Slerp(s.Velocity, (aim.Value - p).normalized * s.Velocity.magnitude, dt * 4f);
+                }
+                var step = s.Velocity * dt;
+                // real walls: Bop ricochets, Boom bursts, the rest stop
+                if (Physics.Raycast(p, step.normalized, out var wall, step.magnitude + 0.03f, 1 << RealWalls.SurfaceLayer, QueryTriggerInteraction.Ignore))
+                {
+                    if (s.Friend == OrbType.Bop && s.Bounces < 3 && !s.Chorus)
+                    {
+                        s.Velocity = Vector3.Reflect(s.Velocity, wall.normal);
+                        s.Bounces++;
+                        p = wall.point + wall.normal * 0.03f;
+                        UiSounds.Play(UiSound.Press, p);
+                        step = Vector3.zero;
+                    }
+                    else if (s.Friend == OrbType.Boom && !s.Chorus) { Shockwave(wall.point, s); Kill(i); continue; }
+                    else { Puff(wall.point, 0.3f); Kill(i); continue; }
+                }
+                p += step;
+                s.Body.position = p;
+                s.Body.Rotate(0f, 540f * dt, 0f, Space.Self);
                 bool spent = now > s.Until;
+                if (spent && s.Friend == OrbType.Boom && !s.Chorus) { Shockwave(p, s); Kill(i); continue; }
+                // the Grumble
+                if (!spent && m_Grumble != null && !s.Hit.Contains(m_Grumble) && Vector3.Distance(p, m_Grumble.Root.position) < 0.3f * m_Grumble.Root.localScale.x + 0.04f)
+                {
+                    s.Hit.Add(m_Grumble);
+                    s.HitAny = true;
+                    if (s.Chorus) { if (!m_ChorusBossDone) { m_ChorusBossDone = true; HitGrumble(s.Friend, p, true); } else Burst(p, s.Friend, 6); }
+                    else if (s.Friend == OrbType.Boom) Shockwave(p, s);
+                    else HitGrumble(s.Friend, p, false);
+                    spent = true;
+                }
+                // Discords
                 for (int k = m_Discords.Count - 1; k >= 0 && !spent; k--)
                 {
                     var d = m_Discords[k];
                     if (s.Hit.Contains(d)) continue;
-                    float reach = HitRadius * d.Size + (s.Friend == OrbType.Boom ? 0.12f : 0f);
-                    if (Vector3.Distance(s.Body.position, d.Body.position) > reach) continue;
+                    if (Vector3.Distance(p, d.Root.position) > HitRadius * d.Size + (s.Friend == OrbType.Boom ? 0.04f : 0f)) continue;
                     s.Hit.Add(d);
+                    s.HitAny = true;
+                    if (s.Chorus) { BeatDiscord(d, s.Friend, true); spent = s.Target == d || s.Target == null; continue; }
+                    if (s.Friend == OrbType.Boom) { Shockwave(p, s); spent = true; break; }
                     if (StoryRules.Matches(s.Friend, d.Kind))
                     {
-                        UiSounds.Play(UiSound.Confirm, d.Body.position);
-                        PoofCloud.PoofAt(d.Body.position, 0.4f);
-                        if (d.Loose) Meter.Beaten();
-                        Destroy(d.Body.gameObject); m_Discords.RemoveAt(k); m_Beaten++;
-                        Debug.Log($"[RoomOrchestra] Story prototype: {s.Friend} beat a {d.Kind}");
-                        if (s.Friend != OrbType.Flutter) spent = true; // Flutter pierces on
+                        BeatDiscord(d, s.Friend, s.OnBeat);
+                        if (s.Friend != OrbType.Flutter) spent = true; // Flutter pierces on through the line
                     }
-                    else
-                    {
-                        UiSounds.Play(UiSound.Cancel, d.Body.position);
-                        d.Size *= 1.15f; d.Body.localScale *= 1.15f; // the wrong friend: it grows
-                        spent = true;
-                        Debug.Log($"[RoomOrchestra] Story prototype: {s.Friend} can't beat a {d.Kind}: it grows");
-                    }
+                    else { Sour(d, s.Friend); spent = true; }
                 }
-                if (spent) { Destroy(s.Body.gameObject); m_Shots.RemoveAt(i); }
+                if (spent || Vector3.Distance(p, head) > 8f) Kill(i);
             }
         }
 
-        // ---------- helpers ----------
-        static Transform Head() => Camera.main != null ? Camera.main.transform : new GameObject("NoHead").transform;
-
-        static void Place(Transform t, Vector3 at, Vector3 look, float now)
+        Vector3? Nearest(Vector3 from, DiscordKind kind, float within)
         {
-            if (t == null) return;
-            t.position = at + Vector3.up * Mathf.Sin(now * 3f) * 0.006f;
-            var d = look - at; d.y = 0f;
-            if (d.sqrMagnitude > 1e-4f) t.rotation = Quaternion.LookRotation(d);
-        }
-
-        /// <summary>A small copy of a friend's real model (its meshes only, from the leaf's token), `size` m tall.</summary>
-        Transform FriendModel(OrbType friend, float size)
-        {
-            var holder = new GameObject($"Story_{friend}").transform;
-            OrbToken token = null;
-            foreach (var t in FindObjectsByType<OrbToken>(FindObjectsSortMode.None)) if (t.Orb == friend) { token = t; break; }
-            if (token == null)
+            Vector3? best = null; float bestD = within;
+            foreach (var d in m_Discords)
             {
-                var ball = GameObject.CreatePrimitive(PrimitiveType.Sphere); Destroy(ball.GetComponent<Collider>());
-                ball.transform.SetParent(holder, false); ball.transform.localScale = Vector3.one * size;
-                return holder;
+                if (d.Kind != kind || d.Inside) continue;
+                float dist = Vector3.Distance(from, d.Root.position);
+                if (dist < bestD) { bestD = dist; best = d.Root.position; }
             }
-            var bounds = new Bounds(token.transform.position, Vector3.zero);
-            foreach (var r in token.GetComponentsInChildren<MeshRenderer>()) bounds.Encapsulate(r.bounds);
-            float k = size / Mathf.Max(0.01f, bounds.size.y);
-            foreach (var r in token.GetComponentsInChildren<MeshRenderer>())
+            if (m_Grumble != null && Boss != null && !Boss.Defeated && Boss.Shell == kind)
             {
-                var mf = r.GetComponent<MeshFilter>(); if (mf == null || mf.sharedMesh == null) continue;
-                var part = new GameObject(r.name).transform;
-                part.SetParent(holder, false);
-                part.localPosition = (r.transform.position - bounds.center) * k;
-                part.localRotation = Quaternion.Inverse(token.transform.rotation) * r.transform.rotation;
-                part.localScale = r.transform.lossyScale * k;
-                part.gameObject.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
-                var mr = part.gameObject.AddComponent<MeshRenderer>(); mr.sharedMaterials = r.sharedMaterials;
-                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                float dist = Vector3.Distance(from, m_Grumble.Root.position);
+                if (dist < bestD) best = m_Grumble.Root.position;
             }
-            return holder;
+            return best;
         }
 
-        static Material Paint(GameObject go, Color c, float glow, bool transparent = false, bool cullFront = false)
+        void Kill(int i)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            var m = new Material(shader != null ? shader : Shader.Find("Sprites/Default")) { color = c };
-            if (transparent)
+            var s = m_Shots[i];
+            if (!s.HitAny && !s.Chorus) Missed(s.Friend);
+            if (m_Shots[i].Body != null) Destroy(m_Shots[i].Body.gameObject);
+            m_Shots.RemoveAt(i);
+        }
+
+        /// <summary>Boom lands: a heavy shockwave. Clangs in reach crack; the others are knocked back (and don't grow).</summary>
+        void Shockwave(Vector3 at, Shot s)
+        {
+            const float Reach = 0.5f;
+            m_Audio.Play(StorySound.Beat, at, 1f);
+            var ring = StoryArt.Part(PrimitiveType.Sphere, m_Root, Vector3.zero, Vector3.one * 0.1f, StoryArt.Glow(new Color(1f, 0.65f, 0.3f, 0.45f), transparent: true, queueOffset: 30), "Shockwave");
+            ring.transform.position = at;
+            var m = ring.GetComponent<MeshRenderer>().sharedMaterial;
+            m_Bits.Add(new Bit { T = ring.transform, Born = m_T, Life = 0.4f, M = m, C = m.color, Grow = Reach * 2f });
+            bool cracked = false, knocked = false, grumble = false;
+            foreach (var d in m_Discords.ToArray())
             {
-                m.SetFloat("_Surface", 1f); m.SetFloat("_Blend", 0f);
-                m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha); m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                m.SetInt("_ZWrite", 0); m.renderQueue = 3000; m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                if (d.Inside) continue;
+                float dist = Vector3.Distance(at, d.Root.position);
+                if (dist > Reach * Mathf.Max(1f, d.Size)) continue;
+                if (d.Kind == DiscordKind.Clang) { BeatDiscord(d, OrbType.Boom, s.OnBeat); cracked = true; }
+                else { d.Root.position += (d.Root.position - at).normalized * 0.25f; knocked = true; } // knocked back
             }
-            if (cullFront) m.SetFloat("_Cull", 1f);
-            go.GetComponent<Renderer>().sharedMaterial = m;
-            return m;
+            if (m_Grumble != null && Vector3.Distance(at, m_Grumble.Root.position) < Reach + 0.15f) { HitGrumble(OrbType.Boom, at, false); grumble = true; }
+            if (cracked || knocked || grumble) s.HitAny = true;
+            if (knocked && !cracked && !grumble)
+            {
+                // the wrong friend: a sour note, and the streak ends
+                Wrong++;
+                Harmony.Wrong();
+                m_WatchFlashUntil = Time.time + 0.5f; m_StreakLostUntil = Time.time + 1.2f;
+                m_Audio.Play(StorySound.Sour, at);
+                Banner("Sour note! Boom's shockwave only cracks Clangs.", 1.8f);
+            }
+            if (!cracked && m_Grumble == null) Debug.Log("[RoomOrchestra] Story: Boom's shockwave cracked no Clang");
         }
 
-        static Material Glow(Color c)
+        /// <summary>A beaten Discord's song: a glowing note flies back into the portal and brings colour back to the meadow.</summary>
+        void SendNote(Vector3 from, OrbType friend)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
-            return new Material(shader != null ? shader : Shader.Find("Sprites/Default")) { color = c };
+            if (m_Root == null || m_Portal == null) return;
+            var c = Color.Lerp(StoryArt.FriendColor(friend), new Color(1f, 0.95f, 0.7f), 0.4f);
+            var go = StoryArt.Part(PrimitiveType.Sphere, m_Root, Vector3.zero, Vector3.one * 0.03f, StoryArt.Glow(c), "SongNote");
+            go.transform.position = from;
+            var trail = go.AddComponent<TrailRenderer>();
+            trail.time = 0.3f; trail.widthMultiplier = 0.02f; trail.minVertexDistance = 0.01f;
+            trail.sharedMaterial = StoryArt.Glow(new Color(c.r, c.g, c.b, 0.6f), transparent: true, queueOffset: 7);
+            trail.startColor = new Color(c.r, c.g, c.b, 0.7f); trail.endColor = new Color(c.r, c.g, c.b, 0f);
+            var to = m_Portal.Root.position + m_Forward * 0.05f + Random.insideUnitSphere * 0.12f;
+            m_Notes.Add(new Note { T = go.transform, From = from, To = to, Born = m_T });
         }
 
-        static TMP_Text Words(Transform parent, string text, Vector3 at, float height)
+        void MoveNotes(float now)
         {
-            var go = new GameObject("Words"); go.transform.SetParent(parent, false); go.transform.localPosition = at;
-            var t = go.AddComponent<TextMeshPro>();
-            var style = RealFurniture.NoteLabelStyle();
-            if (style != null) { t.font = style.font; t.fontSharedMaterial = style.fontSharedMaterial; }
-            t.fontSize = height * 10f; t.alignment = TextAlignmentOptions.Center; t.color = Color.white;
-            t.rectTransform.sizeDelta = new Vector2(1.6f, 0.4f); t.text = text;
-            return t;
+            for (int i = m_Notes.Count - 1; i >= 0; i--)
+            {
+                var n = m_Notes[i];
+                float f = (now - n.Born) / NoteSeconds;
+                if (n.T == null) { m_Notes.RemoveAt(i); continue; }
+                if (f >= 1f)
+                {
+                    // it reaches the meadow: colour comes back, the ring flashes, the way opens a little wider
+                    Destroy(n.T.gameObject); m_Notes.RemoveAt(i);
+                    m_Restored++;
+                    m_BloomTarget = Mathf.Max(m_BloomTarget, 0.12f + 0.78f * Mathf.Clamp01(m_Restored / (float)Mathf.Max(1, Level.Total)));
+                    m_FlashRingUntil = Time.time + 0.25f;
+                    continue;
+                }
+                var mid = (n.From + n.To) * 0.5f + Vector3.up * 0.25f;
+                float e = Mathf.SmoothStep(0f, 1f, f);
+                n.T.position = Vector3.Lerp(Vector3.Lerp(n.From, mid, e), Vector3.Lerp(mid, n.To, e), e);
+                n.T.localScale = Vector3.one * Mathf.Lerp(0.03f, 0.015f, f);
+            }
         }
 
-        void Say(string text) { if (m_Status != null) m_Status.text = text; }
+        /// <summary>A friend flew and hit nothing: the streak ends (headset 2026-11-25).</summary>
+        void Missed(OrbType friend)
+        {
+            if (Harmony == null) return;
+            if (Harmony.Streak >= 2) { m_StreakLostUntil = Time.time + 1.2f; m_WatchFlashUntil = Time.time + 0.4f; }
+            Harmony.Missed(Level != null ? Level.MissCost : 0f);
+            Debug.Log($"[RoomOrchestra] Story: {friend} hit nothing; streak over");
+        }
+
+        void BeatDiscord(Discord d, OrbType friend, bool onBeat, bool quiet = false)
+        {
+            if (!m_Discords.Contains(d)) return;
+            m_Discords.Remove(d);
+            var at = d.Root.position;
+            if (!quiet) { m_Audio.MelodyNote(friend); Puff(at, 0.45f); }
+            Burst(at, friend, 8);
+            SendNote(at, friend);
+            if (d.Loose) Meter.Beaten();
+            Harmony.Matched(onBeat);
+            Beaten++;
+            if (m_PalmFriend != null && m_PalmFriend.TryGetComponent<CharacterFace>(out var face)) face.Beam();
+            if (Harmony.Streak >= 3 && Harmony.Streak != m_LastStreakShown && Harmony.Streak % 3 == 0) { m_LastStreakShown = Harmony.Streak; Banner($"{Harmony.Streak} in a row!", 1.2f); }
+            Destroy(d.Root.gameObject);
+            Debug.Log($"[RoomOrchestra] Story: {friend} beat a {d.Kind}{(onBeat ? " on the beat" : "")}");
+        }
+
+        void Sour(Discord d, OrbType friend)
+        {
+            Wrong++;
+            Harmony.Wrong();
+            m_WatchFlashUntil = Time.time + 0.5f; m_StreakLostUntil = Time.time + 1.2f;
+            m_Audio.Play(StorySound.Sour, d.Root.position);
+            if (d.Size < 1.6f) d.Size *= 1.15f; // the wrong friend: it grows
+            Banner($"Sour note! {StoryRules.Beats(d.Kind)} beats that one.", 1.8f);
+            Debug.Log($"[RoomOrchestra] Story: {friend} can't beat a {d.Kind}: it grows");
+        }
+
+        /// <summary>A soft white puff (story mode's own: the sandbox's poof is on a layer the camera skips in story).</summary>
+        void Puff(Vector3 at, float size = 1f)
+        {
+            if (m_Root == null) return;
+            var go = StoryArt.Part(PrimitiveType.Sphere, m_Root, Vector3.zero, Vector3.one * 0.05f * size, StoryArt.Glow(new Color(1f, 0.98f, 0.94f, 0.55f), transparent: true, queueOffset: 31), "Puff");
+            go.transform.position = at;
+            var m = go.GetComponent<MeshRenderer>().sharedMaterial;
+            m_Bits.Add(new Bit { T = go.transform, Born = m_T, Life = 0.45f, M = m, C = m.color, Grow = 0.22f * size });
+        }
+
+        /// <summary>A beaten Discord turns back into music: little bits in the friends' colours scatter and fade.</summary>
+        void Burst(Vector3 at, OrbType friend, int count)
+        {
+            var colors = new[] { StoryArt.FriendColor(friend), new Color(1f, 0.92f, 0.6f), Color.white };
+            for (int i = 0; i < count; i++)
+            {
+                var c = colors[i % colors.Length];
+                var go = StoryArt.Part(i % 2 == 0 ? PrimitiveType.Sphere : PrimitiveType.Cube, m_Root, Vector3.zero, Vector3.one * 0.018f, StoryArt.Glow(c, transparent: true, queueOffset: 8), "Bit");
+                go.transform.position = at;
+                go.transform.rotation = Random.rotation;
+                var m = go.GetComponent<MeshRenderer>().sharedMaterial;
+                m_Bits.Add(new Bit { T = go.transform, V = Random.onUnitSphere * Random.Range(0.4f, 0.9f) + Vector3.up * 0.3f, Born = m_T, Life = Random.Range(0.5f, 0.9f), M = m, C = c });
+            }
+        }
+
+        void MoveBits(float now, float dt)
+        {
+            for (int i = m_Bits.Count - 1; i >= 0; i--)
+            {
+                var b = m_Bits[i];
+                float age = (now - b.Born) / b.Life;
+                if (age >= 1f || b.T == null) { if (b.T != null) Destroy(b.T.gameObject); m_Bits.RemoveAt(i); continue; }
+                if (b.Grow > 0f) b.T.localScale = Vector3.one * Mathf.Lerp(0.1f, b.Grow, age);
+                else { b.T.position += b.V * dt; b.V += Vector3.down * 0.6f * dt; b.T.Rotate(200f * dt, 150f * dt, 0f); }
+                b.M.color = new Color(b.C.r, b.C.g, b.C.b, b.C.a * (1f - age));
+            }
+        }
+
+        // ---------- the end ----------
+        void Win()
+        {
+            SetStage(Stage.Won);
+            Stars = StoryScore.Stars(true, MeterPeak, Wrong);
+            foreach (var d in m_Discords.ToArray()) BeatDiscord(d, OrbType.Bop, false, quiet: true);
+            if (m_Grumble != null) { Destroy(m_Grumble.Root.gameObject); m_Grumble = null; }
+            m_PortalTarget = 1.5f;
+            m_BloomTarget = 1f; // the meadow's song is back: full colour, the World Tree blazing
+            m_Audio.Play(StorySound.Win, m_Portal.Root.position);
+            Meter = new DiscordMeter(MeterAssist); // the room clears
+            m_Banner.text = "Level 1 complete!";
+            Say($"{Lore.Restored} The Grumble and {Beaten} Discords turned back into music, and the friends have reached the World Tree. (Level 2 comes next.)");
+            ShowCollectCard();
+            m_EndStars = new GameObject("Stars");
+            m_EndStars.transform.SetParent(m_Hud, false);
+            for (int i = 0; i < 3; i++) StoryArt.Star(m_EndStars.transform, new Vector3((i - 1) * 0.22f, 1.22f, -0.08f), 0.16f, i < Stars); // above the title, clear of the banner
+            for (int k = 0; k < 3; k++) Burst(m_Portal.Root.position - m_Forward * 0.1f, (OrbType)k, 10);
+            Labels();
+            Debug.Log($"[RoomOrchestra] Story: Level 1 won, {Stars} stars (beaten {Beaten}, wrong {Wrong}, Discord peak {MeterPeak:F2})");
+        }
+
+        void Lose()
+        {
+            SetStage(Stage.Lost);
+            m_BloomTarget = 0.05f; // the colour drains away
+            m_Audio.Stop();
+            m_Audio.Play(StorySound.Lose, Head().position);
+            m_Banner.text = "Oh no!";
+            Say(Easy ? "The Discord filled your room and drained the meadow grey. Try again?" : "The Discord filled your room and drained the meadow grey. Try again? Easy aim slows the Discords down.");
+            Labels();
+            Debug.Log($"[RoomOrchestra] Story: Level 1 lost at wave {WaveIndex + 1} (beaten {Beaten}, wrong {Wrong})");
+        }
+
+        static Transform s_NoHead;
+        static Transform Head()
+        {
+            if (Camera.main != null) return Camera.main.transform;
+            if (s_NoHead == null) s_NoHead = new GameObject("StoryNoHead").transform;
+            return s_NoHead;
+        }
     }
 
-    /// <summary>The temporary "Story test" sticker beside the leaf (prototype checkpoint only).</summary>
+    /// <summary>The "Play Story" sign above the leaf (until the title sign offers the three modes).</summary>
     public class StoryStartSticker : MonoBehaviour, IPressable
     {
         public void Press() => StoryDirector.Instance?.Begin();
+    }
+
+    /// <summary>The little gold card beside the Play Story sign: shows (and puts away) the instrument cards collected.</summary>
+    public class StoryCardIcon : MonoBehaviour, IPressable
+    {
+        public void Press() => StoryDirector.Instance?.ToggleSandboxCard();
+    }
+
+    /// <summary>A button in story mode (pressed by pointing: eyes and pinch, or the controller's ray and trigger).</summary>
+    public class StoryButton : MonoBehaviour
+    {
+        System.Action m_OnPress;
+        TMP_Text m_Label;
+        Material m_Mat;
+        Color m_Base;
+        bool m_Hover;
+
+        public static StoryButton Create(Transform parent, Vector3 at, Color face, Color ink, System.Action onPress, string name = "StoryButton")
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            go.layer = StoryArt.Layer;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = at;
+            go.transform.localScale = new Vector3(0.32f, 0.1f, 0.03f);
+            var b = go.AddComponent<StoryButton>();
+            b.m_Mat = StoryArt.Lit(face, 0.5f);
+            b.m_Base = face;
+            var r = go.GetComponent<MeshRenderer>(); r.sharedMaterial = b.m_Mat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            b.m_OnPress = onPress;
+            var label = new GameObject("Label").transform;
+            label.SetParent(parent, false);
+            label.localPosition = at + new Vector3(0f, 0f, -0.017f);
+            b.m_Label = StoryArt.Words(label, "", Vector3.zero, 0.045f, ink, 0.32f);
+            return b;
+        }
+
+        public void SetLabel(string text) => m_Label.text = text;
+
+        public void SetHover(bool on)
+        {
+            if (on == m_Hover) return;
+            m_Hover = on;
+            m_Mat.color = on ? Color.Lerp(m_Base, new Color(1f, 0.85f, 0.4f), 0.5f) : m_Base;
+            if (m_Mat.HasProperty("_BaseColor")) m_Mat.SetColor("_BaseColor", m_Mat.color);
+            if (on) UiSounds.Play(UiSound.Hover, transform.position);
+        }
+
+        public void Press() => m_OnPress?.Invoke();
+
+        /// <summary>The story button a ray points at, if any.</summary>
+        public static StoryButton Under(Vector3 origin, Vector3 direction, out Vector3 point)
+        {
+            point = default;
+            StoryButton best = null; float bestD = float.MaxValue;
+            foreach (var hit in Physics.RaycastAll(origin, direction, 8f, ~0, QueryTriggerInteraction.Collide))
+            {
+                var b = hit.collider.GetComponent<StoryButton>();
+                if (b != null && hit.distance < bestD) { bestD = hit.distance; best = b; point = hit.point - direction * 0.01f; }
+            }
+            return best;
+        }
     }
 }
