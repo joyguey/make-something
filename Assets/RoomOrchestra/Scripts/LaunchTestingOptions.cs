@@ -66,9 +66,9 @@ namespace RoomOrchestra
                 var homes = new[]
                 {
                     RealHome.Create("TestUdu", InstrumentTarget.Find(InstrumentType.Udu), new Pose(head.position + flat * 1.3f - right * 0.45f + Vector3.down * 0.9f, Quaternion.LookRotation(right)), new Vector3(0.9f, 0.5f, 0.4f), look, style),
-                    RealHome.Create("TestMbira", InstrumentTarget.Find(InstrumentType.Mbira), new Pose(head.position + flat * 1.3f + right * 0.55f + Vector3.down * 0.9f, Quaternion.LookRotation(right)), new Vector3(0.9f, 0.5f, 0.4f), look, style),
+                    RealHome.Create("TestChair", InstrumentTarget.Find(Instruments.Chair), new Pose(head.position + flat * 1.3f + right * 0.55f + Vector3.down * 0.9f, Quaternion.LookRotation(right)), new Vector3(0.9f, 0.5f, 0.4f), look, style),
                 };
-                Debug.Log($"[RoomOrchestra] Testing: targets {InstrumentTarget.Find(InstrumentType.Udu)?.name ?? "none"}, {InstrumentTarget.Find(InstrumentType.Mbira)?.name ?? "none"}");
+                Debug.Log($"[RoomOrchestra] Testing: targets {InstrumentTarget.Find(InstrumentType.Udu)?.name ?? "none"}, {InstrumentTarget.Find(Instruments.Chair)?.name ?? "none"}");
                 Debug.Log($"[RoomOrchestra] Testing: note labels shown on two test objects (style {(style != null ? style.name : "none")}, look {(look != null ? look.name : "none")})");
                 while (true)
                 {

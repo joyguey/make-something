@@ -20,10 +20,13 @@ namespace RoomOrchestra
 
     public static class Instruments
     {
-        /// <summary>The first three (the lesson's, and the furniture's own).</summary>
-        public static readonly InstrumentType[] Original = { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu };
-        /// <summary>The V4 library.</summary>
-        public static readonly InstrumentType[] Library = { InstrumentType.Ocarina, InstrumentType.Handpan, InstrumentType.Guzheng, InstrumentType.Balafon, InstrumentType.SlitDrum };
+        /// <summary>The furniture's own three (the lesson's): the udu on the table, the handpan on the chair, the erhu on
+        /// the lamp (owner, 2026-11-26: the handpan replaces the mbira in both modes; the mbira stays in the library).</summary>
+        public static readonly InstrumentType[] Original = { InstrumentType.Udu, InstrumentType.Handpan, InstrumentType.Erhu };
+        /// <summary>The library: every other instrument, chosen with Change.</summary>
+        public static readonly InstrumentType[] Library = { InstrumentType.Ocarina, InstrumentType.Mbira, InstrumentType.Guzheng, InstrumentType.Balafon, InstrumentType.SlitDrum };
+        /// <summary>The chair's instrument (the middle of <see cref="Original"/>).</summary>
+        public const InstrumentType Chair = InstrumentType.Handpan;
         public static int Count => Original.Length + Library.Length;
         /// <summary>Held, sung notes (a bow or a breath) rather than struck ones.</summary>
         public static bool Sustained(InstrumentType type) => type == InstrumentType.Erhu || type == InstrumentType.Ocarina;

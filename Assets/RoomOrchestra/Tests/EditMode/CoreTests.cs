@@ -491,7 +491,7 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(1f / 3f, growth.SongComplete, 1e-5f);
             Assert.AreEqual(4, growth.FlowersSprouted(20), "a third of the 12 flowers");
             Assert.AreEqual(2, growth.MushroomsSprouted, "a third of the 7 toadstools");
-            foreach (var type in new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu })
+            foreach (var type in Instruments.Original)
                 for (int i = 0; i < JungleGrowth.NotesPerVine; i++) growth.NoteAdded(type);
             Assert.IsTrue(growth.AllVinesGrown);
             Assert.AreEqual(1f, growth.VineProgress(InstrumentType.Erhu), "never beyond full length");
@@ -511,11 +511,11 @@ namespace RoomOrchestra.Tests
             }
             Add(InstrumentType.Erhu, 0); Add(InstrumentType.Erhu, 1); Add(InstrumentType.Erhu, 2); Add(InstrumentType.Erhu, 3);
             Assert.AreEqual(0, JungleGrowth.ButterfliesFor(loop.Echoes), "one instrument alone is not yet a layered song");
-            Add(InstrumentType.Mbira, 2);
+            Add(Instruments.Chair, 2);
             Assert.AreEqual(1, JungleGrowth.ButterfliesFor(loop.Echoes), "two instruments together: the first butterfly");
             Add(InstrumentType.Udu, 0);
             Assert.AreEqual(2, JungleGrowth.ButterfliesFor(loop.Echoes), "all three instruments");
-            Add(InstrumentType.Udu, 2); Add(InstrumentType.Mbira, 4); Add(InstrumentType.Udu, 1); Add(InstrumentType.Mbira, 0);
+            Add(InstrumentType.Udu, 2); Add(Instruments.Chair, 4); Add(InstrumentType.Udu, 1); Add(Instruments.Chair, 0);
             Assert.AreEqual(3, JungleGrowth.ButterfliesFor(loop.Echoes), "a rich, melodic loop");
             Assert.IsTrue(growth.Chorus(3));
             Assert.IsFalse(growth.Chorus(2));

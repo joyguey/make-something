@@ -275,5 +275,20 @@ namespace RoomOrchestra.Tests
             for (int i = 0; i < 30; i++) count += mapper.Update(default, click).Count(c => c == ControllerCommand.CyclePetal);
             Assert.AreEqual(1, count);
         }
+        [Test]
+        public void FlutterIsGentlerOnTheHandpanButStillTheLightest()
+        {
+            // owner, headset 2026-11-26: Flutter on the handpan was "a bit too chirpy"
+            var usual = VoiceDesign.ForOrb(OrbType.Flutter, VoiceSpec.Plain, 300f, bowed: false);
+            var steel = VoiceDesign.ForOrb(OrbType.Flutter, VoiceSpec.Plain, 300f, bowed: false, ringingMetal: true);
+            Assert.Less(steel.Drive, usual.Drive, "less grit");
+            Assert.Less(steel.Brightness, usual.Brightness, "a softer top");
+            Assert.Greater(steel.DecaySeconds, usual.DecaySeconds, "a little more ring");
+            var bop = VoiceDesign.ForOrb(OrbType.Bop, VoiceSpec.Plain, 300f, bowed: false, ringingMetal: true);
+            var boom = VoiceDesign.ForOrb(OrbType.Boom, VoiceSpec.Plain, 300f, bowed: false, ringingMetal: true);
+            Assert.Greater(steel.LengthSeconds, 0f);
+            Assert.IsTrue(bop.LengthSeconds <= 0f || bop.LengthSeconds > steel.LengthSeconds, "still shorter than Bop: Flutter stays the light one");
+            Assert.AreEqual(VoiceDesign.ForOrb(OrbType.Boom, VoiceSpec.Plain, 300f, false).EchoMix, boom.EchoMix, "Boom's echo on the steel is unchanged");
+        }
     }
 }

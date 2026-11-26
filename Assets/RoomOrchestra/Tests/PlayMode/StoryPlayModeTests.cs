@@ -20,6 +20,7 @@ namespace RoomOrchestra.Tests
         {
             PlayerPrefs.DeleteKey(TutorialDirector.DonePrefKey);
             PlayerPrefs.DeleteKey(StoryDirector.EasyPref);
+            foreach (var lore in StoryLore.Levels) PlayerPrefs.DeleteKey(StoryLore.RestoredKey(lore.Instrument)); // start at Level 1
             LogAssert.ignoreFailingMessages = true;
             yield return SceneManager.LoadSceneAsync(ScenePath, LoadSceneMode.Single);
             yield return null;
@@ -113,6 +114,25 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(story.Running, "starts again");
             Assert.IsTrue(story.Easy);
             story.Leave("test");
+        }
+        [UnityTest]
+        public IEnumerator OnceTheUduIsRestoredStoryOpensOnLevelTwoTheErhu()
+        {
+            PlayerPrefs.SetInt(StoryLore.RestoredKey(InstrumentType.Udu), 1);
+            var story = StoryDirector.Instance;
+            story.Begin();
+            yield return null;
+            Assert.AreEqual(1, story.LevelIndex, "the first instrument still to mend");
+            Assert.AreEqual(2, story.Level.Number);
+            Assert.AreEqual(StoryDirector.Stage.Intro, story.Current);
+            var back = Object.FindObjectsByType<StoryButton>(FindObjectsSortMode.None).FirstOrDefault(b => b.name == "LevelButton");
+            Assert.IsNotNull(back, "Level 1 can still be chosen");
+            back.Press();
+            yield return null;
+            Assert.AreEqual(0, story.LevelIndex);
+            Assert.AreEqual(StoryDirector.Stage.Intro, story.Current, "on its card");
+            story.Leave("test");
+            PlayerPrefs.DeleteKey(StoryLore.RestoredKey(InstrumentType.Udu));
         }
     }
 }

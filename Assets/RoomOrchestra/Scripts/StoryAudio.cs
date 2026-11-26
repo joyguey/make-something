@@ -27,8 +27,15 @@ namespace RoomOrchestra
         long m_Beat;
         float m_Sour, m_Repair = 1f;
 
+        MusicRole m_Role = MusicRole.Beat;
+
         /// <summary>How mended the level's instrument is (0 cracked: faint and out of tune; 1 whole).</summary>
         public void SetRepair(float repair) => m_Repair = Mathf.Clamp01(repair);
+
+        /// <summary>What the level's instrument carries, so it is that part of the music that is broken and mends: the
+        /// beat (the udu), the chords (the handpan: they play from the start, dull and flat until mended) or the tune
+        /// (the erhu: a melody through the level, thin and wobbly until mended).</summary>
+        public void SetRepairRole(MusicRole role) => m_Role = role;
 
         public double Bpm { get; private set; } = MusicClock.DefaultBpm;
         /// <summary>DSP time of beat 0 (negative before the song starts).</summary>
@@ -74,7 +81,7 @@ namespace RoomOrchestra
                 if (t.VoiceFor(OrbType.Bop, 0) == null) continue;
                 var type = t.Instrument;
                 if (m_Drum == null && (type == InstrumentType.Udu || type == InstrumentType.SlitDrum)) m_Drum = t;
-                else if (m_Pluck == null && (type == InstrumentType.Mbira || type == InstrumentType.Guzheng || type == InstrumentType.Balafon || type == InstrumentType.Handpan)) m_Pluck = t;
+                else if (m_Pluck == null && (type == InstrumentType.Handpan || type == InstrumentType.Mbira || type == InstrumentType.Guzheng || type == InstrumentType.Balafon)) m_Pluck = t;
                 else if (m_Sing == null && Instruments.Sustained(type)) m_Sing = t;
             }
             Debug.Log($"[RoomOrchestra] Story music: drum {(m_Drum != null ? m_Drum.Instrument.ToString() : "synth")}, pluck {(m_Pluck != null ? m_Pluck.Instrument.ToString() : "none")}, melody {(m_Sing != null ? m_Sing.Instrument.ToString() : (m_Pluck != null ? m_Pluck.Instrument.ToString() : "synth"))}");
@@ -115,12 +122,21 @@ namespace RoomOrchestra
             int inBar = (int)(n % 4), bar = (int)(n / 4 % Chords.Length);
             // the drum: beats 1 and 3 (a deep note), a lighter one on 4
             // the cracked Udu: its beat starts faint and wobbly and comes back as the meadow is restored
-            float drum = Mathf.Lerp(0.25f, 1f, m_Repair);
-            float crack = (1f - m_Repair) * 0.06f;
+            float drum = m_Role != MusicRole.Beat ? 1f : Mathf.Lerp(0.25f, 1f, m_Repair);
+            float crack = m_Role != MusicRole.Beat ? 0f : (1f - m_Repair) * 0.06f;
+            // the snapped Erhu: a tune every other beat, thin and out of tune until it mends
+            if (m_Role == MusicRole.Tune && inBar % 2 == 0 && m_Sing != null)
+            {
+                int note = Melody[(int)(n / 2 % Melody.Length)];
+                Music(m_Sing.VoiceFor(OrbType.Flutter, note), at, 0.32f * Mathf.Lerp(0.3f, 1f, m_Repair), (1f - m_Repair) * 0.08f);
+            }
             if (inBar == 0 || inBar == 2) Music(m_Drum != null ? m_Drum.VoiceFor(OrbType.Boom, 0) : m_Clips[StorySound.Beat], at, (m_Drum != null ? 0.55f : StorySoundSynth.Level(StorySound.Beat)) * drum, crack);
             else if (inBar == 3 && m_Drum != null) Music(m_Drum.VoiceFor(OrbType.Bop, 1), at, 0.3f * drum, crack);
             // the pluck: the chord, one note a beat
-            if (Layers >= 1 && m_Pluck != null) Music(m_Pluck.VoiceFor(OrbType.Flutter, Chords[bar][inBar]), at, 0.32f);
+            // the chords (the handpan in Level 3: from the start, dull and flat until it is mended)
+            bool chordsMend = m_Role == MusicRole.Chords;
+            if ((Layers >= 1 || chordsMend) && m_Pluck != null)
+                Music(m_Pluck.VoiceFor(OrbType.Flutter, Chords[bar][inBar]), at, 0.32f * (chordsMend ? Mathf.Lerp(0.3f, 1f, m_Repair) : 1f), chordsMend ? (1f - m_Repair) * 0.07f : 0f);
         }
 
         void Music(AudioClip clip, double at, float volume, float crack = 0f)

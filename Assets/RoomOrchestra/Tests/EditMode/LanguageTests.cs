@@ -106,7 +106,7 @@ namespace RoomOrchestra.Tests
             }
             // Jianpu key over the melodic columns only (udu tiles are drum sounds, not notes).
             var keys = labels.Where(l => l.TextFor(UiLanguage.Chinese) == "1=D").Select(l => l.transform.parent.name).OrderBy(n => n).ToArray();
-            CollectionAssert.AreEqual(new[] { "PitchColumn_Erhu", "PitchColumn_Mbira" }, keys, "1=D above mbira and erhu");
+            CollectionAssert.AreEqual(new[] { "PitchColumn_Erhu", "PitchColumn_Handpan" }, keys, "1=D above handpan and erhu");
             foreach (var backing in UnityEngine.Object.FindObjectsByType<ChineseOnlyBacking>(FindObjectsSortMode.None))
             {
                 Assert.IsFalse(backing.Shown, "authored in English: the plate waits inside the top tile");

@@ -117,7 +117,7 @@ namespace RoomOrchestra
         {
             m_Growth.NoteAdded(instrument);
             // Every vine, not only this note's: when growth wakes up, vines fed earlier catch up together.
-            foreach (var type in new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu })
+            foreach (var type in Instruments.Original)
             {
                 var vine = VineFor(type);
                 if (vine != null && vine.SetProgress(m_Growth.VineProgress(type)))
@@ -166,6 +166,7 @@ namespace RoomOrchestra
         VineGrowth VineFor(InstrumentType instrument) => instrument switch
         {
             InstrumentType.Udu => udu,
+            Instruments.Chair => mbira, // the chair's vine (named for its first instrument)
             InstrumentType.Mbira => mbira,
             _ => erhu,
         };
@@ -278,7 +279,7 @@ namespace RoomOrchestra
         static string[] PartsFor(string furniture) => furniture switch
         {
             "Table" => new[] { "Vine_TableL", "Vine_TableR", "Sparkles_Udu" },
-            "Chair" => new[] { "Vine_Chair", "Sparkles_Mbira" },
+            "Chair" => new[] { "Vine_Chair", "Sparkles_Handpan", "Sparkles_Mbira" }, // whichever name the chair's sparkles have
             "Lamp" => new[] { "Vine_Lamp", "Sparkles_Erhu", "Flock" },
             _ => new string[0]
         };

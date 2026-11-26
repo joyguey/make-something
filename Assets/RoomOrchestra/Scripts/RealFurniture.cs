@@ -102,7 +102,7 @@ namespace RoomOrchestra
         /// <summary>The instrument being placed now, or null.</summary>
         public InstrumentTarget ChoosingTarget => ChoosingStation?.Target;
         /// <summary>The order instruments are placed in: the lesson's.</summary>
-        public static readonly InstrumentType[] LessonOrder = { InstrumentType.Mbira, InstrumentType.Erhu, InstrumentType.Udu };
+        public static readonly InstrumentType[] LessonOrder = { Instruments.Chair, InstrumentType.Erhu, InstrumentType.Udu };
         /// <summary>The real home of an instrument, or null.</summary>
         public RealHome HomeOf(InstrumentTarget target)
         {
@@ -609,6 +609,7 @@ namespace RoomOrchestra
         static UiTerm PlaceLine(InstrumentType instrument) => instrument switch
         {
             InstrumentType.Udu => UiTerm.PlaceUdu,
+            Instruments.Chair => UiTerm.PlaceHandpan,
             InstrumentType.Mbira => UiTerm.PlaceMbira,
             _ => UiTerm.PlaceErhu
         };

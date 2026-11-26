@@ -9,10 +9,15 @@ namespace RoomOrchestra
     /// <summary>One wave of Discords: which kinds, how many, how many beats apart they come through the portal.</summary>
     public sealed class StoryWave
     {
-        public StoryWave(StoryCue cue, int count, int beatsApart, params DiscordKind[] kinds)
+        public StoryWave(StoryCue cue, int count, int beatsApart, params DiscordKind[] kinds) : this(cue, null, count, beatsApart, kinds) { }
+
+        public StoryWave(StoryCue cue, string text, int count, int beatsApart, params DiscordKind[] kinds)
         {
-            Cue = cue; Count = count; BeatsApart = Math.Max(1, beatsApart); Kinds = kinds;
+            Cue = cue; Text = text; Count = count; BeatsApart = Math.Max(1, beatsApart); Kinds = kinds;
         }
+
+        /// <summary>What Flutter says before this wave, when it isn't one of the standard cues.</summary>
+        public string Text { get; }
 
         public StoryCue Cue { get; }
         public int Count { get; }
@@ -27,9 +32,19 @@ namespace RoomOrchestra
     /// </summary>
     public sealed class StoryLevel
     {
-        public StoryLevel(string name, double bpm, bool boss, params StoryWave[] waves) : this(name, bpm, boss, 0f, waves) { }
+        public StoryLevel(string name, double bpm, bool boss, params StoryWave[] waves) : this(1, name, bpm, boss, 0f, 1f, BossDiscord.DefaultShells, BossDiscord.DefaultHits, waves) { }
 
-        public StoryLevel(string name, double bpm, bool boss, float missCost, params StoryWave[] waves) { Name = name; Bpm = bpm; Boss = boss; MissCost = missCost; Waves = waves; }
+        public StoryLevel(int number, string name, double bpm, bool boss, float missCost, float speed, DiscordKind[] bossShells, int bossHits, params StoryWave[] waves)
+        {
+            Number = number; Name = name; Bpm = bpm; Boss = boss; MissCost = missCost; Speed = speed; BossShells = bossShells; BossHits = bossHits; Waves = waves;
+        }
+
+        public int Number { get; }
+        /// <summary>How fast the Discords come (1 = Level 1).</summary>
+        public float Speed { get; }
+        public IReadOnlyList<DiscordKind> BossShells { get; }
+        public int BossHits { get; }
+        public BossDiscord NewBoss() => new BossDiscord(BossShells, BossHits);
 
         /// <summary>Harmony lost when a flicked friend hits nothing (owner, 2026-11-25: "in the later levels since they'll
         /// be harder, missing shots will result in more penalties"). Level 1: none, a miss only ends the streak.</summary>
@@ -42,11 +57,37 @@ namespace RoomOrchestra
 
         public int Total { get { int n = 0; foreach (var w in Waves) n += w.Count; return n; } }
 
-        public static StoryLevel Level1 => new StoryLevel("The Seed", MusicClock.DefaultBpm, true,
+        public static StoryLevel Level1 => new StoryLevel(1, "The Seed", MusicClock.DefaultBpm, true, 0f, 1f, BossDiscord.DefaultShells, BossDiscord.DefaultHits,
             new StoryWave(StoryCue.MeetSqueaks, 4, 6, DiscordKind.Squeak),
             new StoryWave(StoryCue.MeetWobblers, 4, 6, DiscordKind.Wobbler),
             new StoryWave(StoryCue.MeetClangs, 4, 6, DiscordKind.Clang),
             new StoryWave(StoryCue.AllTogether, 9, 4, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang));
+
+        /// <summary>
+        /// Level 2, The Two Strings (owner, 2026-11-25: "start on level 2 with the erhu"; "in the later levels since
+        /// they'll be harder, missing shots will result in more penalties"): mixed Discords from the start, more of them,
+        /// faster and closer together; a miss costs Harmony; the Grumble returns with four shells of five hits.
+        /// </summary>
+        public static StoryLevel Level2 => new StoryLevel(2, "The Two Strings", MusicClock.DefaultBpm, true, 0.06f, 1.2f,
+            new[] { DiscordKind.Clang, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Squeak }, 5,
+            new StoryWave(StoryCue.None, "Squeaks and Wobblers together! Watch the little friend each one carries.", 8, 4, DiscordKind.Squeak, DiscordKind.Wobbler),
+            new StoryWave(StoryCue.None, "Wobblers and Clangs! Bop bounces, Boom cracks. Missed flicks cost Harmony now, so aim true.", 8, 4, DiscordKind.Wobbler, DiscordKind.Clang),
+            new StoryWave(StoryCue.None, "All three at once, and quicker! Use Hold to keep the friend you need ready.", 12, 3, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang),
+            new StoryWave(StoryCue.None, "The last stretch before the mountains: a whole crowd of Discords!", 14, 3, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang));
+
+        /// <summary>
+        /// Level 3, The World Tree: the last and hardest (owner, 2026-11-26: "I only want 3 levels"). All three kinds from
+        /// the start, the most Discords, the fastest, a miss costs more, and the Grumble's last stand: five shells.
+        /// </summary>
+        public static StoryLevel Level3 => new StoryLevel(3, "The World Tree", MusicClock.DefaultBpm, true, 0.1f, 1.35f,
+            new[] { DiscordKind.Wobbler, DiscordKind.Clang, DiscordKind.Squeak, DiscordKind.Clang, DiscordKind.Wobbler }, 5,
+            new StoryWave(StoryCue.None, "Night falls at the foot of the World Tree. All three kinds at once, from the start!", 10, 3, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang),
+            new StoryWave(StoryCue.None, "More of them, and quicker. Keep your streak for a Chorus!", 12, 3, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang),
+            new StoryWave(StoryCue.None, "They are coming faster now. Hold the friend you need and flick on the beat!", 14, 2, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang),
+            new StoryWave(StoryCue.None, "The last climb to the World Tree: everything the Grumble has left!", 16, 2, DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang));
+
+        /// <summary>The levels in order: three (owner, 2026-11-26).</summary>
+        public static StoryLevel[] All => new[] { Level1, Level2, Level3 };
 
         /// <summary>The kinds of one wave, in the order they come (shuffled sets of the wave's kinds).</summary>
         public static List<DiscordKind> Deal(StoryWave wave, int seed)
@@ -136,14 +177,23 @@ namespace RoomOrchestra
     /// </summary>
     public sealed class BossDiscord
     {
-        public const int HitsPerShell = 4;
-        public static readonly DiscordKind[] Shells = { DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang };
+        public const int DefaultHits = 4;
+        public static readonly DiscordKind[] DefaultShells = { DiscordKind.Squeak, DiscordKind.Wobbler, DiscordKind.Clang };
 
+        public BossDiscord() : this(DefaultShells, DefaultHits) { }
+
+        public BossDiscord(IReadOnlyList<DiscordKind> shells, int hitsPerShell)
+        {
+            Shells = shells; HitsPerShell = Math.Max(1, hitsPerShell); HitsLeft = HitsPerShell;
+        }
+
+        public IReadOnlyList<DiscordKind> Shells { get; }
+        public int HitsPerShell { get; }
         public int ShellIndex { get; private set; }
-        public int HitsLeft { get; private set; } = HitsPerShell;
-        public bool Defeated => ShellIndex >= Shells.Length;
+        public int HitsLeft { get; private set; }
+        public bool Defeated => ShellIndex >= Shells.Count;
         /// <summary>The shell now on (what it is weak to: <see cref="StoryRules.Beats"/>).</summary>
-        public DiscordKind Shell => Shells[Math.Min(ShellIndex, Shells.Length - 1)];
+        public DiscordKind Shell => Shells[Math.Min(ShellIndex, Shells.Count - 1)];
 
         public BossHit Hit(OrbType friend)
         {

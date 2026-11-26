@@ -60,6 +60,20 @@ namespace RoomOrchestra.EditorTools
             Debug.Log("[RoomOrchestra] Little Echoes scene setup saved");
         }
 
+        /// <summary>The chair plays the handpan (owner, 2026-11-26: "switch out the Mbira with the handpan ... this change
+        /// will affect both modes"): the chair's authored instrument becomes the handpan, before everything that is built
+        /// from the furniture's instruments (pitch columns, labels, stations, vines). The mbira stays in the library.</summary>
+        static void HandpanTakesTheChair()
+        {
+            foreach (var target in Object.FindObjectsByType<InstrumentTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (target.Instrument != InstrumentType.Mbira) continue;
+                target.Configure(Instruments.Chair, SoundSets.Clips(SoundSets.LibraryDir, "Handpan"));
+                EditorUtility.SetDirty(target);
+                Debug.Log($"[RoomOrchestra] Setup: {target.name} plays the handpan now (was the mbira)");
+            }
+        }
+
         public static void Apply()
         {
             KeepExportAlignedWithBuild();
@@ -67,6 +81,7 @@ namespace RoomOrchestra.EditorTools
             // A saved scene has the guided song's stations parked in the cloud: bring them home before rebuilding.
             foreach (var station in Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None)) station.ShowNow();
             FitFurnitureToRealSizes();
+            HandpanTakesTheChair();
 
             var parent = GameObject.Find("RoomOrchestra");
             var old = parent != null ? parent.transform.Find(RootName) : null;
@@ -407,7 +422,7 @@ namespace RoomOrchestra.EditorTools
         // needs them. Flutter talks in a speech bubble above it, with a Skip leaf; the wanted tile glows.
         // Every station waits in the cloud until the lesson needs it; the chair's mbira too (owner, headset 2026-11-08:
         // the chair and its note keys showed behind the title card).
-        static readonly InstrumentType[] Introduced = { InstrumentType.Mbira, InstrumentType.Erhu, InstrumentType.Udu };
+        static readonly InstrumentType[] Introduced = { Instruments.Chair, InstrumentType.Erhu, InstrumentType.Udu };
         static readonly Vector3 BubbleAt = new Vector3(-0.62f, 0.85f, 1.28f); // above Flutter, left of the sight lines
         // The virtual starting room (owner: start in a virtual room that tears down to reveal the real room): a
         // simple, cosy room of panels around the stage, the seat and everything the music grows. Sage walls in two
@@ -811,7 +826,7 @@ namespace RoomOrchestra.EditorTools
                     {
                         InstrumentType.Erhu => new[] { "Vine_Lamp", "Sparkles_Erhu", "Flock" },
                         InstrumentType.Udu => new[] { "Vine_TableL", "Vine_TableR", $"Sparkles_{type}" },
-                        _ => new[] { $"Sparkles_{type}" },
+                        _ => type == Instruments.Chair ? new[] { $"Sparkles_{type}", "Sparkles_Mbira" } : new[] { $"Sparkles_{type}" }, // the chair's, under either name
                     };
                     foreach (var n in names)
                     {
@@ -1673,7 +1688,7 @@ namespace RoomOrchestra.EditorTools
                 pack.balafon = SoundSets.Clips(SoundSets.LibraryDir, "Balafon");
                 pack.slitDrum = SoundSets.Clips(SoundSets.LibraryDir, "SlitDrum");
                 pack.volumes = ((InstrumentType[])System.Enum.GetValues(typeof(InstrumentType)))
-                    .Select(t => System.Array.IndexOf(Instruments.Library, t) >= 0 ? SoundSets.LibraryVolume(t.ToString()) : SoundSets.VolumeFor(dir, t.ToString())).ToArray();
+                    .Select(t => t == InstrumentType.Udu || t == InstrumentType.Mbira || t == InstrumentType.Erhu ? SoundSets.VolumeFor(dir, t.ToString()) : SoundSets.LibraryVolume(t.ToString())).ToArray(); // by where each sound comes from
                 return pack;
             }
             var packs = root.AddComponent<InstrumentPacks>();
@@ -2195,6 +2210,7 @@ namespace RoomOrchestra.EditorTools
         {
             { InstrumentType.Udu, -0.45f },   // in the gap right of the table
             { InstrumentType.Mbira, 0.47f },  // right of the chair, clear of its orbit ring
+            { InstrumentType.Handpan, 0.47f }, // the chair's instrument since 2026-11-26 (owner)
             { InstrumentType.Erhu, 1.53f },   // right of the lamp, clear of its orbit ring
         };
         const float ColumnBottom = 0.55f, ColumnStep = 0.15f;

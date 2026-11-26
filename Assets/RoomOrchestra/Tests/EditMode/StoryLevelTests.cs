@@ -68,13 +68,13 @@ namespace RoomOrchestra.Tests
             var g = new BossDiscord();
             Assert.AreEqual(DiscordKind.Squeak, g.Shell);
             Assert.AreEqual(BossHit.Wrong, g.Hit(OrbType.Boom));
-            for (int i = 1; i < BossDiscord.HitsPerShell; i++) Assert.AreEqual(BossHit.Damaged, g.Hit(OrbType.Flutter));
+            for (int i = 1; i < g.HitsPerShell; i++) Assert.AreEqual(BossHit.Damaged, g.Hit(OrbType.Flutter));
             Assert.AreEqual(BossHit.ShellBroken, g.Hit(OrbType.Flutter));
-            Assert.GreaterOrEqual(BossDiscord.HitsPerShell, 4, "the boss takes a while (headset 2026-11-25)");
+            Assert.GreaterOrEqual(g.HitsPerShell, 4, "the boss takes a while (headset 2026-11-25)");
             Assert.AreEqual(DiscordKind.Wobbler, g.Shell);
             Assert.AreEqual(BossHit.ShellBroken, g.Chorus(), "a Chorus breaks a shell");
             Assert.AreEqual(DiscordKind.Clang, g.Shell);
-            for (int i = 1; i < BossDiscord.HitsPerShell; i++) g.Hit(OrbType.Boom);
+            for (int i = 1; i < g.HitsPerShell; i++) g.Hit(OrbType.Boom);
             Assert.AreEqual(BossHit.Defeated, g.Hit(OrbType.Boom));
             Assert.IsTrue(g.Defeated);
         }
@@ -111,6 +111,39 @@ namespace RoomOrchestra.Tests
             foreach (var f in lore.Facts) Assert.IsFalse(string.IsNullOrWhiteSpace(f));
             StringAssert.Contains("Igbo", lore.People);
             Assert.AreEqual("LittleEchoes.Story.Restored.Udu", StoryLore.RestoredKey(InstrumentType.Udu));
+        }
+        [Test]
+        public void LevelTwoRestoresTheErhuAndIsHarder()
+        {
+            var one = StoryLevel.Level1; var two = StoryLevel.Level2;
+            Assert.AreEqual(2, two.Number);
+            Assert.AreEqual(InstrumentType.Erhu, StoryLore.Levels[1].Instrument, "owner, 2026-11-26: Level 2 is the erhu");
+            Assert.AreEqual(MusicRole.Tune, StoryLore.Levels[1].Role, "its mending is heard in the tune");
+            Assert.AreEqual(two.Waves.Count, StoryLore.Levels[1].Facts.Count);
+            Assert.Greater(two.Total, one.Total, "more Discords");
+            Assert.Greater(two.Speed, one.Speed, "faster");
+            Assert.Greater(two.MissCost, 0f, "a miss costs Harmony");
+            Assert.Greater(two.Waves[0].Kinds.Count, 1, "mixed from the first wave");
+            var boss = two.NewBoss();
+            Assert.Greater(boss.Shells.Count * boss.HitsPerShell, one.NewBoss().Shells.Count * one.NewBoss().HitsPerShell, "a tougher Grumble");
+            Assert.AreEqual(StoryLevel.All.Length, StoryLore.Levels.Length, "each level restores one instrument");
+        }
+        [Test]
+        public void ThreeLevelsTheLastIsTheHandpanAndTheHardest()
+        {
+            // owner, 2026-11-26: "I only want 3 levels", the handpan instead of the mbira
+            Assert.AreEqual(3, StoryLevel.All.Length);
+            Assert.AreEqual(3, StoryLore.Levels.Length);
+            CollectionAssert.AreEqual(new[] { InstrumentType.Udu, InstrumentType.Erhu, InstrumentType.Handpan }, StoryLore.Levels.Select(l => l.Instrument));
+            CollectionAssert.AreEquivalent(Instruments.Original, StoryLore.Levels.Select(l => l.Instrument), "the story mends the sandbox's own three");
+            Assert.AreEqual(MusicRole.Chords, StoryLore.Handpan.Role);
+            var two = StoryLevel.Level2; var three = StoryLevel.Level3;
+            Assert.Greater(three.Total, two.Total);
+            Assert.Greater(three.Speed, two.Speed);
+            Assert.Greater(three.MissCost, two.MissCost);
+            Assert.Greater(three.NewBoss().Shells.Count, two.NewBoss().Shells.Count, "the Grumble's last stand");
+            Assert.AreEqual(three.Waves.Count, StoryLore.Handpan.Facts.Count);
+            StringAssert.Contains("Hang", StoryLore.Handpan.Facts[0], "its makers' name for it");
         }
     }
 }

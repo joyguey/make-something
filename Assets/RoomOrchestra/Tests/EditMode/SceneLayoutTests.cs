@@ -151,7 +151,7 @@ namespace RoomOrchestra.Tests
             Assert.IsNull(Object.FindFirstObjectByType<TierButton>(FindObjectsInactive.Include), "Loudness is gone (owner, 2026-11-08)");
             CollectionAssert.Contains(Texts(Object.FindFirstObjectByType<UndoButton>()), "Undo");
             foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
-                Assert.IsTrue(Texts(column).Any(t => new[] { "udu", "mbira", "erhu" }.Contains(t.Split('\n')[0])), $"{column.name} names its instrument");
+                Assert.IsTrue(Texts(column).Any(t => new[] { "udu", "handpan", "erhu" }.Contains(t.Split('\n')[0])), $"{column.name} names its instrument");
             foreach (var text in Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None))
             {
                 Assert.IsNotNull(text.font, text.name);
@@ -181,7 +181,7 @@ namespace RoomOrchestra.Tests
             foreach (var column in Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None))
                 for (int i = 0; i < column.Tiles.Length; i++)
                 {
-                    bool selected = column.Target.Instrument == InstrumentType.Mbira && i == 2;
+                    bool selected = column.Target.Instrument == Instruments.Chair && i == 2;
                     var expected = column.TileScale * (selected ? 1.2f : 1f);
                     Assert.Less((column.Tiles[i].transform.localScale - expected).magnitude, 1e-4f, $"{column.name} tile {i}");
                 }

@@ -29,7 +29,8 @@ namespace RoomOrchestra
         readonly Transform[] m_Travellers = new Transform[3];
         Transform m_Instrument;
         Material m_InstrumentMat;
-        float m_TreeZ = 5.2f, m_Progress, m_Walk;
+        float m_TreeZ = 5.2f, m_TreeLift, m_Progress, m_Walk;
+        const float TreeX = 0.35f;
         public int Pieces => m_Scrolling.Count;
         public bool HasMeadow { get; private set; }
 
@@ -55,7 +56,7 @@ namespace RoomOrchestra
         }
 
         /// <summary>The meadow's pieces from the scene (the opening's meadow), by kind.</summary>
-        static Dictionary<string, List<Mesh>> Harvest()
+        static Dictionary<string, List<Mesh>> Harvest(bool dusk)
         {
             var kinds = new[] { "TreeRound", "TreePine", "TreeBlossom", "Bush", "Flowers", "Grass", "Rock", "Hill", "Cloud" };
             var found = new Dictionary<string, List<Mesh>>();
@@ -64,19 +65,26 @@ namespace RoomOrchestra
             foreach (var f in Object.FindObjectsByType<MeshFilter>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
                 var m = f.sharedMesh;
-                if (m == null || !m.name.StartsWith("Meadow_") || m.name.Contains("Dusk") || !seen.Add(m)) continue;
+                if (m == null || !m.name.StartsWith("Meadow_") || m.name.Contains("Dusk") != dusk || !seen.Add(m)) continue;
                 foreach (var k in kinds) if (m.name.Contains(k)) { found[k].Add(m); break; }
             }
             foreach (var list in found.Values) list.Sort((a, b) => string.CompareOrdinal(a.name, b.name)); // the same meadow every time
             return found;
         }
 
-        public void Build(Transform parent)
+        bool m_Dusk, m_Night;
+
+        /// <summary>Builds the meadow: by day (Level 1), or at dusk on the way to the mountains (Level 2: the game's own
+        /// dusk pieces, a warm evening sky).</summary>
+        public void Build(Transform parent, bool dusk = false, bool night = false)
         {
+            m_Dusk = dusk || night; m_Night = night; // Level 3: night at the World Tree (the dusk pieces under the stars)
+            dusk = m_Dusk;
             Root = new GameObject("PortalWorld").transform;
             Root.SetParent(parent, false);
-            var meshes = Harvest();
+            var meshes = Harvest(dusk);
             int found = 0; foreach (var l in meshes.Values) found += l.Count;
+            if (found == 0 && dusk) { meshes = Harvest(false); foreach (var l in meshes.Values) found += l.Count; } // no dusk set: the day one
             HasMeadow = found > 0;
             var random = new System.Random(5);
             float R(float a, float b) => a + (float)random.NextDouble() * (b - a);
@@ -94,7 +102,9 @@ namespace RoomOrchestra
             var tree = Pick("TreeRound") ?? Pick("TreeBlossom");
             if (tree != null)
             {
-                WorldTree = Piece(tree, Root, new Vector3(0.35f, GroundY + 0.3f, 5.2f), 20f, 2.3f, Mat(new Color(0.92f, 0.97f, 0.95f), glow: 0.3f), scroll: false);
+                // planted on the ground (headset 2026-11-26: it floated as it came nearer); it never scrolls
+                WorldTree = Piece(tree, Root, new Vector3(TreeX, GroundY, 5.2f), 20f, 2.3f, Mat(new Color(0.92f, 0.97f, 0.95f), glow: m_Night ? 0.55f : 0.3f), scroll: false);
+                m_TreeLift = WorldTree.localPosition.y - TreeGround(5.2f);
                 // its sparkles: little lights drifting round the canopy (drawn only through the opening too)
                 var spark = Mat(new Color(1f, 0.96f, 0.8f), glow: 0f, unlit: true);
                 var sphere = Resources.GetBuiltinResource<Mesh>("New-Sphere.fbx");
@@ -174,6 +184,21 @@ namespace RoomOrchestra
                 var m = Pick("Cloud"); if (m == null) break;
                 Piece(m, Root, new Vector3(R(-Wrap, Wrap), R(0.55f, 1.2f), R(2.5f, 5f)), R(0f, 360f), 0f, cloudMat, width: R(0.5f, 0.9f));
             }
+            // the night sky's stars (Level 3)
+            if (m_Night)
+            {
+                var star = Mat(new Color(1f, 0.97f, 0.85f), unlit: true);
+                var ball = Resources.GetBuiltinResource<Mesh>("New-Sphere.fbx");
+                for (int i = 0; i < 70; i++)
+                {
+                    var go = new GameObject("Star") { layer = StoryArt.Layer };
+                    go.transform.SetParent(Root, false);
+                    go.transform.localPosition = new Vector3(R(-5f, 5f), R(0.5f, 4f), R(5.5f, 7.5f));
+                    go.transform.localScale = Vector3.one * R(0.012f, 0.03f);
+                    if (ball != null) go.AddComponent<MeshFilter>().sharedMesh = ball;
+                    var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = star; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+            }
             // Flutter, Bop and Boom on their journey along the path to the World Tree (drawn only through the opening)
             var friends = new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom };
             for (int i = 0; i < 3; i++)
@@ -214,7 +239,9 @@ namespace RoomOrchestra
             // a dome round the world, warm and hazy at the horizon, soft blue above (unlit, vertex colours)
             const int seg = 32, rings = 12; const float radius = 8f;
             var v = new List<Vector3>(); var c = new List<Color>(); var t = new List<int>();
-            var zenith = new Color(0.6f, 0.72f, 0.88f); var horizon = new Color(1f, 0.9f, 0.74f); var low = new Color(0.93f, 0.86f, 0.72f);
+            var zenith = m_Night ? new Color(0.06f, 0.08f, 0.22f) : m_Dusk ? new Color(0.33f, 0.3f, 0.55f) : new Color(0.6f, 0.72f, 0.88f);
+            var horizon = m_Night ? new Color(0.3f, 0.28f, 0.52f) : m_Dusk ? new Color(1f, 0.62f, 0.45f) : new Color(1f, 0.9f, 0.74f);
+            var low = m_Night ? new Color(0.16f, 0.16f, 0.28f) : m_Dusk ? new Color(0.62f, 0.45f, 0.45f) : new Color(0.93f, 0.86f, 0.72f);
             for (int r = 0; r <= rings; r++)
             {
                 float lat = Mathf.Lerp(-0.6f, 1f, r / (float)rings) * Mathf.PI * 0.5f;
@@ -299,12 +326,12 @@ namespace RoomOrchestra
             var into = Root.forward;
             Shader.SetGlobalVector("_StoryPortalCentre", Root.position);
             Shader.SetGlobalVector("_StoryPortalInto", new Vector4(into.x, into.y, into.z, 7f * Root.lossyScale.x));
-            var haze = new Color(0.96f, 0.88f, 0.75f).linear;
+            var haze = (m_Night ? new Color(0.24f, 0.25f, 0.45f) : m_Dusk ? new Color(0.88f, 0.6f, 0.55f) : new Color(0.96f, 0.88f, 0.75f)).linear;
             Shader.SetGlobalVector("_StoryHaze", new Vector4(haze.r, haze.g, haze.b, 0.5f));
             var sun = (Root.TransformDirection(new Vector3(-0.45f, 0.75f, -0.5f))).normalized; // low, warm, from front-left
             Shader.SetGlobalVector("_StorySunDir", sun);
-            Shader.SetGlobalVector("_StorySunColor", new Color(1f, 0.9f, 0.74f).linear * 1.05f);
-            Shader.SetGlobalVector("_StoryAmbient", new Color(0.62f, 0.66f, 0.74f).linear);
+            Shader.SetGlobalVector("_StorySunColor", (m_Night ? new Color(0.62f, 0.72f, 1f) * 0.75f : m_Dusk ? new Color(1f, 0.68f, 0.48f) : new Color(1f, 0.9f, 0.74f)).linear * 1.05f);
+            Shader.SetGlobalVector("_StoryAmbient", (m_Night ? new Color(0.36f, 0.4f, 0.62f) : m_Dusk ? new Color(0.55f, 0.5f, 0.7f) : new Color(0.62f, 0.66f, 0.74f)).linear);
         }
 
         /// <summary>The level's instrument (its 3D icon from the game's library) on the path ahead of the friends, the
@@ -340,10 +367,16 @@ namespace RoomOrchestra
             m_Progress = Mathf.Clamp01(progress);
             if (WorldTree == null) return;
             float z = Mathf.Lerp(5.2f, 3.3f, m_Progress);
-            var p = WorldTree.localPosition; float dz = z - m_TreeZ; p.z = z; WorldTree.localPosition = p;
-            foreach (var s in m_Sparkles) if (s != null) { var q = s.localPosition; q.z += dz; s.localPosition = q; }
+            var p = WorldTree.localPosition;
+            float dz = z - m_TreeZ, y = TreeGround(z) + m_TreeLift, dy = y - p.y; // its roots stay on the ground as it nears
+            p.z = z; p.y = y; WorldTree.localPosition = p;
+            foreach (var s in m_Sparkles) if (s != null) { var q = s.localPosition; q.z += dz; q.y += dy; s.localPosition = q; }
             m_TreeZ = z;
         }
+
+        /// <summary>Where the World Tree's base meets the ground at depth <paramref name="z"/> (a little sunk in, so it is
+        /// rooted, never floating).</summary>
+        static float TreeGround(float z) => GroundY + GroundAt(TreeX, z) - 0.03f;
 
         /// <summary>The friends walk (speed > 0, hopping along to the right) or stop and face the player to fight.</summary>
         void Travellers(float speed, float dt)

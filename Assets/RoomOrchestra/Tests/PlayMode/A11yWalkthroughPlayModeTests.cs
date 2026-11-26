@@ -121,7 +121,7 @@ namespace RoomOrchestra.Tests
             yield return Connect(hand);
             var selector = OrbSelector.Instance;
             Assert.AreEqual(OrbType.Flutter, selector.SelectedOrb);
-            Assert.AreEqual(InstrumentType.Mbira, selector.FocusedTarget.Instrument, "starts on the chair");
+            Assert.AreEqual(Instruments.Chair, selector.FocusedTarget.Instrument, "starts on the chair");
 
             // Two Flutter on the lamp (two pitches)
             yield return Press(hand, new ControllerFrame { StickY = 1f });            // chair -> lamp
@@ -141,7 +141,7 @@ namespace RoomOrchestra.Tests
             yield return Press(hand, new ControllerFrame { Primary = true });
 
             Assert.AreEqual(2, Count(InstrumentType.Erhu, OrbType.Flutter), "two Flutter on the lamp");
-            Assert.AreEqual(1, Count(InstrumentType.Mbira, OrbType.Bop), "one Bop on the chair");
+            Assert.AreEqual(1, Count(Instruments.Chair, OrbType.Bop), "one Bop on the chair");
             Assert.AreEqual(1, Count(InstrumentType.Udu, OrbType.Boom), "one Boom on the table");
             Assert.AreEqual(2, m_Conductor.Sequencer.Echoes.Where(e => e.Target == InstrumentType.Erhu).Select(e => e.NoteIndex).Distinct().Count(),
                 "the lamp's two notes differ in pitch");
@@ -194,13 +194,13 @@ namespace RoomOrchestra.Tests
             Tap(origin, Tile(InstrumentType.Erhu, 3));
             yield return NextStep;
             Tap(origin, Token(OrbType.Bop));
-            Tap(origin, Tile(InstrumentType.Mbira, 2));
+            Tap(origin, Tile(Instruments.Chair, 2));
             yield return NextStep;
             Tap(origin, Token(OrbType.Boom));
             Tap(origin, Tile(InstrumentType.Udu, 0));
 
             Assert.AreEqual(2, Count(InstrumentType.Erhu, OrbType.Flutter));
-            Assert.AreEqual(1, Count(InstrumentType.Mbira, OrbType.Bop));
+            Assert.AreEqual(1, Count(Instruments.Chair, OrbType.Bop));
             Assert.AreEqual(1, Count(InstrumentType.Udu, OrbType.Boom));
             var lamp = m_Conductor.Sequencer.Echoes.Where(e => e.Target == InstrumentType.Erhu).Select(e => e.NoteIndex).OrderBy(n => n);
             CollectionAssert.AreEqual(new[] { 1, 3 }, lamp, "the tapped tile sets the pitch");
@@ -214,14 +214,14 @@ namespace RoomOrchestra.Tests
         public IEnumerator A11y03_MutedMixStillShowsBeatAndEchoes()
         {
             var hand = SeatedHand(1);
-            Tap(hand, Find<PitchTile>(t => t.Target.Instrument == InstrumentType.Mbira && t.Petal == 4));
+            Tap(hand, Find<PitchTile>(t => t.Target.Instrument == Instruments.Chair && t.Petal == 4));
             foreach (var mix in Object.FindObjectsByType<MixButton>(FindObjectsSortMode.None))
             {
                 for (int i = 0; i < 3; i++) Tap(hand, mix);
                 Assert.IsTrue(mix.Label.text.EndsWith("Muted"), mix.Label.text);
                 Assert.AreEqual(0f, mix.Target.MixGain);
             }
-            var orbit = m_Conductor.Orbits.First(o => o.Target.Instrument == InstrumentType.Mbira);
+            var orbit = m_Conductor.Orbits.First(o => o.Target.Instrument == Instruments.Chair);
             var mini = orbit.GetComponentsInChildren<EchoMini>().FirstOrDefault(m => orbit.EchoFor(m.transform) != 0);
             yield return null;
             mini = orbit.GetComponentsInChildren<EchoMini>().FirstOrDefault(m => orbit.EchoFor(m.transform) != 0);
@@ -266,7 +266,7 @@ namespace RoomOrchestra.Tests
                 var stage = StageAnchor.Instance.transform;
                 Assert.Less((stage.position - new Vector3(1f, stage.position.y, -0.5f)).magnitude, 1e-3f, "stage start point under the seat");
                 Assert.AreEqual(90f, stage.eulerAngles.y, 0.1f, "stage turned to face the player");
-                var chair = InstrumentTarget.Find(InstrumentType.Mbira);
+                var chair = InstrumentTarget.Find(Instruments.Chair);
                 var local = head.transform.InverseTransformPoint(chair.AimPosition);
                 var p = new Vector3(local.x, chair.AimPosition.y, local.z);
                 Assert.AreEqual(ReachResult.Ok, ReachEnvelope.Seated.Check(p.x, p.y, p.z), "the chair is in seated reach again");

@@ -141,9 +141,9 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(walls.transform.Find("RoomSurface_desk").GetComponent<MeshRenderer>().enabled, "and glows");
             Assert.IsFalse(Object.FindObjectsByType<PitchColumn>(FindObjectsSortMode.None).Length > 0, "the lesson's note columns are put away");
 
-            // the lesson's order: the chair's mbira first
+            // the lesson's order: the chair's handpan first
             var first = placer.ChoosingTarget;
-            Assert.AreEqual(InstrumentType.Mbira, first.Instrument, "the chair's mbira is asked for first");
+            Assert.AreEqual(Instruments.Chair, first.Instrument, "the chair's handpan is asked for first");
             Assert.AreEqual("Chair", first.name);
             var hand = new Vector3(0.3f, 1.2f, 0.2f);
             Point(hand, DeskTop, false);
@@ -160,12 +160,12 @@ namespace RoomOrchestra.Tests
             Assert.AreEqual(first.Instrument, spotIcon.Showing);
             Assert.AreEqual(UiText.NameAndKind(first.Instrument, UiLanguage.English, 45), cursor.Text, "its name, and what it is (V4 review)");
 
-            // a press: the mbira lives on the desk; the virtual chair is gone
+            // a press: the handpan lives on the desk; the virtual chair is gone
             yield return Press(hand, DeskTop);
             Assert.AreEqual(1, placer.MatchedCount);
             Assert.AreEqual(InstrumentType.Erhu, placer.ChoosingTarget.Instrument, "then the lamp's erhu");
             var home = first.Home;
-            Assert.IsNotNull(home, "the mbira has a real home");
+            Assert.IsNotNull(home, "the handpan has a real home");
             Assert.IsTrue(home.HasShape, "the desk's scanned shape takes its hits");
             Assert.AreEqual(1f, home.WorldBounds.size.x, 0.1f, "as wide as the desk");
             Assert.AreEqual(DeskTop.y, home.WorldBounds.size.y, 0.08f, "standing on the floor up to the desk's top");

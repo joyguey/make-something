@@ -65,7 +65,7 @@ namespace RoomOrchestra.Tests
             var flowers = Object.FindObjectsByType<FloorFlower>(FindObjectsSortMode.None);
             var before = flowers.ToDictionary(f => f, f => f.transform.position);
 
-            for (int i = 0; i < 12; i++) jungle.NoteAdded(InstrumentType.Mbira);
+            for (int i = 0; i < 12; i++) jungle.NoteAdded(Instruments.Chair);
             yield return null;
             var sprouted = flowers.Where(f => f.Sprouted).ToArray();
             Assert.Greater(sprouted.Length, 3, "the song grew some flowers");

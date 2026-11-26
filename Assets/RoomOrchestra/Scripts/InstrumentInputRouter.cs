@@ -663,7 +663,7 @@ namespace RoomOrchestra
             if (keyboard != null)
             {
                 if (keyboard.digit1Key.wasPressedThisFrame) PlaceOn(InstrumentType.Udu);
-                if (keyboard.digit2Key.wasPressedThisFrame) PlaceOn(InstrumentType.Mbira);
+                if (keyboard.digit2Key.wasPressedThisFrame) PlaceOn(Instruments.Chair);
                 if (keyboard.digit3Key.wasPressedThisFrame) PlaceOn(InstrumentType.Erhu);
                 var selector = OrbSelector.Instance;
                 if (selector != null)

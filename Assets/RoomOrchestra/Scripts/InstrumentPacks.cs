@@ -120,6 +120,8 @@ namespace RoomOrchestra
             int pack = PlayerPrefs.GetInt(PackPrefKey, 0);
             var places = ParsePlaces(PlayerPrefs.GetString(PlacesPrefKey, ""), furniture != null ? furniture.Length : 0);
             if (places != null && !TutorialDirector.RememberedDone) places = null; // a first lesson starts as authored
+            // the old default (udu, mbira, erhu) saved before the handpan took the chair (owner, 2026-11-26): the new default
+            if (places != null && places.Length == 3 && places[0] == InstrumentType.Udu && places[1] == InstrumentType.Mbira && places[2] == InstrumentType.Erhu) places = null;
             if (places != null) for (int i = 0; i < places.Length; i++) SetPlace(furniture[i], places[i]);
             if (pack > 0 && packs != null && pack < packs.Length) m_Pack = pack;
             if (places != null || m_Pack != 0) ApplySounds();
@@ -152,7 +154,7 @@ namespace RoomOrchestra
             return type;
         }
 
-        /// <summary>The next instrument after <paramref name="type"/> (udu, mbira, erhu, then the V4 library, and round).</summary>
+        /// <summary>The next instrument after <paramref name="type"/> (in the enum's order, and round).</summary>
         public static InstrumentType Next(InstrumentType type) =>
             (InstrumentType)(((int)type + 1) % Enum.GetValues(typeof(InstrumentType)).Length);
 
