@@ -23,7 +23,7 @@ namespace RoomOrchestra
     {
         public enum Stage { Off, Intro, WaveCue, Wave, BossCue, Boss, Won, Lost }
 
-        public const float EscapeDistance = 0.95f, HitRadius = 0.13f, LeaveHold = 1.2f, PortalAhead = 2.0f;
+        public const float EscapeDistance = 0.95f, HitRadius = 0.13f, PortalAhead = 2.0f;
         public const string EasyPref = "LittleEchoes.Story.Easy";
 
         public static StoryDirector Instance { get; private set; }
@@ -89,8 +89,8 @@ namespace RoomOrchestra
         GameObject m_Sign, m_EndStars;
         List<DiscordKind> m_Dealt;
         int m_Spawned;
-        float m_T, m_StageAt, m_NextSpawn, m_BannerUntil, m_BothFistsSince = -1f, m_PortalScale = 1f, m_PortalTarget = 1f, m_NextPalmLog, m_GrumbleHitAt = -9f, m_NextMinion;
-        bool m_LeaveArmed, m_UsingHands = true, m_ChorusShown, m_HoldTaught; // hands by default (owner, 2026-11-25)
+        float m_T, m_StageAt, m_NextSpawn, m_BannerUntil, m_PortalScale = 1f, m_PortalTarget = 1f, m_NextPalmLog, m_GrumbleHitAt = -9f, m_NextMinion;
+        bool m_UsingHands = true, m_ChorusShown, m_HoldTaught; // hands by default (owner, 2026-11-25)
         Transform m_Card, m_SandboxCard;
         bool m_CardHands, m_CardCollected;
         GameObject m_SignCardIcon;
@@ -438,7 +438,6 @@ namespace RoomOrchestra
             StoryDiorama.SetBloom(m_Bloom);
             m_World?.SetProgress(0f);
             for (int i = 0; i < 2; i++) m_WasSelect[i] = true; // the press that started the story doesn't launch or Hold
-            m_LeaveArmed = false; m_BothFistsSince = -1f;
             m_Flick.Lost(); m_Flip.Reset();
             Paused = false;
             m_Audio.Begin(Level.Bpm);
@@ -691,14 +690,6 @@ namespace RoomOrchestra
             Vector3 D(Vector3 d) => rig != null ? rig.TransformDirection(d) : d;
             Quaternion Q(Quaternion q) => rig != null ? rig.rotation * q : q;
 
-            // a way out at any time: both fists (or both grips) held a moment, after both were open once
-            if (!left.Grip && !right.Grip) m_LeaveArmed = true;
-            if (m_LeaveArmed && left.Grip && right.Grip)
-            {
-                if (m_BothFistsSince < 0f) { m_BothFistsSince = Time.time; Banner("Keep both fists closed to leave...", LeaveHold + 0.3f); }
-                else if (Time.time - m_BothFistsSince >= LeaveHold) { Leave("left by the player (both fists)"); return; }
-            }
-            else m_BothFistsSince = -1f;
 
             // pointing at the buttons (eyes and pinch for hands, the controller's ray otherwise)
             StoryButton hovered = null; int hoveredBy = -1;

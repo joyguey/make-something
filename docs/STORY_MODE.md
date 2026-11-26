@@ -38,7 +38,7 @@ Cut order if late: Chord Discords, boss phases, Level 3. Sandbox and Battle must
   - Powers: Flutter pierces; Bop ricochets off real walls (RealWalls layer) and curves to Wobblers; Boom lobs and bursts (0.5 m shockwave cracks Clangs, knocks others back). Wrong friend: sour note, the Discord grows.
   - Music (`StoryAudio`): 88 BPM on DSP, the room's own instrument voices (drum, then pluck from wave 2), each Discord beaten plays the next melody note on the next half-beat; souring/muffling with the Discord meter. Story sounds synthesised (`Core/StorySoundSynth.cs`, placeholders).
   - Harmony: matches (more on the beat) fill it; full = Chorus (all three friends home in on everything).
-  - Buttons under the portal (eyes+pinch or controller ray): Pause/Resume (Try again / Play again at the end), Easy aim (saved), Leave. Both fists held 1.2 s also leaves. Win: stars (StoryScore). Lose: Try again.
+  - Buttons under the portal (eyes+pinch or controller ray): Pause/Resume (Try again / Play again at the end), Easy aim (saved), Leave. (The both-fists exit was removed 2026-11-26: it ended the story by accident.) Win: stars (StoryScore). Lose: Try again.
   - Tests: StoryLevelTests (7), Flick/PalmFlip (+3), StoryPlayModeTests (2: sandbox restored exactly; Easy remembered). EditMode 292/292, PlayMode 125/125. Rendered in-editor and checked.
   - Not yet: Chinese text for story, the three-mode title chooser (preview first), Levels 2-3.
 
@@ -69,6 +69,8 @@ Cut order if late: Chord Discords, boss phases, Level 3. Sandbox and Battle must
 - 2026-11-26: **the handpan replaces the mbira in both modes** (owner's choice: new default trio, the mbira kept in the library). `Instruments.Original` = Udu, Handpan, Erhu; `Instruments.Chair` = Handpan; the scene setup gives the chair the handpan (`HandpanTakesTheChair`); the lesson, place prompts (new `UiTerm.PlaceHandpan`, appended), meadow growth, Echo Battle defaults ("UHE") follow. A device whose saved arrangement is the old default (Udu, Mbira, Erhu) gets the new one. Measured: a handpan note rings about 2.4 s against the mbira's 1.1 s; owner to listen to a full sandbox song for muddiness. Tests updated where they assumed the mbira on the chair. APK `Builds/LittleEchoes-story-3levels.apk`.
 
 - 2026-11-26: the World Tree stays rooted on the ground as it nears (it floated). Flutter is gentler on the handpan only (owner: "a bit too chirpy"; `VoiceDesign.ForOrb(..., ringingMetal)`): less grit, a softer top, a little more ring; still the lightest of the three. APK `Builds/LittleEchoes-story-3levels-c.apk`.
+
+- 2026-11-26: v6.0 (code 44): the both-fists exit removed (owner: "I don't think the two fists to leave is a good idea anymore"); Leave (asks first) and Pause on the buttons.
 
 ## Next
 1. Owner listens to the handpan (and the gentler Flutter on it) in a full sandbox song; shorten its ring if muddy.
