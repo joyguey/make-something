@@ -1023,7 +1023,8 @@ namespace RoomOrchestra
             // the journey: the friends walk on between waves (the meadow slides past, the World Tree comes nearer) and
             // stop to face the Discords while a wave is on
             float travel = Paused || Current == Stage.Lost ? 0f : Current == Stage.Won ? 0.35f : Current == Stage.Intro || Current == Stage.WaveCue ? 0.22f : 0f;
-            m_World?.Scroll(travel, dt);
+            bool frightened = !Paused && (Current == Stage.Wave || Current == Stage.BossCue || Current == Stage.Boss); // stopped by the Discords
+            m_World?.Scroll(travel, dt, frightened);
             if (Level != null)
             {
                 float want = Current == Stage.Won ? 1f : (WaveIndex + (Current == Stage.BossCue || Current == Stage.Boss ? 1f : 0f)) / (Level.Waves.Count + 1f);

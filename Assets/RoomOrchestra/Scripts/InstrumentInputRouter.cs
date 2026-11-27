@@ -38,7 +38,12 @@ namespace RoomOrchestra
 
         static readonly Vector3[] s_Palm = new Vector3[2];
         static readonly bool[] s_PalmTracked = new bool[2], s_BareHand = new bool[2];
-        static bool s_Hands; // the last kind of input seen: bare hands, or controllers
+        static bool s_Hands = true; // the last kind of input seen: bare hands (the default, owner 2026-11-25), or controllers
+        static float s_ControllerSince = -1f;
+        /// <summary>A controller must be seen this long before the game switches to controllers (s) (owner, headset
+        /// 2026-11-26: with the controllers off, the title showed its controller buttons first and slaps on the
+        /// handprints did nothing: PICO reports no hand tracking for the first moments after launch).</summary>
+        public const float ControllerSettle = 0.5f;
 
         /// <summary>
         /// Where each hand is this frame (scene space): the palm of a bare hand, or the controller in it. Things you can
@@ -54,11 +59,22 @@ namespace RoomOrchestra
         /// hands are out of the cameras' sight (resting in the lap, behind the back): only a tracked controller ends it.</summary>
         public static bool UsingHands => s_Hands;
 
+        static void SetHands(bool bare)
+        {
+            if (bare) { s_ControllerSince = -1f; if (!s_Hands) { s_Hands = true; Debug.Log("[RoomOrchestra] Input: bare hands"); } return; }
+            if (!s_Hands) return;
+            if (s_ControllerSince < 0f) { s_ControllerSince = Time.unscaledTime; return; }
+            if (Time.unscaledTime - s_ControllerSince < ControllerSettle) return;
+            s_Hands = false;
+            Debug.Log("[RoomOrchestra] Input: controllers");
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetPalms()
         {
             for (int i = 0; i < 2; i++) s_PalmTracked[i] = s_BareHand[i] = false;
-            s_Hands = false;
+            s_Hands = true;
+            s_ControllerSince = -1f;
         }
         readonly bool[] m_WasSelect = new bool[2];
         readonly bool[] m_Grabbing = new bool[2];
@@ -126,7 +142,7 @@ namespace RoomOrchestra
             if (palm)
             {
                 s_Palm[hand] = rig != null ? rig.TransformPoint(frame.GripPosition) : frame.GripPosition;
-                s_Hands = s_BareHand[hand];
+                SetHands(s_BareHand[hand]);
             }
             if (!frame.Tracked)
             {

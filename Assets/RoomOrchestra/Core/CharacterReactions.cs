@@ -7,7 +7,8 @@ namespace RoomOrchestra
         Idle,
         Curious,  // first of its kind on an object: wide eyes and an "oh"
         Sibling,  // another of the same character already there: the two glance at each other
-        Scared    // falling toward the floor: wide eyes looking down, "oh" mouth, a tremble
+        Scared,   // falling toward the floor: wide eyes looking down, "oh" mouth, a tremble
+        Frozen    // frozen in terror, a minimal scared look (story's travellers while Discords come): eyes a little wide, a small "oh", no blinks
     }
 
     /// <summary>

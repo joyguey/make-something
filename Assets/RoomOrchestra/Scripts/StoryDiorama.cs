@@ -27,6 +27,7 @@ namespace RoomOrchestra
         public Transform Root { get; private set; }
         public Transform WorldTree { get; private set; }
         readonly Transform[] m_Travellers = new Transform[3];
+        readonly CharacterFace[] m_Faces = new CharacterFace[3];
         Transform m_Instrument;
         Material m_InstrumentMat;
         float m_TreeZ = 5.2f, m_TreeLift, m_Progress, m_Walk;
@@ -378,8 +379,10 @@ namespace RoomOrchestra
         /// rooted, never floating).</summary>
         static float TreeGround(float z) => GroundY + GroundAt(TreeX, z) - 0.03f;
 
-        /// <summary>The friends walk (speed > 0, hopping along to the right) or stop and face the player to fight.</summary>
-        void Travellers(float speed, float dt)
+        /// <summary>The friends walk (speed > 0, hopping along to the right) or stop and face the player to fight.
+        /// <paramref name="frightened"/>: stopped by the Discords, they freeze in terror (owner, 2026-11-26: "their face should
+        /// look frozen in terror with a minimal scared look"): still, a faint shiver, wide eyes and a small "oh".</summary>
+        void Travellers(float speed, float dt, bool frightened)
         {
             m_Walk += speed * dt * 12f;
             for (int i = 0; i < m_Travellers.Length; i++)
@@ -388,19 +391,25 @@ namespace RoomOrchestra
                 bool walking = speed > 0.01f;
                 var p = t.localPosition;
                 // a friend copy's pivot is its middle: half its height above the ground under it
-                p.y = GroundY + GroundAt(p.x, p.z) + TravellerSize * 0.5f + 0.004f + (walking ? Mathf.Abs(Mathf.Sin(m_Walk + i * 1.3f)) * 0.035f : Mathf.Abs(Mathf.Sin(Time.time * 2f + i)) * 0.006f);
+                float shiver = frightened && !CharacterFace.ReducedMotion ? Mathf.Sin(Time.time * 47f + i * 2.1f) * 0.0012f : 0f;
+                p.y = GroundY + GroundAt(p.x, p.z) + TravellerSize * 0.5f + 0.004f + (walking ? Mathf.Abs(Mathf.Sin(m_Walk + i * 1.3f)) * 0.035f : frightened ? shiver : Mathf.Abs(Mathf.Sin(Time.time * 2f + i)) * 0.006f);
                 t.localPosition = p;
                 var want = walking ? Quaternion.Euler(0f, -90f, 0f) : Quaternion.identity; // their faces: toward the way they go, or toward the player
                 t.localRotation = Quaternion.Slerp(t.localRotation, want, dt * 5f);
+                if (frightened && !walking)
+                {
+                    if (m_Faces[i] == null) m_Faces[i] = t.GetComponentInChildren<CharacterFace>();
+                    if (m_Faces[i] != null) m_Faces[i].Show(Expression.Frozen, 0f, 0.4f); // held while they stay stopped
+                }
             }
         }
 
         /// <summary>The journey: pieces slide past (portal-space metres per second) and wrap round.</summary>
-        public void Scroll(float speed, float dt)
+        public void Scroll(float speed, float dt, bool frightened = false)
         {
             if (Root == null) return;
             SetLight();
-            Travellers(speed, dt);
+            Travellers(speed, dt, frightened);
             float step = speed * dt;
             for (int i = 0; i < m_Sparkles.Count; i++)
             {

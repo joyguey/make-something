@@ -64,11 +64,30 @@ namespace RoomOrchestra
                 // without me putting my hand on the sign"); it has to be seen two frames running, close together
                 if (!had || Vector3.Distance(before, palm) > JumpBeyond) continue;
                 // on the print, or through it since the last frame (a slap is faster than the frame rate)
-                if (!Touches(palm) && !Crossed(before, palm)) continue;
+                if (!Touches(palm) && !Crossed(before, palm))
+                {
+                    NearMiss(palm);
+                    continue;
+                }
                 Debug.Log($"[RoomOrchestra] Title: high five on the Start print ({DepthOf(palm) * 100f:F1} cm from its face)");
                 start.Press();
                 return;
             }
+        }
+
+        float m_NextMissLog;
+
+        // a palm close to the print that did not count, for the log (owner, headset 2026-11-26: slaps on Story and
+        // Sandbox did not register)
+        void NearMiss(Vector3 palm)
+        {
+            if (handLook == null || Time.unscaledTime < m_NextMissLog) return;
+            var local = handLook.transform.InverseTransformPoint(palm);
+            var s = handLook.transform.lossyScale;
+            float x = local.x * s.x, y = local.y * s.y, z = local.z * Mathf.Max(1e-4f, s.z);
+            if (Mathf.Abs(x) > 0.15f || Mathf.Abs(y) > 0.15f || z < -0.12f || z > 0.2f) return;
+            m_NextMissLog = Time.unscaledTime + 0.5f;
+            Debug.Log($"[RoomOrchestra] Title: palm near the {start.Choice} print but not on it: {x * 100f:F0} cm across, {y * 100f:F0} cm up, {z * 100f:F0} cm behind its face (counts within {printHalfSize.x * Generous * s.x * 100f:F0} x {printHalfSize.y * Generous * s.y * 100f:F0} cm, {-ContactInFront * 100f:F0} to {ContactBehind * 100f:F0} cm deep)");
         }
 
         readonly Vector3[] m_LastPalm = new Vector3[2];

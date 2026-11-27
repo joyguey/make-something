@@ -15,6 +15,9 @@ namespace RoomOrchestra
         public const float HoldSeconds = 1.6f;
         const float BlinkSeconds = 0.13f, HappySeconds = 0.25f;
         const float GlanceOffset = 0.07f, WideEyes = 1.45f, LookDown = 0.05f;
+        /// <summary>Frozen in terror: eyes this much wider, the "oh" this size (owner, 2026-11-26: "frozen in terror with a
+        /// minimal scared look").</summary>
+        const float FrozenEyes = 1.25f, FrozenMouth = 0.6f;
         static readonly Vector3 Parked = new Vector3(0f, 0f, 0.25f); // sinks a mouth wholly into the body
 
         public static bool ReducedMotion { get; set; }
@@ -23,7 +26,7 @@ namespace RoomOrchestra
         [Tooltip("Optional surprised mouth; without it surprise is shown by the eyes alone.")]
         [SerializeField] Transform mouthO;
 
-        Vector3 m_EyeLHome, m_EyeRHome, m_EyeScale, m_SmileHome, m_MouthParked;
+        Vector3 m_EyeLHome, m_EyeRHome, m_EyeScale, m_SmileHome, m_MouthParked, m_MouthScale;
         Vector3 m_EyeLCentre, m_EyeRCentre; // eye meshes are built around the body centre, not their own
         bool m_Captured;
         float m_Until, m_Glance, m_NextBlink, m_HappyStart = -10f;
@@ -52,7 +55,7 @@ namespace RoomOrchestra
             m_EyeLCentre = MeshCentre(eyeL);
             m_EyeRCentre = MeshCentre(eyeR);
             m_SmileHome = smile.localPosition;
-            if (mouthO != null) m_MouthParked = mouthO.localPosition;
+            if (mouthO != null) { m_MouthParked = mouthO.localPosition; m_MouthScale = mouthO.localScale; }
             m_NextBlink = Time.time + 1f + Random.value * 3f;
         }
 
@@ -96,7 +99,9 @@ namespace RoomOrchestra
             // Eyes grow and close flat against the face (x, y), never in depth, so they never bulge out.
             var grow = Vector3.one;
             bool scared = Current == Expression.Scared;
+            bool frozen = Current == Expression.Frozen;
             if (Current == Expression.Curious || scared) grow = new Vector3(WideEyes, WideEyes, 1f);
+            else if (frozen) grow = new Vector3(FrozenEyes, FrozenEyes, 1f); // a little wide, staring (no blinks: not idle)
             if (blinking) grow.y *= 0.15f;
             else if (happy && Current != Expression.Curious) grow.y *= 0.45f; // smiling eyes
             var shift = Current == Expression.Sibling ? Vector3.right * (m_Glance * GlanceOffset)
@@ -105,9 +110,14 @@ namespace RoomOrchestra
             Set(eyeL, m_EyeLHome + shift + AboutCentre(m_EyeLCentre, grow), Vector3.Scale(m_EyeScale, grow));
             Set(eyeR, m_EyeRHome + shift + AboutCentre(m_EyeRCentre, grow), Vector3.Scale(m_EyeScale, grow));
 
-            bool oh = (Current == Expression.Curious || scared) && mouthO != null;
+            bool oh = (Current == Expression.Curious || scared || frozen) && mouthO != null;
             SetPosition(smile, oh ? m_SmileHome + Parked : m_SmileHome);
-            if (mouthO != null) SetPosition(mouthO, oh ? m_MouthParked - Parked : m_MouthParked);
+            if (mouthO != null)
+            {
+                SetPosition(mouthO, oh ? m_MouthParked - Parked : m_MouthParked);
+                var mouthScale = frozen ? m_MouthScale * FrozenMouth : m_MouthScale; // a small "oh": minimal, not a scream
+                if (mouthO.localScale != mouthScale) mouthO.localScale = mouthScale;
+            }
         }
 
         // Offset that keeps a part's own centre in place while its transform scales by grow.
