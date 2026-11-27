@@ -530,6 +530,7 @@ namespace RoomOrchestra
                         State = Phase.Recording;
                         m_Recorded.Clear();
                         Say(m_Echoing ? UiTerm.BattleEcho : UiTerm.BattleYourCall);
+                        if (!m_Echoing) SayIdea();
                         break;
                     }
                     int beat = TutorialPlan.CountdownBeat(conductor.Clock.BarPhase(AudioSettings.dspTime));
@@ -592,6 +593,20 @@ namespace RoomOrchestra
             if (status == null) return;
             string text = UiText.Get(term, Localization.Current);
             status.text = args.Length > 0 ? string.Format(text, args) : text;
+        }
+
+        int m_IdeaSeed = -1;
+
+        /// <summary>A tune idea under "GO! Drop your beat" (PICO review of v5.0.1: "Can you add more example songs?"):
+        /// a different well-known tune each round, its notes spelled out; any call is still fine.</summary>
+        void SayIdea()
+        {
+            if (status == null || m_Match == null) return;
+            if (m_IdeaSeed < 0) m_IdeaSeed = Random.Range(0, EchoBattleRules.TuneIdeas.Length);
+            var idea = EchoBattleRules.IdeaFor(m_Match.Round, m_IdeaSeed);
+            var lang = Localization.Current;
+            status.text += "\n" + string.Format(UiText.Get(UiTerm.BattleIdea, lang), UiText.Get(idea.Name, lang), EchoBattleRules.NoteNames(idea.Notes));
+            Debug.Log($"[RoomOrchestra] Echo Battle: tune idea {idea.Name} ({EchoBattleRules.NoteNames(idea.Notes)})");
         }
 
         void SetScore(string text)

@@ -68,7 +68,7 @@ namespace RoomOrchestra.Tests
                     Assert.That(pack.VolumeFor(type), Is.InRange(0.1f, 1f), $"{pack.name} {type} volume");
                 }
             Assert.AreEqual(3, packs.Furniture.Count);
-            CollectionAssert.AreEqual(new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu }, packs.Furniture.Select(f => f.Instrument), "table, chair, lamp");
+            CollectionAssert.AreEqual(Instruments.Original, packs.Furniture.Select(f => f.Instrument), "table, chair, lamp");
             var changes = Object.FindObjectsByType<ChangeInstrumentButton>(FindObjectsSortMode.None);
             CollectionAssert.AreEquivalent(packs.Furniture, changes.Select(c => c.Target), "one Change button per furniture");
             Assert.IsNotNull(Object.FindFirstObjectByType<SoundPackButton>(), "a Sounds button on the leaf");

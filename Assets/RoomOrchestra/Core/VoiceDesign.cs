@@ -53,7 +53,11 @@ namespace RoomOrchestra
 
         /// <param name="fundamentalHz">Pitch of the source sample: filters are placed relative to it.</param>
         /// <param name="bowed">Bowed voices (erhu) swell slowly; Flutter starts from the swell instead.</param>
-        public static VoiceSpec ForOrb(OrbType orb, VoiceSpec basis, float fundamentalHz, bool bowed)
+        /// <param name="ringingMetal">A long-ringing steel voice (the handpan): Flutter is gentler on it (owner,
+        /// headset 2026-11-26: Flutter on the handpan was "a bit too chirpy"; its grit and bright shelf push the steel's
+        /// shimmering overtones into a chirp). Still the lightest and shortest of the three, so players still find
+        /// that Bop and Boom ring best on it.</param>
+        public static VoiceSpec ForOrb(OrbType orb, VoiceSpec basis, float fundamentalHz, bool bowed, bool ringingMetal = false)
         {
             var spec = basis;
             float f0 = fundamentalHz > 0f ? fundamentalHz : 440f;
@@ -71,6 +75,14 @@ namespace RoomOrchestra
                         spec.AttackSeconds = Math.Max(spec.AttackSeconds, 0.01f);
                     }
                     spec.PeakLevel *= 1.1f; // Render caps it at MaxPeak
+                    if (ringingMetal)
+                    {
+                        spec.Drive = Math.Max(basis.Drive, 1.4f);                  // a touch of grit, not a buzz
+                        spec.ShelfHz = Math.Max(3f * f0, 900f);                    // the lift starts higher
+                        spec.Brightness = Math.Min(1f, basis.Brightness + 0.2f);   // and is softer
+                        spec.DecaySeconds = 0.35f;                                 // a little more ring
+                        spec.LengthSeconds = basis.LengthSeconds > 0f ? Math.Min(basis.LengthSeconds, 0.75f) : 0.75f;
+                    }
                     break;
                 case OrbType.Boom:
                     float cutoff = Math.Max(1.5f * f0, 150f);

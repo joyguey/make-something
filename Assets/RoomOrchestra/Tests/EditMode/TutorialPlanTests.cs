@@ -36,14 +36,14 @@ namespace RoomOrchestra.Tests
                 Assert.AreEqual(group.Count(), group.Select(s => s.BarStep).Distinct().Count(), $"{group.Key} steps don't collide");
             Assert.IsTrue(TutorialPlan.Song.All(s => s.BarStep >= 0 && s.BarStep < MusicClock.StepsPerBar));
             Assert.IsTrue(TutorialPlan.Song.All(s => s.GlowNote >= 0 && s.GlowNote < NoteMapping.Count));
-            Assert.AreEqual(InstrumentType.Mbira, TutorialPlan.Song[0].Instrument, "the chair first");
-            Assert.IsTrue(TutorialPlan.Song.Where(s => s.Introduces).All(s => s.Instrument != InstrumentType.Mbira));
+            Assert.AreEqual(Instruments.Chair, TutorialPlan.Song[0].Instrument, "the chair first");
+            Assert.IsTrue(TutorialPlan.Song.Where(s => s.Introduces).All(s => s.Instrument != Instruments.Chair));
         }
 
         [Test]
         public void InstrumentsJoinWhenTheSongReachesThem()
         {
-            Assert.IsTrue(TutorialPlan.IntroducedBy(InstrumentType.Mbira, 0));
+            Assert.IsTrue(TutorialPlan.IntroducedBy(Instruments.Chair, 0));
             Assert.IsFalse(TutorialPlan.IntroducedBy(InstrumentType.Erhu, 3));
             Assert.IsTrue(TutorialPlan.IntroducedBy(InstrumentType.Erhu, 4));
             Assert.IsFalse(TutorialPlan.IntroducedBy(InstrumentType.Udu, 5));
@@ -55,14 +55,14 @@ namespace RoomOrchestra.Tests
         {
             var plan = new TutorialPlan();
             plan.FinishWarmup();
-            Assert.IsTrue(plan.Wants(InstrumentType.Mbira, 2));
-            Assert.IsFalse(plan.Wants(InstrumentType.Mbira, 1), "E isn't the first note");
+            Assert.IsTrue(plan.Wants(Instruments.Chair, 2));
+            Assert.IsFalse(plan.Wants(Instruments.Chair, 1), "E isn't the first note");
             Assert.IsFalse(plan.Wants(InstrumentType.Erhu, 2), "nor the lamp's F#");
 
-            Play(InstrumentType.Mbira, 2, snapTo: 0);
+            Play(Instruments.Chair, 2, snapTo: 0);
             Assert.IsTrue(plan.Sync(m_Seq.Echoes));
             Assert.AreEqual(1, plan.Index);
-            Play(InstrumentType.Mbira, 1, snapTo: 2);
+            Play(Instruments.Chair, 1, snapTo: 2);
             plan.Sync(m_Seq.Echoes);
             Assert.AreEqual(2, plan.Index);
 
@@ -84,7 +84,7 @@ namespace RoomOrchestra.Tests
         {
             var plan = new TutorialPlan();
             plan.FinishWarmup();
-            Play(InstrumentType.Mbira, 2); // left at step 7
+            Play(Instruments.Chair, 2); // left at step 7
             Assert.IsFalse(plan.Sync(m_Seq.Echoes));
             Assert.AreEqual(0, plan.Index);
         }
@@ -150,7 +150,7 @@ namespace RoomOrchestra.Tests
             var plan = new TutorialPlan();
             plan.Skip();
             Assert.IsTrue(plan.Done && plan.Skipped);
-            Assert.IsFalse(plan.Wants(InstrumentType.Mbira, 2));
+            Assert.IsFalse(plan.Wants(Instruments.Chair, 2));
         }
 
         [Test]
@@ -158,13 +158,13 @@ namespace RoomOrchestra.Tests
         {
             var plan = new TutorialPlan();
             Assert.IsTrue(plan.InWarmup, "the main mechanic before the song");
-            Assert.IsFalse(plan.Wants(InstrumentType.Mbira, 2), "no song notes yet");
+            Assert.IsFalse(plan.Wants(Instruments.Chair, 2), "no song notes yet");
             Assert.IsFalse(plan.CompletesWarmup(InstrumentType.Erhu));
-            Assert.IsTrue(plan.CompletesWarmup(InstrumentType.Mbira), "any chair note: a throw lands wherever it lands");
-            Play(InstrumentType.Mbira, 2, snapTo: 0);
+            Assert.IsTrue(plan.CompletesWarmup(Instruments.Chair), "any chair note: a throw lands wherever it lands");
+            Play(Instruments.Chair, 2, snapTo: 0);
             Assert.IsFalse(plan.Sync(m_Seq.Echoes), "the song doesn't count during the warm-up");
             plan.FinishWarmup();
-            Assert.IsTrue(plan.Wants(InstrumentType.Mbira, 2));
+            Assert.IsTrue(plan.Wants(Instruments.Chair, 2));
             var skipped = new TutorialPlan();
             skipped.Skip();
             Assert.IsFalse(skipped.InWarmup);

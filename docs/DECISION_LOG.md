@@ -192,3 +192,9 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 - **Choosing:** in the lesson's order with the lesson's arrangement, which is restored first (a saved swap had the table holding the erhu). The object comes from the scan's labelled cluster tightened to its triangles, or from growing the surface pointed at. A chosen object's virtual furniture is hidden, and its scanned shape takes the hits.
 - **Occlusion:** PICO's environment depth is written into the depth buffer by one URP pass (PICO's own shaders are Built-in only, per material). The scanned-room shield is the fallback, and Menu has a "Hiding" toggle. Untested on the headset.
 - **Saved places:** PICO spatial anchors are persisted on the device, and only the anchor ids and object sizes go into local PlayerPrefs. Nothing is uploaded.
+
+- 2026-11-26 (owner): the handpan replaces the mbira as the chair's instrument in both modes; the mbira stays in the library. Story mode is three levels: Udu, Erhu, Handpan. Restoring an instrument in story is a bonus, never a sandbox lock.
+- 2026-11-26 (owner): Flutter on the handpan is gentler (it was too chirpy); the discovery that Bop and Boom ring best on the handpan is kept.
+- 2026-11-26 (owner): the title card offers Story, Sandbox and Play together (layout A with handprints); Story goes straight in, and leaving Story chosen there returns to the title card. The sandbox's opening waits until Sandbox is chosen.
+- 2026-11-26 (owner): Story is on the menu's first row; the floating Play Story sign is removed.
+- 2026-11-26 (owner): in the boss fight every friend should have a target: the Grumble sends a little Discord for a friend that can't crack the current shell. Easy aim on/off made clearly different.

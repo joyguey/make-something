@@ -144,5 +144,21 @@ namespace RoomOrchestra.Tests
             Assert.IsEmpty(EchoBattleRules.Missing(host, new HashSet<InstrumentType> { InstrumentType.Udu, InstrumentType.Handpan }, 2));
             Assert.IsNotEmpty(EchoBattleRules.Missing(host, new HashSet<InstrumentType> { InstrumentType.Udu, InstrumentType.Erhu }, 2));
         }
+        [Test]
+        public void TuneIdeasFitTheGamesNotesAndChangeEachRound()
+        {
+            // PICO review of v5.0.1: "Can you add more example songs?"
+            Assert.GreaterOrEqual(EchoBattleRules.TuneIdeas.Length, 5);
+            foreach (var (name, notes) in EchoBattleRules.TuneIdeas)
+            {
+                Assert.LessOrEqual(notes.Length, EchoBattleRules.MaxNotes, $"{name} fits one call");
+                Assert.IsTrue(notes.All(n => n >= 0 && n < NoteMapping.Count), $"{name} uses only D E F# A B");
+                Assert.IsFalse(string.IsNullOrEmpty(UiText.Get(name, UiLanguage.English)));
+                Assert.IsFalse(string.IsNullOrEmpty(UiText.Get(name, UiLanguage.Chinese)));
+            }
+            Assert.AreEqual("D D A A", EchoBattleRules.NoteNames(new[] { 0, 0, 3, 3 }));
+            var rounds = Enumerable.Range(1, EchoBattleRules.Rounds).Select(r => EchoBattleRules.IdeaFor(r, 4).Name).ToArray();
+            Assert.AreEqual(rounds.Length, rounds.Distinct().Count(), "a different tune each round");
+        }
     }
 }

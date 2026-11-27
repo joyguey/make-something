@@ -11,7 +11,7 @@ namespace RoomOrchestra.Tests
         public void TheButtonUnderThePointerIsDrawnLighterUntilThePointerLeaves()
         {
             EditorSceneManager.OpenScene("Assets/RoomOrchestra/Scenes/RoomOrchestra.unity", OpenSceneMode.Single);
-            var start = Object.FindFirstObjectByType<TitleScreen>().Card.GetComponentInChildren<TitleStartButton>(true);
+            var start = System.Linq.Enumerable.First(Object.FindFirstObjectByType<TitleScreen>().Card.GetComponentsInChildren<TitleStartButton>(true), b => b.Choice == TitleChoice.Sandbox); // the green one
             var tapArea = start.transform.Find("ButtonLook").GetComponentInChildren<Collider>(true);
             var look = HoverLight.RendererOf(tapArea);
             Assert.IsNotNull(look, "the tap area has a visible part to light");

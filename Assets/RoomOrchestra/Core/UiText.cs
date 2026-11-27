@@ -172,7 +172,24 @@ namespace RoomOrchestra
         /// 2026-11-22: the grab gesture "should be mentioned in the tutorial, that is not very clear"). Appended.</summary>
         MoveHowTo,
         /// <summary>Menu > Choose furniture asks first: it forgets every place chosen (owner, headset 2026-11-22). Appended.</summary>
-        ConfirmPlaces
+        ConfirmPlaces,
+        /// <summary>Choosing furniture: the handpan's place (owner, 2026-11-26: the handpan replaces the mbira on the chair). Appended.</summary>
+        PlaceHandpan,
+        /// <summary>The title card's three choices (owner, 2026-11-26: layout A, a handprint for each). Appended.</summary>
+        TitleStory,
+        TitleSandbox,
+        TitleTogether,
+        /// <summary>Echo Battle: a tune idea for the caller (PICO review of v5.0.1: "Can you add more example songs?";
+        /// owner 2026-11-26). {0} the tune, {1} its notes. Appended.</summary>
+        BattleIdea,
+        TuneTwinkle,
+        TuneMary,
+        TuneHotCrossBuns,
+        TuneRowYourBoat,
+        TuneFrereJacques,
+        TuneOldMacDonald,
+        /// <summary>No room scan came (PICO review of v5.0.1: "Room Scanning stuck on 0%"). Appended.</summary>
+        ScanNotShared
     }
 
     /// <summary>
@@ -307,6 +324,18 @@ namespace RoomOrchestra
             { UiTerm.Together, ("Play\ntogether", "一起\n玩") },
             { UiTerm.BattleSolo, ("SOLO", "试玩") }, // unused: SOLO removed (owner, 2026-11-22); kept, terms are saved by number
             { UiTerm.ConfirmPlaces, ("Choose again where each instrument lives? The places you chose are forgotten.", "重新选乐器放在哪里吗？现在选好的家具会清除。") },
+            { UiTerm.BattleIdea, ("Idea: {0}: {1}. Or play your own!", "试试《{0}》：{1}。也可以自己编！") },
+            { UiTerm.TuneTwinkle, ("Twinkle, Twinkle, Little Star", "小星星") },
+            { UiTerm.TuneMary, ("Mary Had a Little Lamb", "玛丽有只小羊羔") },
+            { UiTerm.TuneHotCrossBuns, ("Hot Cross Buns", "热十字面包") },
+            { UiTerm.TuneRowYourBoat, ("Row, Row, Row Your Boat", "划船歌") },
+            { UiTerm.TuneFrereJacques, ("Frère Jacques", "两只老虎") },
+            { UiTerm.TuneOldMacDonald, ("Old MacDonald Had a Farm", "王老先生有块地") },
+            { UiTerm.ScanNotShared, ("Your headset hasn't shared a scan of this room, so the instruments stay where you see them. You can scan later: Menu, then Choose furniture.", "你的头显还没有提供这个房间的扫描，所以乐器先留在原处。之后可以在菜单里点\"选家具\"再扫描。") },
+            { UiTerm.TitleStory, ("Story", "故事") },
+            { UiTerm.TitleSandbox, ("Sandbox", "自由玩") },
+            { UiTerm.TitleTogether, ("Play together", "一起玩") },
+            { UiTerm.PlaceHandpan, ("The glow is your room. Where should the handpan (a steel hand drum) live? Point at a real chair or sofa and press. Or press the chair to keep it here.", "发光的就是你的房间。手碟要住在哪里？指向一把真的椅子或沙发，按一下。或者按椅子，让它留在这里。") },
             { UiTerm.MoveHowTo, ("To move a virtual piece: look at it, make a fist and keep holding it until the piece lifts. Move it, then open your hand to set it down. With a controller: point at it and hold the grip button.", "移动虚拟家具：看着它（或指着它），握拳，握住不放，等它起来。移过去，再张开手放下。也可以指着它按住握把键。") },
             { UiTerm.BattleIntro, ("Two headsets on the same Wi-Fi: one taps HOST, the other taps JOIN.", "两台头显连同一个Wi-Fi：一位点\"主持\"，另一位点\"加入\"。") },
             { UiTerm.BattleSoloOn, ("SOLO: the game plays the other side. Get ready...", "试玩：游戏和你对决。准备……") }, // unused: SOLO removed
@@ -420,6 +449,8 @@ namespace RoomOrchestra
                 for (int i = 0; i < MixLevels.Count; i++) text.Append(Volume(i, language));
                 for (int i = 0; i < NoteMapping.Count; i++) text.Append(Tile(new MusicalNote(InstrumentType.Mbira, i), language));
             }
+            text.Append(StoryText.AllChinese); // story mode's words (StoryText)
+            foreach (var en in StoryText.English) text.Append(en);
             for (char c = ' '; c <= '~'; c++) text.Append(c); // all of printable ASCII
             return new string(text.ToString().Distinct().OrderBy(c => c).ToArray());
         }

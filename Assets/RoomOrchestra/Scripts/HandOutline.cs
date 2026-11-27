@@ -36,8 +36,9 @@ namespace RoomOrchestra
 
         public GameObject Model(int hand) => hand == 0 ? left : right;
 
-        /// <summary>Hands are drawn while the meadow hides the real ones.</summary>
-        public static bool Wanted => VirtualRoom.Instance == null || !VirtualRoom.Instance.Gone;
+        /// <summary>Hands are drawn while the meadow hides the real ones, and always in story mode (owner, headset
+        /// 2026-11-25: "keep the outline over my hands so I can see where the headset is detecting my motions").</summary>
+        public static bool Wanted => VirtualRoom.Instance == null || !VirtualRoom.Instance.Gone || (StoryDirector.Instance != null && StoryDirector.Instance.Running);
 
         void LateUpdate() => Refresh();
 

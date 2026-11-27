@@ -69,6 +69,8 @@ namespace RoomOrchestra
         /// <summary>Whether the theme should play, from what is going on now.</summary>
         public static bool ShouldPlay()
         {
+            // story mode has its own music (owner, headset 2026-11-25: "I'm still hearing the theme song in the back")
+            if (StoryDirector.Instance != null && StoryDirector.Instance.Running) return false;
             var title = TitleScreen.Instance;
             if (title != null && title.Showing) return true;
             var intro = IntroSequence.Instance;

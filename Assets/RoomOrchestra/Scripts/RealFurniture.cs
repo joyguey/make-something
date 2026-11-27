@@ -102,7 +102,7 @@ namespace RoomOrchestra
         /// <summary>The instrument being placed now, or null.</summary>
         public InstrumentTarget ChoosingTarget => ChoosingStation?.Target;
         /// <summary>The order instruments are placed in: the lesson's.</summary>
-        public static readonly InstrumentType[] LessonOrder = { InstrumentType.Mbira, InstrumentType.Erhu, InstrumentType.Udu };
+        public static readonly InstrumentType[] LessonOrder = { Instruments.Chair, InstrumentType.Erhu, InstrumentType.Udu };
         /// <summary>The real home of an instrument, or null.</summary>
         public RealHome HomeOf(InstrumentTarget target)
         {
@@ -332,6 +332,8 @@ namespace RoomOrchestra
             m_Phase = Phase.LookingAround;
             m_ScanStart = Time.time;
             m_NextCoverage = 0f;
+            m_BestCoverage = 0f;
+            m_LastGainAt = Time.time;
             RealWalls.ShowScan = true;
             Debug.Log("[RoomOrchestra] Real furniture: look around the whole room while the scan fills in (a bar shows how much)");
             if (!Application.isEditor) TutorialDirector.Instance?.Announce(UiTerm.ScanRoom, LookAroundMaxSeconds);
@@ -538,7 +540,11 @@ namespace RoomOrchestra
         /// <summary>Choosing starts once this share of the room around the player is scanned, after at least
         /// <see cref="LookAroundSeconds"/>, or after <see cref="LookAroundMaxSeconds"/> whatever the scan shows.</summary>
         public const float CoverageToChoose = 0.75f, LookAroundMaxSeconds = 45f;
-        float m_NextCoverage, m_Coverage;
+        /// <summary>No scan at all after this long, or a scan that stopped growing for <see cref="StallSeconds"/>: choosing
+        /// begins anyway, and Flutter says why (PICO review of v5.0.1: "Room Scanning stuck on 0% for me, but after long
+        /// enough it eventually went away").</summary>
+        public const float NoScanSeconds = 8f, StallSeconds = 10f;
+        float m_NextCoverage, m_Coverage, m_BestCoverage, m_LastGainAt;
         /// <summary>The scan's coverage of the room around the player now (0..1).</summary>
         public float ScanCoverage => m_Coverage;
 
@@ -551,11 +557,15 @@ namespace RoomOrchestra
                 var walls = RealWalls.Instance;
                 var centre = StageAnchor.Instance != null && StageAnchor.Instance.TryGetHeadPose(out var head) ? head.position : SeatFloor();
                 m_Coverage = walls != null ? walls.Coverage(centre) : 0f;
+                if (m_Coverage > m_BestCoverage + 0.01f) { m_BestCoverage = m_Coverage; m_LastGainAt = Time.time; }
             }
             ScanProgressBar.Instance?.Show(m_Coverage);
             bool enough = m_Coverage >= CoverageToChoose && t >= LookAroundSeconds;
-            if (!enough && t < (Application.isEditor ? LookAroundSeconds : LookAroundMaxSeconds)) return;
-            Debug.Log($"[RoomOrchestra] Real furniture: the room is {m_Coverage * 100f:F0}% scanned after {t:F0} s; choosing begins");
+            bool noScan = !Application.isEditor && t >= NoScanSeconds && m_BestCoverage < 0.01f;
+            bool stalled = !Application.isEditor && t >= LookAroundSeconds && Time.time - m_LastGainAt >= StallSeconds;
+            if (!enough && !noScan && !stalled && t < (Application.isEditor ? LookAroundSeconds : LookAroundMaxSeconds)) return;
+            if (noScan) TutorialDirector.Instance?.Announce(UiTerm.ScanNotShared, 8f);
+            Debug.Log($"[RoomOrchestra] Real furniture: the room is {m_Coverage * 100f:F0}% scanned after {t:F0} s; choosing begins{(noScan ? " (no scan came from the headset)" : stalled ? " (the scan stopped growing)" : "")}");
             ScanProgressBar.Instance?.Done();
             StartChoosing();
         }
@@ -609,6 +619,7 @@ namespace RoomOrchestra
         static UiTerm PlaceLine(InstrumentType instrument) => instrument switch
         {
             InstrumentType.Udu => UiTerm.PlaceUdu,
+            Instruments.Chair => UiTerm.PlaceHandpan,
             InstrumentType.Mbira => UiTerm.PlaceMbira,
             _ => UiTerm.PlaceErhu
         };

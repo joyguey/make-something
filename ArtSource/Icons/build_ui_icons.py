@@ -484,6 +484,17 @@ def together():
     return [i.finish()]
 
 
+def story():
+    """Story (owner, 2026-11-26: a Story option on the menu's first row): the portal ring with a little tree inside,
+    the World Tree seen through the portal. Original shapes."""
+    i = Icon("UiIcon_Story")
+    tube = 0.0042 if B else 0.0032
+    i.torus((0, 0.035, 0), 0.019 - tube, tube, depth_scale=1.25)
+    i.prism(rounded(rect((0, 0.0285), (0.0034, 0.011)), 0.001, seg=2), depth=DEPTH * 0.7)  # the trunk
+    i.ball((0, 0.0375, 0), (0.0095, 0.0085, 0.0065))  # its round canopy
+    return [i.finish()]
+
+
 def box_icon(name, boxes):
     i = Icon(name)
     for centre, size, angle in boxes:
@@ -506,7 +517,8 @@ def all_icons():
     return [("Undo", undo()), ("Pause", pause()), ("Play", play()), ("Clear", clear()), ("Menu", menu()),
             ("Close", close()), ("Recenter", recenter()), ("Height", height()), ("View", view()),
             ("Sounds", sounds()), ("Lesson", lesson()), ("Places", places()), ("RealHides", real_hides()),
-            ("StartOver", start_over()), ("Quit", quit_door()), ("Call", call()), ("Together", together())]
+            ("StartOver", start_over()), ("Quit", quit_door()), ("Call", call()), ("Together", together()),
+            ("Story", story())]
 
 
 # ---- one continuous shape per part (owner, 2026-11-17: "remove the weird black artifacts and make them a continuous

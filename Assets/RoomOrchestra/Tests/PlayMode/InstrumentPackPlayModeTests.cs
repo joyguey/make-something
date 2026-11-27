@@ -70,38 +70,48 @@ namespace RoomOrchestra.Tests
             var lamp = Furniture("Lamp");
             var table = Furniture("Table");
             var selector = OrbSelector.Instance;
-            selector.PlaceOnTile(ColumnFor(chair).Tiles[2]); // an mbira note on the chair
-            yield return null;
-            var echo = EchoConductor.Instance.Echoes.Single();
-            Assert.AreEqual(InstrumentType.Mbira, echo.Target);
-
-            Assert.IsTrue(InstrumentInputRouter.Activate(ChangeFor(chair).gameObject), "Change on the chair");
-            yield return null;
-            Assert.AreEqual(InstrumentType.Erhu, chair.Instrument, "the chair plays the next instrument");
-            Assert.AreEqual(InstrumentType.Mbira, lamp.Instrument, "the lamp takes the chair's old one");
-            Assert.AreSame(m_Packs.Current.For(InstrumentType.Erhu)[0], chair.Notes[0], "with its sound");
-            Assert.AreSame(lamp, InstrumentTarget.Find(InstrumentType.Mbira), "the mbira's echo now plays from the lamp");
-            StringAssert.StartsWith("erhu", ColumnFor(chair).GetComponentsInChildren<TMP_Text>().First(t => t.transform.parent.name == "InstrumentLabel").text);
-
-            // then the V4 library (owner, 2026-11-11): five more, none on other furniture, and round to the drum
-            foreach (var next in Instruments.Library)
+            Assert.AreEqual(Instruments.Chair, chair.Instrument, "the chair plays the handpan (owner, 2026-11-26)");
+            string ChairLabel() => ColumnFor(chair).GetComponentsInChildren<TMP_Text>().First(t => t.transform.parent.name == "InstrumentLabel").text;
+            IEnumerator Change()
             {
-                Assert.IsTrue(InstrumentInputRouter.Activate(ChangeFor(chair).gameObject), $"Change to the {next}");
+                Assert.IsTrue(InstrumentInputRouter.Activate(ChangeFor(chair).gameObject), "Change on the chair");
                 yield return null;
                 yield return new WaitForSeconds(0.2f); // past the tap debounce
+            }
+
+            // the library instruments nobody else has: the chair plays each with its own sound and name
+            foreach (var next in new[] { InstrumentType.Guzheng, InstrumentType.Balafon, InstrumentType.SlitDrum })
+            {
+                yield return Change();
                 Assert.AreEqual(next, chair.Instrument);
                 Assert.AreSame(m_Packs.Current.For(next)[0], chair.Notes[0], $"with the {next}'s own sound");
-                StringAssert.StartsWith(UiText.Name(next, UiLanguage.English), ColumnFor(chair).GetComponentsInChildren<TMP_Text>().First(t => t.transform.parent.name == "InstrumentLabel").text);
+                StringAssert.StartsWith(UiText.Name(next, UiLanguage.English), ChairLabel());
+                Assert.AreEqual(InstrumentType.Erhu, lamp.Instrument, "the others keep theirs meanwhile");
             }
-            Assert.AreEqual(InstrumentType.Mbira, lamp.Instrument, "the others keep theirs meanwhile");
-            Assert.IsTrue(InstrumentInputRouter.Activate(ChangeFor(chair).gameObject), "Change again");
-            yield return null;
+            // round to the drum: the table takes the chair's last one
+            yield return Change();
             Assert.AreEqual(InstrumentType.Udu, chair.Instrument, "and then the drum");
             Assert.AreEqual(InstrumentType.SlitDrum, table.Instrument, "the table takes the chair's last one");
             var tileWords = ColumnFor(chair).GetComponentsInChildren<LocalizedLabel>().Where(l => l.name.StartsWith("TileLabel")).Select(l => l.Text.text).ToArray();
             CollectionAssert.AreEquivalent(Enumerable.Range(0, NoteMapping.Count).Select(i => UiText.Tile(new MusicalNote(InstrumentType.Udu, i), UiLanguage.English)), tileWords, "the tiles name drum sounds");
+            // the mbira, from the library now
+            yield return Change();
+            Assert.AreEqual(InstrumentType.Mbira, chair.Instrument);
+            StringAssert.StartsWith("mbira", ChairLabel());
 
-            Assert.AreEqual("SlitDrum,Udu,Mbira", PlayerPrefs.GetString(InstrumentPacks.PlacesPrefKey), "remembered left to right");
+            // a note on the chair's mbira, then Change: the lamp's erhu comes over and the song follows the mbira
+            selector.PlaceOnTile(ColumnFor(chair).Tiles[2]);
+            yield return null;
+            var echo = EchoConductor.Instance.Echoes.Single();
+            Assert.AreEqual(InstrumentType.Mbira, echo.Target);
+            yield return Change();
+            Assert.AreEqual(InstrumentType.Erhu, chair.Instrument, "the chair plays the next instrument");
+            Assert.AreEqual(InstrumentType.Mbira, lamp.Instrument, "the lamp takes the chair's old one");
+            Assert.AreSame(m_Packs.Current.For(InstrumentType.Erhu)[0], chair.Notes[0], "with its sound");
+            Assert.AreSame(lamp, InstrumentTarget.Find(InstrumentType.Mbira), "the mbira's echo now plays from the lamp");
+            StringAssert.StartsWith("erhu", ChairLabel());
+
+            Assert.AreEqual("SlitDrum,Erhu,Mbira", PlayerPrefs.GetString(InstrumentPacks.PlacesPrefKey), "remembered left to right");
         }
 
         [UnityTest]
@@ -132,7 +142,7 @@ namespace RoomOrchestra.Tests
             tutorial.Replay();
             while (!tutorial.Active) yield return null;
             Assert.IsFalse(ChangeFor(Furniture("Chair")).Press(), "the lesson is about the first arrangement");
-            Assert.AreEqual(InstrumentType.Mbira, Furniture("Chair").Instrument);
+            Assert.AreEqual(Instruments.Chair, Furniture("Chair").Instrument);
         }
     }
 }

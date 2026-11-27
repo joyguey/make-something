@@ -17,12 +17,14 @@ from fontTools.varLib import instancer
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 TERMS = os.path.join(ROOT, "Assets", "RoomOrchestra", "Core", "UiText.cs")
+# story mode's words too (owner, 2026-11-26: Chinese for story mode)
+STORY = os.path.join(ROOT, "Assets", "RoomOrchestra", "Core", "StoryText.cs")
 OUT = os.path.join(ROOT, "Assets", "RoomOrchestra", "Fonts", "LittleEchoesLabels.ttf")
 FAMILY = "Little Echoes Labels"
 
 
 def characters():
-    text = open(TERMS, encoding="utf-8").read()
+    text = open(TERMS, encoding="utf-8").read() + open(STORY, encoding="utf-8").read()
     wide = {c for c in text if ord(c) > 0x7E}  # the Chinese terms (comments are ASCII)
     return "".join(sorted(wide | {chr(c) for c in range(0x20, 0x7F)}))
 

@@ -34,7 +34,7 @@ namespace RoomOrchestra.Tests
             var data = new float[clip.samples * clip.channels];
             clip.GetData(data, 0);
             var basis = udu ? VoiceDesign.ForUdu((UduArticulation)index) : VoiceSpec.Plain;
-            var spec = VoiceDesign.ForOrb(orb, basis, NoteMapping.FrequencyHz(target.Instrument, sourceIndex), target.Instrument == InstrumentType.Erhu);
+            var spec = VoiceDesign.ForOrb(orb, basis, NoteMapping.FrequencyHz(target.Instrument, sourceIndex), target.Instrument == InstrumentType.Erhu, target.Instrument == InstrumentType.Handpan);
             return VoiceDesign.Render(data, clip.frequency, spec);
         }
 

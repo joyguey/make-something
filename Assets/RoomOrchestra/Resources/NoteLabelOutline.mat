@@ -25,7 +25,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _MainTex:
-        m_Texture: {fileID: 7000975478761040188, guid: bbfaf0ba9e52d414faa09d1e56596025, type: 2}
+        m_Texture: {fileID: -3714606244304396368, guid: bbfaf0ba9e52d414faa09d1e56596025, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -51,7 +51,7 @@ Material:
     - _StencilOp: 0
     - _StencilReadMask: 255
     - _StencilWriteMask: 255
-    - _TextureHeight: 1024
+    - _TextureHeight: 2048
     - _TextureWidth: 2048
     - _UnderlayDilate: 0
     - _UnderlayOffsetX: 0

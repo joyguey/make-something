@@ -31,6 +31,17 @@ namespace RoomOrchestra
         /// 2026-11-14: "when I slap the start sign with my hand, it doesn't start the game").
         /// </summary>
         public bool BarePalm;
+        /// <summary>Story mode (2026-11-25): a bare hand's joints were read this frame (IndexTip and PalmUp are valid).</summary>
+        public bool Joints;
+        /// <summary>The index fingertip (rig space): story mode's flick follows the finger, not the palm or the ray.</summary>
+        public Vector3 IndexTip;
+        /// <summary>The palm joint's own up axis (rig space). Which way it points (palm or back of hand) is read on the
+        /// headset; story mode's palm flip only needs it to swing over and back.</summary>
+        public Vector3 PalmUp;
+        /// <summary>The wrist (rig space): story mode lines the next friends up along the forearm.</summary>
+        public Vector3 Wrist;
+        /// <summary>The thumb tip (rig space): story mode's flick is the index finger snapping out from the thumb.</summary>
+        public Vector3 ThumbTip;
     }
 
     /// <summary>Source of per-hand pointer frames; swapped for a fake in tests.</summary>
@@ -130,6 +141,11 @@ namespace RoomOrchestra
                             && Vector3.Distance(At(ByteDance.PICO.XR.HandJoint.JointRingTip), palm) < reach;
                 frame.Grip = fist;
                 frame.GripPosition = palm;
+                frame.Joints = true;
+                frame.IndexTip = At(ByteDance.PICO.XR.HandJoint.JointIndexTip);
+                frame.Wrist = At(ByteDance.PICO.XR.HandJoint.JointWrist);
+                frame.ThumbTip = At(ByteDance.PICO.XR.HandJoint.JointThumbTip);
+                frame.PalmUp = joints.jointLocations[(int)ByteDance.PICO.XR.HandJoint.JointPalm].pose.Orientation.ToQuat() * Vector3.up;
                 // only a palm PICO is tracking right now counts: a remembered or guessed place would push the sign, or
                 // press its Start print, with no hand there
                 var seen = ByteDance.PICO.XR.HandLocationStatus.PositionValid | ByteDance.PICO.XR.HandLocationStatus.PositionTracked;

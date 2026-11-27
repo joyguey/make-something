@@ -55,7 +55,7 @@ namespace RoomOrchestra
             {
                 if (TotalNotes < NotesBeforeGrowth) return 0f;
                 float sum = 0f;
-                foreach (var type in new[] { InstrumentType.Udu, InstrumentType.Mbira, InstrumentType.Erhu })
+                foreach (var type in Instruments.Original)
                     sum += Math.Min(1f, m_Notes[(int)type] / (float)NotesPerVine);
                 return sum / 3f;
             }
@@ -71,7 +71,7 @@ namespace RoomOrchestra
         }
 
         public bool AllVinesGrown =>
-            VineProgress(InstrumentType.Udu) >= 1f && VineProgress(InstrumentType.Mbira) >= 1f && VineProgress(InstrumentType.Erhu) >= 1f;
+            VineProgress(Instruments.Original[0]) >= 1f && VineProgress(Instruments.Original[1]) >= 1f && VineProgress(Instruments.Original[2]) >= 1f;
 
         /// <summary>Toadstools out of <see cref="MushroomAt"/>'s count: the first with the growth, all of them only
         /// once the three-instrument song is complete (owner, 2026-11-22).</summary>

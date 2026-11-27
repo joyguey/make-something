@@ -47,7 +47,7 @@ namespace RoomOrchestra.Tests
         public void EveryStationIsSavedInsideTheCloud()
         {
             // owner, headset 2026-11-08: nothing of the lesson behind the title card, the chair included
-            CollectionAssert.AreEquivalent(new[] { InstrumentType.Mbira, InstrumentType.Udu, InstrumentType.Erhu }, Stations.Select(s => s.Instrument));
+            CollectionAssert.AreEquivalent(new[] { Instruments.Chair, InstrumentType.Udu, InstrumentType.Erhu }, Stations.Select(s => s.Instrument));
             var core = new Bounds(Park, new Vector3(0.12f, 0.16f, 0.12f)); // the cloud's solid core
             foreach (var station in Stations)
             {

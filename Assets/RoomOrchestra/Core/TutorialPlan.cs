@@ -49,10 +49,10 @@ namespace RoomOrchestra
 
         public static readonly Step[] Song =
         {
-            new Step(InstrumentType.Mbira, FSharp, 0, UiTerm.TutorialHello),
-            new Step(InstrumentType.Mbira, E, 2, UiTerm.TutorialMa),
-            new Step(InstrumentType.Mbira, D, 4, UiTerm.TutorialMary),
-            new Step(InstrumentType.Mbira, E, 6, UiTerm.TutorialMaryHad),
+            new Step(Instruments.Chair, FSharp, 0, UiTerm.TutorialHello),
+            new Step(Instruments.Chair, E, 2, UiTerm.TutorialMa),
+            new Step(Instruments.Chair, D, 4, UiTerm.TutorialMary),
+            new Step(Instruments.Chair, E, 6, UiTerm.TutorialMaryHad),
             new Step(InstrumentType.Erhu, FSharp, 8, UiTerm.TutorialLamp, introduces: true),
             new Step(InstrumentType.Erhu, FSharp, 10, UiTerm.TutorialLit),
             new Step(InstrumentType.Udu, AnyNote, 0, UiTerm.TutorialDrum, introduces: true),
@@ -94,7 +94,7 @@ namespace RoomOrchestra
         /// before introducing additional items"): any note on the warm-up instrument, thrown or tapped. It is not part
         /// of the song: the director takes that note back and the song starts.
         /// </summary>
-        public const InstrumentType WarmupInstrument = InstrumentType.Mbira;
+        public const InstrumentType WarmupInstrument = Instruments.Chair; // the handpan (owner, 2026-11-26)
         public bool WarmupDone { get; private set; }
         public bool InWarmup => !WarmupDone && !Done;
 

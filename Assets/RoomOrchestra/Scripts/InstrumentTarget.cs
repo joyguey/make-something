@@ -143,7 +143,7 @@ namespace RoomOrchestra
                 var basis = udu ? VoiceDesign.ForUdu(articulation) : VoiceSpec.Plain;
                 foreach (var profile in OrbCatalog.All)
                 {
-                    float[] rendered = VoiceDesign.Render(data, source.frequency, VoiceDesign.ForOrb(profile.Type, basis, fundamental, bowed));
+                    float[] rendered = VoiceDesign.Render(data, source.frequency, VoiceDesign.ForOrb(profile.Type, basis, fundamental, bowed, ringingMetal: instrument == InstrumentType.Handpan));
                     if (rendered.Length == 0) continue; // falls back to the plain sample in VoiceFor
                     var clip = AudioClip.Create($"{instrument}_{index}_{profile.Type}", rendered.Length, 1, source.frequency, false);
                     clip.SetData(rendered, 0);

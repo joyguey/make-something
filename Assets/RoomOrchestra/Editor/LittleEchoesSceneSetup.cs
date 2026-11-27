@@ -60,6 +60,20 @@ namespace RoomOrchestra.EditorTools
             Debug.Log("[RoomOrchestra] Little Echoes scene setup saved");
         }
 
+        /// <summary>The chair plays the handpan (owner, 2026-11-26: "switch out the Mbira with the handpan ... this change
+        /// will affect both modes"): the chair's authored instrument becomes the handpan, before everything that is built
+        /// from the furniture's instruments (pitch columns, labels, stations, vines). The mbira stays in the library.</summary>
+        static void HandpanTakesTheChair()
+        {
+            foreach (var target in Object.FindObjectsByType<InstrumentTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (target.Instrument != InstrumentType.Mbira) continue;
+                target.Configure(Instruments.Chair, SoundSets.Clips(SoundSets.LibraryDir, "Handpan"));
+                EditorUtility.SetDirty(target);
+                Debug.Log($"[RoomOrchestra] Setup: {target.name} plays the handpan now (was the mbira)");
+            }
+        }
+
         public static void Apply()
         {
             KeepExportAlignedWithBuild();
@@ -67,6 +81,7 @@ namespace RoomOrchestra.EditorTools
             // A saved scene has the guided song's stations parked in the cloud: bring them home before rebuilding.
             foreach (var station in Object.FindObjectsByType<StationReveal>(FindObjectsSortMode.None)) station.ShowNow();
             FitFurnitureToRealSizes();
+            HandpanTakesTheChair();
 
             var parent = GameObject.Find("RoomOrchestra");
             var old = parent != null ? parent.transform.Find(RootName) : null;
@@ -158,6 +173,7 @@ namespace RoomOrchestra.EditorTools
             CreateRealHidesButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreateStartOverButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             CreateTogetherButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
+            CreateStoryMenuButton(FrontRow(8), swoop, slabMaterial, motifMaterial);
             var menuTray = CreateMenuTray(swoop, motifMaterial);
             root.AddComponent<LanguageDirector>();
             CreateScanProgressBar(root.transform);
@@ -407,7 +423,7 @@ namespace RoomOrchestra.EditorTools
         // needs them. Flutter talks in a speech bubble above it, with a Skip leaf; the wanted tile glows.
         // Every station waits in the cloud until the lesson needs it; the chair's mbira too (owner, headset 2026-11-08:
         // the chair and its note keys showed behind the title card).
-        static readonly InstrumentType[] Introduced = { InstrumentType.Mbira, InstrumentType.Erhu, InstrumentType.Udu };
+        static readonly InstrumentType[] Introduced = { Instruments.Chair, InstrumentType.Erhu, InstrumentType.Udu };
         static readonly Vector3 BubbleAt = new Vector3(-0.62f, 0.85f, 1.28f); // above Flutter, left of the sight lines
         // The virtual starting room (owner: start in a virtual room that tears down to reveal the real room): a
         // simple, cosy room of panels around the stage, the seat and everything the music grows. Sage walls in two
@@ -811,7 +827,7 @@ namespace RoomOrchestra.EditorTools
                     {
                         InstrumentType.Erhu => new[] { "Vine_Lamp", "Sparkles_Erhu", "Flock" },
                         InstrumentType.Udu => new[] { "Vine_TableL", "Vine_TableR", $"Sparkles_{type}" },
-                        _ => new[] { $"Sparkles_{type}" },
+                        _ => type == Instruments.Chair ? new[] { $"Sparkles_{type}", "Sparkles_Mbira" } : new[] { $"Sparkles_{type}" }, // the chair's, under either name
                     };
                     foreach (var n in names)
                     {
@@ -945,6 +961,37 @@ namespace RoomOrchestra.EditorTools
         // greets the player without standing between them and the sign.
         static readonly Vector3 StandFrontOffset = new Vector3(0.16f, 0f, -0.35f);
 
+        /// <summary>One of the title card's choices: a rounded button (controllers) that becomes a dashed handprint leaning
+        /// right for a high five (bare hands), its word under it. <paramref name="part"/> names its pieces
+        /// ("Start" keeps the old Start's names for the sandbox choice).</summary>
+        static void CreateTitleChoice(Transform hanging, Vector3 at, TitleChoice choice, UiTerm word, string part, Color face, Color ink, Color print, string material)
+        {
+            Transform Flat(Transform label) { label.localRotation = Quaternion.identity; return label; }
+            const float OnButton = -0.0195f;
+            var button = Holder($"{part}Button", hanging, at);
+            var buttonLook = Holder("ButtonLook", button, Vector3.zero);
+            var leaf = Primitive(PrimitiveType.Cube, $"{part}Leaf", buttonLook, EnsureMaterial(material, "Ball", face), keepCollider: false);
+            leaf.localScale = new Vector3(0.24f, 0.1f, 0.035f); // its depth parks above the near-zero limit too
+            leaf.gameObject.AddComponent<BoxCollider>(); // the unit box inside the scaled leaf: its tap area
+            Hoverable(leaf.gameObject);
+            var label = Flat(Label($"{part}Label", UiText.Get(word, UiLanguage.English), buttonLook, new Vector3(0f, 0f, OnButton), choice == TitleChoice.Together ? 0.032f : 0.04f));
+            label.GetComponentInChildren<TMPro.TMP_Text>().color = ink;
+            Localize(label, word);
+            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.004f, 0.015f)); // just in front of the card's face
+            handLook.localRotation = Quaternion.Euler(0f, 0f, -15f); // leaning right: raised for a high five
+            handLook.localScale = Vector3.one * 0.85f; // three side by side, clear of the words above and of Quit
+            var printShape = MeshPart("HandprintDashes", handLook, HandprintMesh(), Vector3.zero, EnsureMaterial($"{material}Print", "Ball", print));
+            var printBox = printShape.gameObject.AddComponent<BoxCollider>(); // on the visible print: its tap area
+            printBox.size = new Vector3(HandprintHalf.x * 2f, HandprintHalf.y * 2f, 0.03f);
+            var printWord = Flat(Label("HandprintLabel", UiText.Get(word, UiLanguage.English), handLook, new Vector3(0.002f, -0.034f, -0.0015f), choice == TitleChoice.Together ? 0.026f : 0.032f));
+            printWord.localRotation = Quaternion.Euler(0f, 0f, 15f); // level on the card, though the print leans
+            Localize(printWord, word);
+            var startButton = button.gameObject.AddComponent<TitleStartButton>();
+            startButton.Configure(choice);
+            button.gameObject.AddComponent<HandprintStart>().Configure(buttonLook.gameObject, handLook.gameObject, startButton, HandprintHalf);
+            handLook.gameObject.SetActive(false); // controllers until hands are seen
+        }
+
         static TitleScreen CreateTitle(GameObject root, IntroSequence intro)
         {
             var card = Holder("TitleCard", root.transform, Vector3.zero);
@@ -987,39 +1034,26 @@ namespace RoomOrchestra.EditorTools
             const float OnButton = -0.0195f; // the buttons are 35 mm deep: their face is 17.5 mm in front of their middle
             Localize(Flat(Label("TitleSubtitle", UiText.Get(UiTerm.TitleSubtitle, UiLanguage.English), hanging, On(new Vector3(0f, -0.055f, -0.005f)), 0.036f)), UiTerm.TitleSubtitle);
 
-            // Bottom right, off the centre line: PICO draws its own window handle (the round grabber that opens
-            // Back / Close / Minimize) on the app's centre line, and centred it covered Start (owner, emulator).
-            var button = Holder("StartButton", hanging, On(new Vector3(0.27f, -0.18f, -0.02f)));
-            var buttonLook = Holder("ButtonLook", button, Vector3.zero);
-            var leaf = Primitive(PrimitiveType.Cube, "StartLeaf", buttonLook, EnsureMaterial("TitleStart", "Ball", startGreen), keepCollider: false);
-            leaf.localScale = new Vector3(0.26f, 0.1f, 0.035f); // its depth parks above the near-zero limit too
-            leaf.gameObject.AddComponent<BoxCollider>(); // the unit box inside the scaled leaf: its tap area
-            Hoverable(leaf.gameObject);
-            // Well clear of the leaf's curved face: off-centre, the label turns to face the player and its near
-            // edge dipped behind the leaf ("tart" on the emulator).
-            Localize(Flat(Label("StartLabel", UiText.Get(UiTerm.Start, UiLanguage.English), buttonLook, new Vector3(0f, 0f, OnButton), 0.04f)), UiTerm.Start);
-            // With bare hands, a handprint in a thick green dashed line instead, leaning right like a hand raised for a high five
-            // (owner, Fable refinement 2026-11-11)
-            var handLook = Holder("HandprintLook", button, new Vector3(0f, -0.004f, 0.015f)); // just in front of the card's face
-            handLook.localRotation = Quaternion.Euler(0f, 0f, -15f); // leaning right: raised for a high five
-            var printShape = MeshPart("HandprintDashes", handLook, HandprintMesh(), Vector3.zero, EnsureMaterial("HandprintDashes", "Ball", new Color(0.361f, 0.722f, 0.380f))); // #5CB861
-            var printBox = printShape.gameObject.AddComponent<BoxCollider>(); // on the visible print: its tap area
-            printBox.size = new Vector3(HandprintHalf.x * 2f, HandprintHalf.y * 2f, 0.03f);
-            var printWord = Flat(Label("HandprintLabel", UiText.Get(UiTerm.Start, UiLanguage.English), handLook, new Vector3(0.002f, -0.034f, -0.0015f), 0.032f));
-            printWord.localRotation = Quaternion.Euler(0f, 0f, 15f); // level on the card, though the print leans
-            Localize(printWord, UiTerm.Start);
-            var startButton = button.gameObject.AddComponent<TitleStartButton>();
-            button.gameObject.AddComponent<HandprintStart>().Configure(buttonLook.gameObject, handLook.gameObject, startButton, HandprintHalf);
-            handLook.gameObject.SetActive(false); // controllers until hands are seen
+            // Three ways in (owner, 2026-11-26: "Story", "Sandbox", "Play together": layout A, "with hand prints for
+            // each"): three equal rounded-square buttons in a row, each a dashed handprint to high-five with bare hands.
+            // Story's gold keeps plum words; Sandbox keeps Start's green and Play together a deep blue, both with white.
+            var storyGold = new Color(1f, 0.78f, 0.3f);
+            var togetherBlue = new Color(0.157f, 0.42f, 0.553f); // #286B8D: white words at about 5.5:1
+            CreateTitleChoice(hanging, On(new Vector3(-0.28f, -0.175f, -0.02f)), TitleChoice.Story, UiTerm.TitleStory, "Story",
+                storyGold, plum, new Color(1f, 0.82f, 0.38f), "TitleStory");
+            CreateTitleChoice(hanging, On(new Vector3(0f, -0.175f, -0.02f)), TitleChoice.Sandbox, UiTerm.TitleSandbox, "Start",
+                startGreen, Color.white, new Color(0.361f, 0.722f, 0.380f), "TitleStart"); // #5CB861, as Start's print was
+            CreateTitleChoice(hanging, On(new Vector3(0.28f, -0.175f, -0.02f)), TitleChoice.Together, UiTerm.TitleTogether, "Together",
+                togetherBlue, Color.white, new Color(0.36f, 0.66f, 0.86f), "TitleTogether");
 
-            // Quit, bottom left (George, 2026-11-03: "a main menu with the app's name and a Quit button"): smaller and
-            // quieter than Start, mirrored across PICO's window handle. It asks "Sure?" before it closes the app.
-            var quit = Holder("TitleQuitButton", hanging, On(new Vector3(-0.3f, -0.19f, -0.02f)));
+            // Quit (George, 2026-11-03: "a main menu with the app's name and a Quit button"): now a small quiet plate in
+            // the bottom-left corner, under the choices. It asks "Sure?" before it closes the app.
+            var quit = Holder("TitleQuitButton", hanging, On(new Vector3(-0.39f, -0.255f, -0.02f))); // clear of Story's handprint
             var quitLeaf = Primitive(PrimitiveType.Cube, "TitleQuitLeaf", quit, EnsureMaterial("QuitLeaf", "Ball", quitGrey), keepCollider: false);
-            quitLeaf.localScale = new Vector3(0.19f, 0.08f, 0.035f);
+            quitLeaf.localScale = new Vector3(0.12f, 0.045f, 0.035f);
             quitLeaf.gameObject.AddComponent<BoxCollider>();
             Hoverable(quitLeaf.gameObject);
-            Localize(Flat(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, OnButton), 0.034f)), UiTerm.Quit);
+            Localize(Flat(Label("TitleQuitLabel", UiText.Get(UiTerm.Quit, UiLanguage.English), quit, new Vector3(0f, 0f, OnButton), 0.024f)), UiTerm.Quit);
             quit.gameObject.AddComponent<QuitButton>();
 
             MeadowArt.TitleSign(card, TitleCardHeight); // a wooden sign with a little vine around the card (V3 review: richer menu)
@@ -1673,7 +1707,7 @@ namespace RoomOrchestra.EditorTools
                 pack.balafon = SoundSets.Clips(SoundSets.LibraryDir, "Balafon");
                 pack.slitDrum = SoundSets.Clips(SoundSets.LibraryDir, "SlitDrum");
                 pack.volumes = ((InstrumentType[])System.Enum.GetValues(typeof(InstrumentType)))
-                    .Select(t => System.Array.IndexOf(Instruments.Library, t) >= 0 ? SoundSets.LibraryVolume(t.ToString()) : SoundSets.VolumeFor(dir, t.ToString())).ToArray();
+                    .Select(t => t == InstrumentType.Udu || t == InstrumentType.Mbira || t == InstrumentType.Erhu ? SoundSets.VolumeFor(dir, t.ToString()) : SoundSets.LibraryVolume(t.ToString())).ToArray(); // by where each sound comes from
                 return pack;
             }
             var packs = root.AddComponent<InstrumentPacks>();
@@ -1914,7 +1948,8 @@ namespace RoomOrchestra.EditorTools
         static readonly string[][] MenuRows =
         {
             new[] { "TogetherButton", "SoundsButton", "ViewButton", "LanguageButton", "HeightButton", "RealHidesButton" },
-            new[] { "MenuCloseButton", "RecenterButton", "LessonButton", "StartOverButton", "QuitButton" },
+            // Story on the near row, which had room (owner, 2026-11-26)
+            new[] { "MenuCloseButton", "StoryMenuButton", "RecenterButton", "LessonButton", "StartOverButton", "QuitButton" },
         };
         // Flat over the leaf, like the leaf's own buttons (owner, headset 2026-11-08: the tilted tray was hard to read and
         // covered the Menu button): its own Close sits where Menu is.
@@ -1998,6 +2033,16 @@ namespace RoomOrchestra.EditorTools
             UiIcon("Together", go.transform, mark);
             Localize(Label("TogetherLabel", UiText.Get(UiTerm.Together, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 2f), UiTerm.Together);
             go.AddComponent<TogetherButton>();
+        }
+
+        // Menu: Story (owner, 2026-11-26: "place an option there to play the story mode"): the portal ring with the
+        // World Tree inside.
+        static void CreateStoryMenuButton(Vector3 position, Transform root, Material slab, Material mark)
+        {
+            var go = SmallButton("StoryMenuButton", position, root, slab, "StorySlab");
+            UiIcon("Story", go.transform, mark);
+            Localize(Label("StoryMenuLabel", UiText.Get(UiTerm.TitleStory, UiLanguage.English), go.transform, SmallLabelOffset, SmallLabelHeight * 1.25f), UiTerm.TitleStory);
+            go.AddComponent<StoryMenuButton>();
         }
 
         static void CreateQuitButton(Vector3 position, Transform root, Material slab, Material mark)
@@ -2195,6 +2240,7 @@ namespace RoomOrchestra.EditorTools
         {
             { InstrumentType.Udu, -0.45f },   // in the gap right of the table
             { InstrumentType.Mbira, 0.47f },  // right of the chair, clear of its orbit ring
+            { InstrumentType.Handpan, 0.47f }, // the chair's instrument since 2026-11-26 (owner)
             { InstrumentType.Erhu, 1.53f },   // right of the lamp, clear of its orbit ring
         };
         const float ColumnBottom = 0.55f, ColumnStep = 0.15f;
