@@ -72,8 +72,13 @@ Cut order if late: Chord Discords, boss phases, Level 3. Sandbox and Battle must
 
 - 2026-11-26: v6.0 (code 44): the both-fists exit removed (owner: "I don't think the two fists to leave is a good idea anymore"); Leave (asks first) and Pause on the buttons.
 
+- 2026-11-26 (after v6.0): **the title card's three ways in** (owner: layout A "with hand prints for each"): Story (gold), Sandbox (green), Play together (blue), each a high-five handprint with bare hands; Quit a small plate in the corner. Story from the title skips nothing (the sandbox's lesson waits for the sandbox). **Echo Battle review fixes:** the circling echo friends are triggers (throws pass through, taps still work); tune ideas for the caller (Twinkle, Mary, Hot Cross Buns, Row Your Boat, Frère Jacques, Old MacDonald; public domain, D major pentatonic); the room scan no longer waits 45 s at 0% (gives up after 8 s with no scan, or 10 s with no growth, and Flutter says why). **Story mode in Chinese** (`Core/StoryText.cs`; written by Claude, a native speaker should review); the label font rebuilt (640 characters, atlas 2048x2048 at 56). EditMode 302/302, PlayMode 129/129. APK `Builds/LittleEchoes-v6.0-dec-items.apk`.
+
+- 2026-11-26: v6.1 (code 45): Story on the menu's first row (the floating sign removed; collected cards on Story's first card); leaving Story chosen on the title goes back to the title (the sandbox's opening waits until Sandbox is chosen); boss fight sends a little Discord for a friend that can't crack the shell; Easy aim on/off made clearly different; room-filling warnings; button pinch during play after a short look; flick grace for snaps that peak against the thumb; a press held over Leave no longer reaches the sandbox; story music always on the handpan. EditMode 305/305, PlayMode 130/130. Release notes `docs/RELEASE_NOTES_v6.1.md`.
+
 ## Next
-1. Owner listens to the handpan (and the gentler Flutter on it) in a full sandbox song; shorten its ring if muddy.
+1. Owner tests the title choices, the battle tune ideas, the scan, and Chinese story text; a native Chinese speaker reviews StoryText.
+2. Owner listens to the handpan (and the gentler Flutter on it) in a full sandbox song; shorten its ring if muddy.
 2. The title sign's Story / Sandbox / Battle chooser (preview first); Chinese text for story mode.
 3. The reviewer's Echo Battle feedback (memory: reviewer-feedback-v5).
 2. (Done in grey-box) Feel prototype in the scene: a palm anchor on the left hand (hand tracking and controller), the current friend shown there (real model, small), a flick detector (fingertip speed and direction from the right hand; pinch-release fallback), a launched friend flying out, one Discord kind spawning from a placeholder portal, hit/miss, Hold by palm flip (palm normal turning down then up).

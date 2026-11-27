@@ -8,6 +8,13 @@ namespace RoomOrchestra.Tests
     public class StoryRulesTests
     {
         [Test]
+        public void BeatenByIsTheOtherWayRound()
+        {
+            foreach (OrbType f in new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom })
+                Assert.IsTrue(StoryRules.Matches(f, StoryRules.BeatenBy(f)), $"{f} beats the Discord the Grumble spits out for it");
+        }
+
+        [Test]
         public void EachDiscordIsBeatenByExactlyOneFriend()
         {
             Assert.AreEqual(OrbType.Flutter, StoryRules.Beats(DiscordKind.Squeak));

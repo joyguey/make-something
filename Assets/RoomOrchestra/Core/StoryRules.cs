@@ -26,6 +26,14 @@ namespace RoomOrchestra
         };
 
         public static bool Matches(OrbType friend, DiscordKind kind) => Beats(kind) == friend;
+
+        /// <summary>The Discord <paramref name="friend"/> beats.</summary>
+        public static DiscordKind BeatenBy(OrbType friend) => friend switch
+        {
+            OrbType.Flutter => DiscordKind.Squeak,
+            OrbType.Bop => DiscordKind.Wobbler,
+            _ => DiscordKind.Clang,
+        };
     }
 
     /// <summary>

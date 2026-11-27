@@ -753,14 +753,15 @@ namespace RoomOrchestra.Tests
             Assert.Less(ballBearing, 50f, "and inside the view when looking at the sign");
             var arc = GameObject.Find("RoomOrchestra").transform.Find("AimArc");
             Assert.Less(Vector3.Distance(arc.localPosition, stand.position - DispenserHome), 1e-3f, "the aim arc starts with the stand, offset once (never more)");
-            var start = title.Card.GetComponentInChildren<TitleStartButton>();
-            Assert.IsNotNull(start, "a Start button");
-            Assert.Greater(Mathf.Abs(title.Card.InverseTransformPoint(start.transform.position).x), 0.15f, "off the centre line, clear of PICO's window handle");
+            // three ways in, side by side (owner, 2026-11-26: Story, Sandbox, Play together; layout A)
+            var choices = title.Card.GetComponentsInChildren<TitleStartButton>().OrderBy(c => title.Card.InverseTransformPoint(c.transform.position).x).ToArray();
+            CollectionAssert.AreEqual(new[] { TitleChoice.Story, TitleChoice.Sandbox, TitleChoice.Together }, choices.Select(c => c.Choice), "left to right");
+            var start = choices[0];
             var hit = start.GetComponentInChildren<Collider>();
             Assert.IsNotNull(hit, "Start is tappable");
             Assert.IsTrue(InstrumentInputRouter.PressableOwner(hit.gameObject) is TitleStartButton, "and the pointer knows it can tap it (its ray turns gold)");
             var texts = title.Card.GetComponentsInChildren<LocalizedLabel>().Select(l => l.TextFor(UiLanguage.English)).ToArray();
-            CollectionAssert.Contains(texts, "Start");
+            CollectionAssert.IsSupersetOf(texts, new[] { "Story", "Sandbox", "Play together", "Quit" });
             CollectionAssert.Contains(texts, "A mixed-reality musical playground");
             var letters = title.Card.Find("Hanging/TitleLettering").GetComponentsInChildren<MeshFilter>();
             Assert.AreEqual(2, letters.Length, "the key-art lettering: cream letters on a plum outline");

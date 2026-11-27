@@ -2,9 +2,16 @@ using UnityEngine;
 
 namespace RoomOrchestra
 {
-    /// <summary>The title card's Start button: a tap begins the game (its tap collider is on its visible leaf).</summary>
+    /// <summary>One of the title card's choices (Story, Sandbox, Play together): a tap, or a high five on its print,
+    /// begins the game that way (its tap collider is on its visible leaf).</summary>
     public class TitleStartButton : MonoBehaviour
     {
-        public void Press() => TitleScreen.Instance?.Begin();
+        [SerializeField] TitleChoice choice = TitleChoice.Sandbox;
+
+        public TitleChoice Choice => choice;
+
+        public void Configure(TitleChoice which) => choice = which;
+
+        public void Press() => TitleScreen.Instance?.Begin(choice);
     }
 }

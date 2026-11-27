@@ -47,7 +47,10 @@ namespace RoomOrchestra.Tests
         {
             var story = StoryDirector.Instance;
             Assert.IsNotNull(story, "a story director in the sandbox scene");
-            Assert.IsNotNull(GameObject.Find("StoryTestSign"), "the Play Story sign above the leaf");
+            Assert.IsNull(GameObject.Find("StoryTestSign"), "no floating Play Story sign (owner, 2026-11-26)");
+            var menuStory = Object.FindFirstObjectByType<StoryMenuButton>(FindObjectsInactive.Include);
+            Assert.IsNotNull(menuStory, "Story is on the menu");
+            Assert.IsTrue(menuStory.transform.IsChildOf(Object.FindFirstObjectByType<MenuTray>(FindObjectsInactive.Include).transform), "on the menu tray");
             var router = Object.FindFirstObjectByType<InstrumentInputRouter>();
             var camera = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None).First(c => c.CompareTag("MainCamera"));
             int maskBefore = camera.cullingMask;
@@ -56,7 +59,7 @@ namespace RoomOrchestra.Tests
             var token = Object.FindObjectsByType<OrbToken>(FindObjectsSortMode.None).First().GetComponentInChildren<Renderer>();
             Assert.IsTrue(token.enabled);
 
-            GameObject.Find("StoryTestSticker").GetComponent<StoryStartSticker>().Press();
+            menuStory.Press();
             yield return null;
             Assert.IsTrue(story.Running);
             Assert.AreEqual(StoryDirector.Stage.Intro, story.Current);
@@ -64,7 +67,6 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(token.enabled, "without touching the sandbox's own pictures");
             Assert.IsFalse(router.enabled, "the sandbox's taps pause");
             Assert.IsNotNull(GameObject.Find("StoryStage"), "the portal and its stage");
-            Assert.IsFalse(GameObject.Find("StoryTestSign") != null && GameObject.Find("StoryTestSign").activeInHierarchy, "the sign hides while story plays");
             Assert.IsTrue(HandOutline.Wanted, "the hands' outlines show in story mode");
             for (int i = 0; i < 30; i++) yield return null;
 
@@ -92,7 +94,6 @@ namespace RoomOrchestra.Tests
             Assert.IsTrue(token.enabled);
             Assert.IsFalse(story.CameraOnStory);
             Assert.IsNull(GameObject.Find("StoryStage"));
-            Assert.IsTrue(GameObject.Find("StoryTestSign").activeInHierarchy, "the sign is back");
             Assert.AreEqual(maskBefore, camera.cullingMask, "the camera draws everything it drew before");
             if (hands != null) CollectionAssert.AreEqual(handLayers, hands.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject.layer).ToArray(), "the hands back on their own layer");
         }

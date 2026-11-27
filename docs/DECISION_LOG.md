@@ -195,3 +195,6 @@ After listening on the emulator (phase6l = A vs phase7-synth = B), the owner pre
 
 - 2026-11-26 (owner): the handpan replaces the mbira as the chair's instrument in both modes; the mbira stays in the library. Story mode is three levels: Udu, Erhu, Handpan. Restoring an instrument in story is a bonus, never a sandbox lock.
 - 2026-11-26 (owner): Flutter on the handpan is gentler (it was too chirpy); the discovery that Bop and Boom ring best on the handpan is kept.
+- 2026-11-26 (owner): the title card offers Story, Sandbox and Play together (layout A with handprints); Story goes straight in, and leaving Story chosen there returns to the title card. The sandbox's opening waits until Sandbox is chosen.
+- 2026-11-26 (owner): Story is on the menu's first row; the floating Play Story sign is removed.
+- 2026-11-26 (owner): in the boss fight every friend should have a target: the Grumble sends a little Discord for a friend that can't crack the current shell. Easy aim on/off made clearly different.

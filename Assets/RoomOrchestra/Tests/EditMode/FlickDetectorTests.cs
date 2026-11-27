@@ -41,6 +41,27 @@ namespace RoomOrchestra.Tests
         }
 
         [Test]
+        public void ASnapThatPeaksBeforeTheFingerLeavesTheThumbStillFires()
+        {
+            // headset 2026-11-26: real snaps of 0.7 to 1 m/s peaked while the finger still touched the thumb and were lost
+            var f = new FlickDetector(); float t = 0f; var dir = Vector3.zero;
+            var palm = Friend + new Vector3(0.06f, 0f, -0.06f);
+            Run(f, ref t, palm, 0.05f, 0.05f, 10, ref dir);
+            Assert.AreEqual(0, Run(f, ref t, palm, 0.05f, 0.08f, 2, ref dir), "fast, but still against the thumb");
+            Assert.AreEqual(1, Run(f, ref t, palm, 0.08f, 0.09f, 6, ref dir), "leaving the thumb just after: the snap counts, once");
+            Assert.Greater(Vector3.Dot(dir, Vector3.forward), 0.9f);
+        }
+
+        [Test]
+        public void AFingerEasingOffTheThumbSlowlyIsNotAFlick()
+        {
+            var f = new FlickDetector(); float t = 0f; var dir = Vector3.zero;
+            var palm = Friend + new Vector3(0.06f, 0f, -0.06f);
+            Run(f, ref t, palm, 0.05f, 0.05f, 10, ref dir);
+            Assert.AreEqual(0, Run(f, ref t, palm, 0.05f, 0.1f, 60, ref dir), "about 0.06 m/s: no flick");
+        }
+
+        [Test]
         public void AWholeHandSwipeIsNotAFlick()
         {
             var f = new FlickDetector(); float t = 0f;

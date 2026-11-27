@@ -72,7 +72,13 @@ namespace RoomOrchestra
             rayHot = hot;
         }
 
-        void OnEnable() => MusicalHitPipeline.Committed += FeelHit;
+        void OnEnable()
+        {
+            MusicalHitPipeline.Committed += FeelHit;
+            // Coming back on (after Story, owner's headset 2026-11-26): a press still held from the press that switched
+            // us back on (Story's Leave) is not a new press, or it placed an instrument in the room behind Story.
+            m_WasSelect[0] = m_WasSelect[1] = true;
+        }
         void OnDisable() => MusicalHitPipeline.Committed -= FeelHit;
         static void FeelHit(MusicalHitEvent hit) => Haptics.Hit(hit.Orb);
 

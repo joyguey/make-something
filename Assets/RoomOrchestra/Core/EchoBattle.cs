@@ -34,6 +34,33 @@ namespace RoomOrchestra
     public static class EchoBattleRules
     {
         public const int MaxNotes = 4, Rounds = 3;
+
+        /// <summary>
+        /// Tune ideas for the caller (PICO review of v5.0.1: "Can you add more example songs?"): the openings of
+        /// well-known public-domain children's songs that fit the game's five notes (D E F# A B, note indices 0-4) in
+        /// at most <see cref="MaxNotes"/> notes. Suggestions only: any call is fine.
+        /// </summary>
+        public static readonly (UiTerm Name, int[] Notes)[] TuneIdeas =
+        {
+            (UiTerm.TuneTwinkle, new[] { 0, 0, 3, 3 }),       // D D A A
+            (UiTerm.TuneMary, new[] { 2, 1, 0, 1 }),          // F# E D E
+            (UiTerm.TuneHotCrossBuns, new[] { 2, 1, 0 }),     // F# E D
+            (UiTerm.TuneRowYourBoat, new[] { 0, 0, 0, 1 }),   // D D D E
+            (UiTerm.TuneFrereJacques, new[] { 0, 1, 2, 0 }),  // D E F# D
+            (UiTerm.TuneOldMacDonald, new[] { 0, 0, 0, 3 }),  // D D D A
+        };
+
+        /// <summary>The idea for a call: a different one each round, starting from <paramref name="seed"/>.</summary>
+        public static (UiTerm Name, int[] Notes) IdeaFor(int round, int seed) =>
+            TuneIdeas[(((round - 1 + seed) % TuneIdeas.Length) + TuneIdeas.Length) % TuneIdeas.Length];
+
+        /// <summary>"D D A A": the idea's notes by name.</summary>
+        public static string NoteNames(int[] notes)
+        {
+            var names = new string[notes.Length];
+            for (int i = 0; i < notes.Length; i++) names[i] = NoteMapping.NoteName(notes[i]);
+            return string.Join(" ", names);
+        }
         public const int ExactPoints = 2, NearPoints = 1, StepTolerance = 1;
 
         public static int MaxScore(int callNotes) => callNotes * ExactPoints;

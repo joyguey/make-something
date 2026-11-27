@@ -81,7 +81,8 @@ namespace RoomOrchestra
                 if (t.VoiceFor(OrbType.Bop, 0) == null) continue;
                 var type = t.Instrument;
                 if (m_Drum == null && (type == InstrumentType.Udu || type == InstrumentType.SlitDrum)) m_Drum = t;
-                else if (m_Pluck == null && (type == InstrumentType.Handpan || type == InstrumentType.Mbira || type == InstrumentType.Guzheng || type == InstrumentType.Balafon)) m_Pluck = t;
+                else if (type == InstrumentType.Handpan && (m_Pluck == null || m_Pluck.Instrument != InstrumentType.Handpan)) m_Pluck = t; // the handpan always, when it's there (headset 2026-11-26: the Mbira was picked)
+                else if (m_Pluck == null && (type == InstrumentType.Mbira || type == InstrumentType.Guzheng || type == InstrumentType.Balafon)) m_Pluck = t;
                 else if (m_Sing == null && Instruments.Sustained(type)) m_Sing = t;
             }
             Debug.Log($"[RoomOrchestra] Story music: drum {(m_Drum != null ? m_Drum.Instrument.ToString() : "synth")}, pluck {(m_Pluck != null ? m_Pluck.Instrument.ToString() : "none")}, melody {(m_Sing != null ? m_Sing.Instrument.ToString() : (m_Pluck != null ? m_Pluck.Instrument.ToString() : "synth"))}");

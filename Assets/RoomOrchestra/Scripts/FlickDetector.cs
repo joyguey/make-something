@@ -28,10 +28,15 @@ namespace RoomOrchestra
         public const float MinSnap = 0.55f, MaxSnap = 6f;
         /// <summary>A snap counts within this long of the finger being loaded and near the friend (s).</summary>
         public const float LoadMemory = 0.35f, NearMemory = 0.25f, Cooldown = 0.3f;
+        /// <summary>A snap that peaked while the finger was still against the thumb counts if the finger leaves it within
+        /// this long (s) (headset 2026-11-26: snaps of 0.7 to 1 m/s were missed because they peaked before the finger
+        /// let go of the thumb).</summary>
+        public const float SnapGrace = 0.1f;
 
         Vector3 m_LastRel, m_RelVelocity;
         bool m_Have, m_Armed = true, m_WasNear;
-        float m_LoadedAt = -9f, m_NearAt = -9f, m_ReadyAt, m_Peak;
+        float m_LoadedAt = -9f, m_NearAt = -9f, m_ReadyAt, m_Peak, m_SnapAt = -9f;
+        Vector3 m_SnapDir;
 
         /// <summary>The finger's speed away from the palm now (m/s; negative when curling in).</summary>
         public float Speed { get; private set; }
@@ -47,7 +52,7 @@ namespace RoomOrchestra
         public float MissedPeak { get; private set; } = -1f;
 
         /// <summary>No hand this frame: forget the motion, so its return isn't a jump.</summary>
-        public void Lost() { m_Have = false; m_RelVelocity = Vector3.zero; Near = false; }
+        public void Lost() { m_Have = false; m_RelVelocity = Vector3.zero; Near = false; m_SnapAt = -9f; }
 
         /// <summary>One frame. True with the flick's direction when a flick fires.</summary>
         public bool Step(FlickHand h, float now, float dt, out Vector3 direction)
@@ -74,14 +79,17 @@ namespace RoomOrchestra
             if (ready) m_Peak = Math.Max(m_Peak, Speed);
             else if (m_WasNear) { MissedPeak = m_Peak; m_Peak = 0f; }
             m_WasNear = ready;
-            if (!ready || loaded || now < m_ReadyAt || Speed < MinSnap) return false;
             // the snap: the way the finger shot out, leaning toward where it points
-            direction = (m_RelVelocity.normalized * 0.7f + rel.normalized * 0.3f).normalized;
+            if (ready && Speed >= MinSnap) { m_SnapAt = now; m_SnapDir = (m_RelVelocity.normalized * 0.7f + rel.normalized * 0.3f).normalized; }
+            bool snapping = Speed >= MinSnap || now - m_SnapAt <= SnapGrace;
+            if (!ready || loaded || now < m_ReadyAt || !snapping) return false;
+            direction = Speed >= MinSnap ? (m_RelVelocity.normalized * 0.7f + rel.normalized * 0.3f).normalized : m_SnapDir;
             m_ReadyAt = now + Cooldown;
             m_Armed = false;
             m_WasNear = false;
             Near = false;
             m_Peak = 0f;
+            m_SnapAt = -9f;
             return true;
         }
 

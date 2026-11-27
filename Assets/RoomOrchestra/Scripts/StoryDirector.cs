@@ -86,14 +86,13 @@ namespace RoomOrchestra
         StoryAudio m_Audio;
         InstrumentInputRouter m_Router;
         LeafGrab m_LeafGrab;
-        GameObject m_Sign, m_EndStars;
+        GameObject m_EndStars;
         List<DiscordKind> m_Dealt;
         int m_Spawned;
-        float m_T, m_StageAt, m_NextSpawn, m_BannerUntil, m_PortalScale = 1f, m_PortalTarget = 1f, m_NextPalmLog, m_GrumbleHitAt = -9f, m_NextMinion;
-        bool m_UsingHands = true, m_ChorusShown, m_HoldTaught; // hands by default (owner, 2026-11-25)
-        Transform m_Card, m_SandboxCard;
+        float m_T, m_StageAt, m_NextSpawn, m_BannerUntil, m_PortalScale = 1f, m_PortalTarget = 1f, m_NextPalmLog, m_GrumbleHitAt = -9f, m_NextMinion, m_NextForPalm;
+        bool m_UsingHands = true, m_ChorusShown, m_HoldTaught; int m_RoomWarned; // hands by default (owner, 2026-11-25)
+        Transform m_Card;
         bool m_CardHands, m_CardCollected;
-        GameObject m_SignCardIcon;
         Vector3 m_Forward, m_Right;
         float m_StageScale = 1f;
         // the story: the meadow's colour (0 grey, 1 full), brought back by each Discord turned into a note
@@ -101,12 +100,23 @@ namespace RoomOrchestra
         float m_Bloom, m_BloomTarget, m_Progress, m_GreyPulse, m_WatchFlashUntil = -9f, m_StreakLostUntil = -9f;
         int m_Restored;
         bool m_ChorusBossDone;
-        TMP_Text m_BossText, m_SignBadge;
+        TMP_Text m_BossText;
+
+
         int m_LevelIndex;
         Vector3 m_WorldCentre; Quaternion m_WorldFacing;
         /// <summary>Which level (0 = Level 1).</summary>
         public int LevelIndex => m_LevelIndex;
         InstrumentLore Lore => StoryLore.Levels[m_LevelIndex];
+
+        // Story's words in the player's language (StoryText; owner, 2026-11-26: Chinese for story mode)
+        static string T(string english) => StoryText.In(english, Localization.Current);
+        static string F(string english, params object[] args) => string.Format(T(english), args);
+        static bool Chinese => Localization.Current == UiLanguage.Chinese;
+        static string FriendName(OrbType f) => UiText.Get(f == OrbType.Flutter ? UiTerm.Flutter : f == OrbType.Bop ? UiTerm.Bop : UiTerm.Boom, Localization.Current);
+        static string InstrumentName(InstrumentLore lore) => Chinese ? UiText.Name(lore.Instrument, UiLanguage.Chinese) : lore.Name;
+        string TheInstrument => Chinese ? UiText.Name(Lore.Instrument, UiLanguage.Chinese) : $"The {Lore.Name}";
+        string CardIntro => F("{0} from {1}.", T(Lore.Kind), T(Lore.People));
         bool Restored(int index) => PlayerPrefs.GetInt(StoryLore.RestoredKey(StoryLore.Levels[index].Instrument), 0) == 1;
         /// <summary>A level is open once the one before it has restored its instrument (story order only; the sandbox is never locked).</summary>
         bool Open(int index) => index == 0 || (index < StoryLore.Levels.Length && Restored(index - 1));
@@ -155,92 +165,24 @@ namespace RoomOrchestra
             StoryArt.PrepareFriends(transform);
             m_Audio = new GameObject("StoryAudio").AddComponent<StoryAudio>();
             m_Audio.transform.SetParent(transform, false);
-            MakeStartSign();
-        }
-
-        // ---------- the entry: a "Play Story" sign standing above the leaf's own row ----------
-        void MakeStartSign()
-        {
-            // owner, headset 2026-11-25: the first sticker (beside the leaf) was hard to find. A big upright sign above
-            // the middle of the leaf's row (Come here, Menu, Undo, Pause, Clear), facing the player. Static.
-            var menu = GameObject.Find("MenuButton");
-            var intro = IntroSequence.Instance;
-            var anchor = menu != null ? menu.transform : intro != null ? intro.Leaf : null;
-            if (anchor == null) return;
-            var sign = new GameObject("StoryTestSign").transform;
-            sign.SetParent(anchor.parent != null ? anchor.parent : anchor, true);
-            var head = Camera.main != null ? Camera.main.transform.position : anchor.position - anchor.forward;
-            var away = Vector3.ProjectOnPlane(anchor.position - head, Vector3.up);
-            if (away.sqrMagnitude < 1e-4f) away = Vector3.forward;
-            sign.rotation = Quaternion.LookRotation(away.normalized); // reads toward the player
-            // beside the leaf's right end (render check 2026-11-25: above the row it covered the friends on the leaf)
-            float rightEnd = Vector3.Dot(anchor.position, sign.right) + 0.6f;
-            if (intro != null && intro.Leaf != null)
-                foreach (var lr in intro.Leaf.GetComponentsInChildren<Renderer>(true))
-                {
-                    var b = lr.bounds; if (b.size == Vector3.zero) continue;
-                    float reach = Vector3.Dot(b.center, sign.right) + Mathf.Abs(sign.right.x) * b.extents.x + Mathf.Abs(sign.right.z) * b.extents.z;
-                    if (reach < Vector3.Dot(anchor.position, sign.right) + 1.2f) rightEnd = Mathf.Max(rightEnd, reach);
-                }
-            sign.position = anchor.position + sign.right * (rightEnd - Vector3.Dot(anchor.position, sign.right) + 0.2f) + Vector3.up * 0.12f;
-            var panel = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            panel.name = "StoryTestSticker";
-            panel.transform.SetParent(sign, false);
-            panel.transform.localScale = new Vector3(0.28f, 0.09f, 0.025f);
-            var r = panel.GetComponent<MeshRenderer>(); r.sharedMaterial = StoryArt.Lit(new Color(1f, 0.82f, 0.3f), 0.5f); r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            panel.AddComponent<StoryStartSticker>();
-            StoryArt.Words(sign, "Play Story", new Vector3(0f, 0f, -0.014f), 0.05f, new Color(0.227f, 0.176f, 0.333f), 0.5f).textWrappingMode = TextWrappingModes.NoWrap;
-            // the three friends standing on top, small
-            var friends = new[] { OrbType.Flutter, OrbType.Bop, OrbType.Boom };
-            for (int i = 0; i < 3; i++)
-            {
-                var f = StoryArt.Friend(friends[i], 0.04f, sign);
-                f.localPosition = new Vector3((i - 1) * 0.07f, 0.07f, 0f);
-                f.localRotation = Quaternion.identity; // the sign's +z is away from the player, so their faces show
-            }
-            m_SignBadge = StoryArt.Words(sign, "", new Vector3(0f, -0.085f, -0.014f), 0.03f, new Color(1f, 0.8f, 0.3f), 0.5f);
-            m_SignBadge.textWrappingMode = TextWrappingModes.NoWrap;
-            var icon = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            icon.name = "StoryCardIcon";
-            icon.transform.SetParent(sign, false);
-            icon.transform.localPosition = new Vector3(0.2f, -0.085f, -0.005f);
-            icon.transform.localScale = new Vector3(0.045f, 0.06f, 0.008f);
-            var ir = icon.GetComponent<MeshRenderer>(); ir.sharedMaterial = StoryArt.Lit(StoryArt.CardGold, 0.6f); ir.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            icon.AddComponent<StoryCardIcon>();
-            m_SignCardIcon = icon;
-            RefreshSignBadge();
-            StoryArt.SetLayer(sign.gameObject, 0); // the sign belongs to the sandbox's view, not story mode's
-            m_Sign = sign.gameObject;
-            Debug.Log($"[RoomOrchestra] Story: Play Story sign above the leaf at {sign.position}");
-        }
-
-        /// <summary>The Play Story sign turns where it stands to face the player (headset 2026-11-25: it faced off to the
-        /// right: it was aimed once while the leaf was still floating in). It never moves toward the player.</summary>
-        void FaceSign()
-        {
-            if (m_Sign == null || !m_Sign.activeInHierarchy || Camera.main == null) return;
-            var away = Vector3.ProjectOnPlane(m_Sign.transform.position - Camera.main.transform.position, Vector3.up);
-            if (away.sqrMagnitude < 1e-4f) return;
-            m_Sign.transform.rotation = Quaternion.Slerp(m_Sign.transform.rotation, Quaternion.LookRotation(away.normalized), Time.deltaTime * 4f);
-        }
-
-        /// <summary>Under the Play Story sign: the instruments the player has restored (a bonus to show, never a lock).</summary>
-        void RefreshSignBadge()
-        {
-            if (m_SignBadge == null) return;
-            var restored = new List<string>();
-            foreach (var lore in StoryLore.Levels) if (PlayerPrefs.GetInt(StoryLore.RestoredKey(lore.Instrument), 0) == 1) restored.Add(lore.Name);
-            m_SignBadge.text = restored.Count == 0 ? "" : $"Restored: {string.Join(", ", restored)}";
-            if (m_SignCardIcon != null) m_SignCardIcon.SetActive(restored.Count > 0);
         }
 
         // ---------- begin and end ----------
-        public void Begin()
+        /// <summary>Story chosen on the title card: begin, leaving the sandbox's lesson for the first time the player
+        /// plays the sandbox (owner, 2026-11-26: "Straight into Story").</summary>
+        public void BeginFromTitle() { Begin(skipLesson: false); m_FromTitle = Running; }
+
+        /// <summary>Story was chosen on the title card: Leave goes back to the card.</summary>
+        bool m_FromTitle;
+
+        public void Begin() => Begin(skipLesson: true);
+
+        void Begin(bool skipLesson)
         {
             if (Running) return;
             if (EchoBattleDirector.Instance != null && EchoBattleDirector.Instance.Shown) return; // not during a battle
             var lesson = TutorialDirector.Instance;
-            if (lesson != null && lesson.Active) lesson.Skip();
+            if (skipLesson && lesson != null && lesson.Active) lesson.Skip();
             MenuTray.Instance?.SetOpen(false);
             StoryArt.PrepareFriends(transform); // before hiding the sandbox: copies come from the leaf's friends
             m_Router = FindFirstObjectByType<InstrumentInputRouter>();
@@ -249,8 +191,6 @@ namespace RoomOrchestra
             if (m_Router != null) m_Router.enabled = false; // the sandbox's taps pause; its pointer source is still read here
             EchoConductor.Instance?.SetSongMuted(true);
             HideSandbox();
-            if (m_SandboxCard != null) { Destroy(m_SandboxCard.gameObject); m_SandboxCard = null; }
-            if (m_Sign != null) m_Sign.SetActive(false);
             m_LevelIndex = 0;
             for (int i = 0; i < StoryLore.Levels.Length; i++) if (Open(i)) m_LevelIndex = i;   // the furthest level reached
             for (int i = 0; i < StoryLore.Levels.Length; i++) if (Open(i) && !Restored(i)) { m_LevelIndex = i; break; } // or the first still to mend
@@ -277,8 +217,7 @@ namespace RoomOrchestra
             if (m_LeafGrab != null) m_LeafGrab.enabled = true;
             if (m_Router != null) m_Router.enabled = true;
             EchoConductor.Instance?.SetSongMuted(false);
-            if (m_Sign != null) m_Sign.SetActive(true);
-            RefreshSignBadge();
+            if (m_FromTitle) { m_FromTitle = false; TitleScreen.Instance?.ShowAgain(); } // back to the sign post to choose
         }
 
         void OnApplicationPause(bool paused) { if (paused && Running && !Paused && Current != Stage.Won && Current != Stage.Lost) SetPaused(true); }
@@ -360,8 +299,8 @@ namespace RoomOrchestra
             m_WavePips = StoryArt.Words(m_Hud, "", new Vector3(0f, 0.97f, 0f), 0.045f, cream, 2f);
             m_Banner = StoryArt.Words(m_Hud, "", new Vector3(0f, 0.87f, 0f), 0.065f, new Color(1f, 0.9f, 0.5f), 2.2f);
             m_Caption = StoryArt.Words(m_Hud, "", new Vector3(0f, -0.92f, 0f), 0.05f, cream, 1.9f);
-            StoryArt.Words(m_Hud, "Harmony", new Vector3(0.98f, 0f, 0f), 0.04f, new Color(1f, 0.82f, 0.4f), 0.5f);
-            StoryArt.Words(m_Hud, "Discord", new Vector3(-0.98f, 0f, 0f), 0.04f, new Color(0.75f, 0.72f, 0.82f), 0.5f);
+            StoryArt.Words(m_Hud, T("Harmony"), new Vector3(0.98f, 0f, 0f), 0.04f, new Color(1f, 0.82f, 0.4f), 0.5f);
+            StoryArt.Words(m_Hud, T("Discord"), new Vector3(-0.98f, 0f, 0f), 0.04f, new Color(0.75f, 0.72f, 0.82f), 0.5f);
             // the buttons, under the caption
             for (int i = 0; i < 3; i++)
             {
@@ -423,7 +362,7 @@ namespace RoomOrchestra
             ClearLevel();
             Level = StoryLevel.All[Mathf.Clamp(m_LevelIndex, 0, StoryLevel.All.Length - 1)];
             BuildWorld();
-            if (m_Title != null) m_Title.text = $"Level {Level.Number}: {Level.Name}";
+            if (m_Title != null) m_Title.text = F("Level {0}: {1}", Level.Number, T(Level.Name));
             m_Audio.SetRepairRole(Lore.Role);
             Queue = new FriendQueue(System.Environment.TickCount);
             Meter = new DiscordMeter(MeterAssist);
@@ -431,7 +370,7 @@ namespace RoomOrchestra
             m_LastStreakShown = 0;
             Boss = null;
             Beaten = Wrong = 0; MeterPeak = 0f; Stars = 0; WaveIndex = 0;
-            m_T = 0f; m_PortalScale = 0.2f; m_PortalTarget = 0.7f; m_ChorusShown = false; m_HoldTaught = false;
+            m_T = 0f; m_PortalScale = 0.2f; m_PortalTarget = 0.7f; m_ChorusShown = false; m_HoldTaught = false; m_RoomWarned = 0;
             m_Restored = 0; m_Bloom = m_BloomTarget = 0.12f; m_Progress = 0f; m_GreyPulse = 0f;
             foreach (var n in m_Notes) if (n.T != null) Destroy(n.T.gameObject);
             m_Notes.Clear();
@@ -473,8 +412,8 @@ namespace RoomOrchestra
                 m_Dealt = StoryLevel.Deal(wave, System.Environment.TickCount + WaveIndex);
                 m_Spawned = 0;
                 m_Audio.Layers = WaveIndex >= 1 ? 1 : 0;
-                Say((WaveIndex > 0 ? "The friends walk on toward the World Tree... " : "") + (wave.Text ?? Cue(wave.Cue)));
-                m_Banner.text = $"Wave {WaveIndex + 1}";
+                Say((WaveIndex > 0 ? T("The friends walk on toward the World Tree... ") : "") + T(wave.Text ?? Cue(wave.Cue)));
+                m_Banner.text = F("Wave {0}", WaveIndex + 1);
                 m_BannerUntil = m_T + 2.5f;
             }
             Pips();
@@ -509,22 +448,31 @@ namespace RoomOrchestra
 
         void ClearCard() { if (m_Card != null) Destroy(m_Card.gameObject); m_Card = null; }
 
-        string HowToPlay() => Hands()
+        string HowToPlay() => T(Hands()
             ? "HOW TO PLAY\nHold your left hand open: a friend sits on your palm. Curl your right index finger against your thumb beside it, then flick it at a Discord. Each Discord shows the friend that beats it. Flip your left hand over and back to swap friends."
-            : "HOW TO PLAY\nA friend sits by your left controller. Point your right controller at a Discord and pull the trigger. Each Discord shows the friend that beats it. Pull the left trigger to swap friends.";
+            : "HOW TO PLAY\nA friend sits by your left controller. Point your right controller at a Discord and pull the trigger. Each Discord shows the friend that beats it. Pull the left trigger to swap friends.");
 
         void ShowIntroCard()
         {
             ClearCard();
             m_CardHands = Hands();
-            var body = $"{Lore.Kind} from {Lore.People}.\n\n{Lore.Broken} Help Flutter, Bop and Boom mend it!\n\n{HowToPlay()}";
-            m_Card = StoryArt.Card(m_Root, Lore.Instrument, $"Level {m_LevelIndex + 1}: The {Lore.Name}", body, 0.9f, 1.2f);
-            StoryButton.Create(m_Card, new Vector3(0f, -0.68f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, BeginLevel, "CardButton").SetLabel("Begin");
+            var body = CardIntro + "\n\n" + F("{0} Help Flutter, Bop and Boom mend it!", T(Lore.Broken)) + "\n\n" + HowToPlay();
+            m_Card = StoryArt.Card(m_Root, Lore.Instrument, F("Level {0}: {1}", m_LevelIndex + 1, TheInstrument), body, 0.9f, 1.2f);
+            StoryButton.Create(m_Card, new Vector3(0f, -0.68f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, BeginLevel, "CardButton").SetLabel(T("Begin"));
             // the other levels reached so far, either side of Begin
             if (m_LevelIndex > 0)
-                StoryButton.Create(m_Card, new Vector3(-0.36f, -0.68f, -0.01f), StoryArt.CardFace, StoryArt.CardInk, () => ChooseLevel(m_LevelIndex - 1), "LevelButton").SetLabel($"< Level {m_LevelIndex}");
+                StoryButton.Create(m_Card, new Vector3(-0.36f, -0.68f, -0.01f), StoryArt.CardFace, StoryArt.CardInk, () => ChooseLevel(m_LevelIndex - 1), "LevelButton").SetLabel(F("< Level {0}", m_LevelIndex));
             if (Open(m_LevelIndex + 1))
-                StoryButton.Create(m_Card, new Vector3(0.36f, -0.68f, -0.01f), StoryArt.CardFace, StoryArt.CardInk, () => ChooseLevel(m_LevelIndex + 1), "LevelButton").SetLabel($"Level {m_LevelIndex + 2} >");
+                StoryButton.Create(m_Card, new Vector3(0.36f, -0.68f, -0.01f), StoryArt.CardFace, StoryArt.CardInk, () => ChooseLevel(m_LevelIndex + 1), "LevelButton").SetLabel(F("Level {0} >", m_LevelIndex + 2));
+            // the instrument cards collected so far (a bonus, never a lock), each opens to read again
+            var collected = new List<int>();
+            for (int i = 0; i < StoryLore.Levels.Length; i++) if (Restored(i)) collected.Add(i);
+            for (int k = 0; k < collected.Count; k++)
+            {
+                int which = collected[k];
+                StoryButton.Create(m_Card, new Vector3((k - (collected.Count - 1) / 2f) * 0.36f, -0.82f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, () => ShowCollectedCard(which), "CollectedCard")
+                    .SetLabel(F("{0} card", InstrumentName(StoryLore.Levels[which])));
+            }
             PlaceCard(m_Card);
         }
 
@@ -551,20 +499,36 @@ namespace RoomOrchestra
         void ShowCollectCard()
         {
             ClearCard();
-            m_Card = StoryArt.Card(m_Root, Lore.Instrument, $"The {Lore.Name}", $"Restored! Collect its card to read its story.", 0.55f, 0.62f, bodySize: 0.04f);
-            StoryButton.Create(m_Card, new Vector3(0f, -0.22f, -0.02f), StoryArt.CardGold, StoryArt.CardInk, CollectCard, "CardButton").SetLabel("Collect"); // on the card, clear of the ring
+            m_Card = StoryArt.Card(m_Root, Lore.Instrument, TheInstrument, T("Restored! Collect its card to read its story."), 0.55f, 0.62f, bodySize: 0.04f);
+            StoryButton.Create(m_Card, new Vector3(0f, -0.22f, -0.02f), StoryArt.CardGold, StoryArt.CardInk, CollectCard, "CardButton").SetLabel(T("Collect")); // on the card, clear of the ring
             PlaceCard(m_Card);
         }
 
-        string FullCardText() => $"{Lore.Kind} from {Lore.People}.\n\n" + string.Join("\n\n", Lore.Facts);
+        string FullCardText() => FullCardText(Lore);
+
+        static string FullCardText(InstrumentLore lore) =>
+            F("{0} from {1}.", T(lore.Kind), T(lore.People)) + "\n\n" + string.Join("\n\n", System.Linq.Enumerable.Select(lore.Facts, T));
+
+        /// <summary>A collected card, opened from the intro card; Close goes back to it.</summary>
+        void ShowCollectedCard(int index)
+        {
+            if (Current != Stage.Intro) return;
+            UiSounds.Play(UiSound.Open, CardSpot);
+            ClearCard();
+            var lore = StoryLore.Levels[index];
+            m_Card = StoryArt.Card(m_Root, lore.Instrument, Chinese ? UiText.Name(lore.Instrument, UiLanguage.Chinese) : $"The {lore.Name}", FullCardText(lore), 1.05f, 1.42f, bodySize: 0.034f);
+            StoryButton.Create(m_Card, new Vector3(0f, -0.8f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, () => { UiSounds.Play(UiSound.Close, CardSpot); ShowIntroCard(); }, "CardButton").SetLabel(T("Close"));
+            PlaceCard(m_Card);
+            m_Card.position += Vector3.up * 0.12f * m_StageScale;
+        }
 
         void CollectCard()
         {
             UiSounds.Play(UiSound.Place, CardSpot);
             SaveRestored();
             ClearCard();
-            m_Card = StoryArt.Card(m_Root, Lore.Instrument, $"The {Lore.Name}", FullCardText(), 1.05f, 1.42f, bodySize: 0.034f);
-            StoryButton.Create(m_Card, new Vector3(0f, -0.8f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, CloseCard, "CardButton").SetLabel("Close");
+            m_Card = StoryArt.Card(m_Root, Lore.Instrument, TheInstrument, FullCardText(), 1.05f, 1.42f, bodySize: 0.034f);
+            StoryButton.Create(m_Card, new Vector3(0f, -0.8f, -0.01f), StoryArt.CardGold, StoryArt.CardInk, CloseCard, "CardButton").SetLabel(T("Close"));
             PlaceCard(m_Card);
             m_Card.position += Vector3.up * 0.12f * m_StageScale;
             // the card has the stage to itself while it is open
@@ -581,7 +545,7 @@ namespace RoomOrchestra
             ClearCard();
             if (m_EndStars != null) m_EndStars.SetActive(true);
             Say(m_SaidBeforeCard);
-            Banner("Card collected! Find it beside the Play Story sign.", 4f);
+            Banner(T("Card collected! Find it on Story's first card."), 4f);
         }
 
         void SaveRestored()
@@ -594,28 +558,17 @@ namespace RoomOrchestra
             Debug.Log($"[RoomOrchestra] Story: the {Lore.Name} card collected{(first ? " (first time)" : "")}");
         }
 
-        /// <summary>In the sandbox: the collected card beside the Play Story sign, shown and put away by its little icon.</summary>
-        public void ToggleSandboxCard()
-        {
-            if (m_SandboxCard != null) { Destroy(m_SandboxCard.gameObject); m_SandboxCard = null; UiSounds.Play(UiSound.Close, m_Sign.transform.position); return; }
-            if (m_Sign == null || PlayerPrefs.GetInt(StoryLore.RestoredKey(Lore.Instrument), 0) == 0) return;
-            m_SandboxCard = StoryArt.Card(m_Sign.transform, Lore.Instrument, $"The {Lore.Name}", FullCardText(), 1.05f, 1.42f, layer: 0, bodySize: 0.034f);
-            m_SandboxCard.localPosition = new Vector3(0.62f, 0.25f, 0.02f);
-            m_SandboxCard.localRotation = Quaternion.identity;
-            m_SandboxCard.localScale = Vector3.one * 0.55f;
-            UiSounds.Play(UiSound.Open, m_Sign.transform.position);
-        }
 
         void Pips()
         {
             if (Level == null || m_WavePips == null) return;
             m_WavePips.text = Current switch
             {
-                Stage.Intro => "Get ready",
-                Stage.BossCue or Stage.Boss => "The Grumble",
-                Stage.Won => "Complete!",
-                Stage.Lost => $"Wave {WaveIndex + 1} of {Level.Waves.Count}",
-                _ => $"Wave {WaveIndex + 1} of {Level.Waves.Count}, then the Grumble",
+                Stage.Intro => T("Get ready"),
+                Stage.BossCue or Stage.Boss => T("The Grumble"),
+                Stage.Won => T("Complete!"),
+                Stage.Lost => F("Wave {0} of {1}", WaveIndex + 1, Level.Waves.Count),
+                _ => F("Wave {0} of {1}, then the Grumble", WaveIndex + 1, Level.Waves.Count),
             };
         }
 
@@ -628,9 +581,9 @@ namespace RoomOrchestra
         void Labels()
         {
             if (m_Buttons[0] == null) return;
-            m_Buttons[0].SetLabel(Current == Stage.Won ? (NextReady ? "Next level" : "Play again") : Current == Stage.Lost ? "Try again" : Paused ? "Resume" : "Pause");
-            m_Buttons[1].SetLabel(Easy ? "Easy aim: on" : "Easy aim: off");
-            m_Buttons[2].SetLabel(Time.time < m_LeaveAskedUntil ? "Sure? Leave" : "Leave");
+            m_Buttons[0].SetLabel(T(Current == Stage.Won ? (NextReady ? "Next level" : "Play again") : Current == Stage.Lost ? "Try again" : Paused ? "Resume" : "Pause"));
+            m_Buttons[1].SetLabel(T(Easy ? "Easy aim: on" : "Easy aim: off"));
+            m_Buttons[2].SetLabel(T(Time.time < m_LeaveAskedUntil ? "Sure? Leave" : "Leave"));
         }
 
         void Press(int which)
@@ -652,14 +605,14 @@ namespace RoomOrchestra
                     Meter = new DiscordMeter(MeterAssist);
                     if (level > 0f) Meter.Tick(level / DiscordMeter.PerSecondEach * Meter.Assist, 1); // keep how grey the room is
                 }
-                Banner(Easy ? "Easy aim on: slower Discords, stronger aim help" : "Easy aim off", 2.5f);
+                Banner(T(Easy ? "Easy aim on: slower Discords, stronger aim help" : "Easy aim off"), 2.5f);
             }
             else if (Time.time < m_LeaveAskedUntil) Leave("left with the Leave button");
             else
             {
                 // asks first, like the sandbox's Clear and Quit (headset 2026-11-25: a flick pressed Leave by accident)
                 m_LeaveAskedUntil = Time.time + LeaveAskSeconds;
-                Banner("Press Leave again to go back to the sandbox", LeaveAskSeconds);
+                Banner(T("Press Leave again to go back to the sandbox"), LeaveAskSeconds);
             }
             Labels();
         }
@@ -669,17 +622,21 @@ namespace RoomOrchestra
             if (!Running || Current == Stage.Won || Current == Stage.Lost) return;
             Paused = paused;
             m_Audio.Paused = paused;
-            if (paused) { m_SaidBeforePause = m_Caption.text; Say("Paused. Nothing moves until you press Resume."); }
+            if (paused) { m_SaidBeforePause = m_Caption.text; Say(T("Paused. Nothing moves until you press Resume.")); }
             else Say(m_SaidBeforePause);
             Labels();
         }
 
         string m_SaidBeforePause = "";
+        StoryButton m_HoverButton;
+        float m_HoverSince;
+        /// <summary>During play, how long the eyes rest on a button before a pinch presses it (s).</summary>
+        public const float ButtonSettle = 0.3f;
 
         // ---------- each frame ----------
         void Update()
         {
-            if (!Running) { FaceSign(); return; }
+            if (!Running) return;
             float dt = Time.deltaTime;
             var pointers = m_Router != null ? m_Router.Pointers : null;
             var rig = XrRig.Instance != null ? XrRig.Instance.transform : null;
@@ -713,8 +670,15 @@ namespace RoomOrchestra
             // brushes thumb and finger together (headset 2026-11-25: a flick, eyes on the button row, pressed Leave)
             // only while flicking is on (headset 2026-11-25: the intro card's Begin was blocked by a hand resting by the friend)
             bool flicking = !Paused && (Current == Stage.WaveCue || Current == Stage.Wave || Current == Stage.BossCue || Current == Stage.Boss);
-            bool handsBusy = flicking && ((right.Joints && Vector3.Distance(W(right.IndexTip), m_FriendAt) < 0.25f) || Time.time - m_LastFlickAt < 1f);
-            if (flicking && hovered != null && hoveredBy == 0 && left.Joints && right.Joints) leftPress = false; // the left hand holds the friend
+            // During play a pinch presses a button the eyes have rested on (owner, headset 2026-11-26: "it was hard to
+            // select the buttons with my pinch ... when I wanted to switch between easy aim on and off"): either hand's
+            // pinch works once the button has been looked at for a moment, unless a flick was just made or the right
+            // finger is loaded right at the friend. A flick's brush of thumb and finger, eyes passing the row, stays
+            // safe: the look must settle on the button first.
+            if (hovered != m_HoverButton) { m_HoverButton = hovered; m_HoverSince = Time.time; }
+            bool settled = hovered != null && Time.time - m_HoverSince >= ButtonSettle;
+            bool loadedAtFriend = right.Joints && Vector3.Distance(W(right.IndexTip), m_FriendAt) < 0.1f;
+            bool handsBusy = flicking && (!settled || loadedAtFriend || Time.time - m_LastFlickAt < 0.6f);
             if (handsBusy && ((hoveredBy == 1 && right.Joints) || (hoveredBy == 0 && left.Joints))) { leftPress = false; rightPress = false; }
             if (hovered != null && ((hoveredBy == 0 && leftPress) || (hoveredBy == 1 && rightPress)))
             {
@@ -796,6 +760,14 @@ namespace RoomOrchestra
             m_MistMat.color = new Color(0.42f, 0.41f, 0.46f, greyness);
             m_Mist.position = head.position;
             m_Audio.SetSour(Meter.Level);
+            // a clear warning before the room fills (owner, headset 2026-11-26: "Did I automatically fail the level
+            // because too many enemies piled up in my room?"): at half full and nearly full, said in words
+            if (Current != Stage.Won && Current != Stage.Lost)
+            {
+                if (Meter.Level < 0.35f) m_RoomWarned = 0;
+                else if (Meter.Level >= 0.8f && m_RoomWarned < 2) { m_RoomWarned = 2; Banner(T("Your room is nearly full of Discord! Beat the ones in your room!"), 3.5f); m_Audio.Play(StorySound.SqueakCall, Head().position, 0.6f); }
+                else if (Meter.Level >= 0.5f && m_RoomWarned < 1) { m_RoomWarned = 1; Banner(T("Discord is filling your room! Beat the ones that got in."), 3f); }
+            }
             if (Meter.Lost && Current != Stage.Lost && Current != Stage.Won) Lose();
         }
 
@@ -865,7 +837,7 @@ namespace RoomOrchestra
             m_WatchFill.widthMultiplier = Harmony.Full ? 0.016f : 0.011f;
             m_Streak.transform.position = wrist + up.normalized * 0.065f;
             m_Streak.transform.rotation = Quaternion.LookRotation(m_Streak.transform.position - head.position);
-            m_Streak.text = Time.time < m_StreakLostUntil ? "streak lost" : Harmony.Full ? "CHORUS!" : Harmony.Streak >= 2 ? $"x{Harmony.Streak} streak" : "";
+            m_Streak.text = Time.time < m_StreakLostUntil ? T("streak lost") : Harmony.Full ? T("CHORUS!") : Harmony.Streak >= 2 ? F("x{0} streak", Harmony.Streak) : "";
         }
 
         static void Emote(Transform friend, Expression e)
@@ -889,7 +861,7 @@ namespace RoomOrchestra
                 RefreshHand();
                 Debug.Log($"[RoomOrchestra] Story: Hold, {Queue.Held} tucked away, {Queue.Current} on the palm");
             }
-            else Banner("Flick first, then Hold again", 1.5f);
+            else Banner(T("Flick first, then Hold again"), 1.5f);
         }
 
         /// <summary>A flick shows: a white ring bursts from the palm, sparkles, and the next friend pops in.</summary>
@@ -906,6 +878,15 @@ namespace RoomOrchestra
 
         /// <summary>Where the aim line points: the nearest Discord the palm friend beats (or the Grumble, if its shell
         /// is that friend's).</summary>
+        /// <summary>Little Discords at once during the boss fight.</summary>
+        const int MaxBossMinions = 4;
+
+        bool HasDiscordFor(OrbType friend)
+        {
+            foreach (var d in m_Discords) if (d.Root != null && StoryRules.Matches(friend, d.Kind)) return true;
+            return false;
+        }
+
         Vector3? AimTarget(Vector3 from)
         {
             if (Queue == null) return null;
@@ -978,15 +959,15 @@ namespace RoomOrchestra
                     {
                         Spawn(m_Dealt[m_Spawned], null);
                         m_Spawned++;
-                        m_NextSpawn = now + wave.BeatsApart * beat * (Easy ? 1.3f : 1f);
+                        m_NextSpawn = now + wave.BeatsApart * beat * (Easy ? 1.6f : 1f);
                     }
                     if (m_Spawned >= wave.Count && m_Discords.Count == 0)
                     {
-                        Banner("Wave cleared!", 2f);
+                        Banner(T("Wave cleared!"), 2f);
                         UiSounds.Play(UiSound.Confirm, m_Portal.Root.position);
                         WaveIndex++;
                         if (WaveIndex < Level.Waves.Count) SetStage(Stage.WaveCue);
-                        else if (Level.Boss) { SetStage(Stage.BossCue); Say(Cue(StoryCue.BossComing)); m_Audio.Layers = 2; }
+                        else if (Level.Boss) { SetStage(Stage.BossCue); Say(T(Cue(StoryCue.BossComing))); m_Audio.Layers = 2; }
                         else Win();
                     }
                     break;
@@ -996,12 +977,24 @@ namespace RoomOrchestra
                     if (since > 5f) { SetStage(Stage.Boss); m_NextMinion = now + 6f; }
                     break;
                 case Stage.Boss:
-                    if (now >= m_NextMinion && m_Discords.Count < 3 && m_Grumble != null)
+                    if (m_Grumble == null || Boss == null || Boss.Defeated) break;
+                    // Every friend has something to beat (owner, headset 2026-11-26: "the player is forced to flick off
+                    // the wrong ones away anyways ... maybe there needs to be an increase number of enemies so that the
+                    // randomization of the friends on the wrist makes sense"): when the friend on the palm can't crack
+                    // the shell and no little Discord it beats is about, the Grumble spits one out for it. The aim
+                    // help then takes each friend to its own target: the shell, or the little Discord.
+                    var palm = Queue.Current;
+                    if (!StoryRules.Matches(palm, Boss.Shell) && !HasDiscordFor(palm) && now >= m_NextForPalm && m_Discords.Count < MaxBossMinions)
                     {
-                        // the Grumble spits out a little Discord now and then
-                        var kind = (DiscordKind)Random.Range(0, 3);
-                        Spawn(kind, m_Grumble.Root.position);
-                        m_NextMinion = now + 8f * (60f / (float)Level.Bpm) * (Easy ? 1.5f : 1f);
+                        Spawn(StoryRules.BeatenBy(palm), m_Grumble.Root.position);
+                        m_NextForPalm = now + (Easy ? 1.6f : 1.1f);
+                        m_NextMinion = Mathf.Max(m_NextMinion, now + 2f);
+                    }
+                    else if (now >= m_NextMinion && m_Discords.Count < MaxBossMinions)
+                    {
+                        // and a little Discord now and then besides (more often than before)
+                        Spawn((DiscordKind)Random.Range(0, 3), m_Grumble.Root.position);
+                        m_NextMinion = now + 6f * (60f / (float)Level.Bpm) * (Easy ? 1.5f : 1f);
                     }
                     break;
             }
@@ -1013,7 +1006,7 @@ namespace RoomOrchestra
             if (Harmony != null && Harmony.Full && !m_ChorusShown && Running && Current != Stage.Won && Current != Stage.Lost)
             {
                 m_ChorusShown = true;
-                Banner(Hands() ? "Harmony full! Your next flick is a CHORUS!" : "Harmony full! Your next shot is a CHORUS!", 3f);
+                Banner(T(Hands() ? "Harmony full! Your next flick is a CHORUS!" : "Harmony full! Your next shot is a CHORUS!"), 3f);
                 m_Audio.Play(StorySound.Chorus, Head().position, 0.6f);
             }
         }
@@ -1089,7 +1082,7 @@ namespace RoomOrchestra
             m_Audio.Play(kind == DiscordKind.Squeak ? StorySound.SqueakCall : kind == DiscordKind.Wobbler ? StorySound.WobbleCall : StorySound.ClangCall, start, 0.8f);
         }
 
-        float Speed(DiscordKind k) => (k == DiscordKind.Squeak ? 0.3f : k == DiscordKind.Wobbler ? 0.22f : 0.16f) * (Easy ? 0.7f : 1f) * (Level != null ? Level.Speed : 1f);
+        float Speed(DiscordKind k) => (k == DiscordKind.Squeak ? 0.3f : k == DiscordKind.Wobbler ? 0.22f : 0.16f) * (Easy ? 0.6f : 1f) * (Level != null ? Level.Speed : 1f);
 
         void MoveDiscords(Vector3 head, float dt, float now)
         {
@@ -1103,7 +1096,7 @@ namespace RoomOrchestra
                 if (d.Inside)
                 {
                     // up the path, then a hop to the opening
-                    d.InsideFor += dt / (Easy ? 1.3f : 1f);
+                    d.InsideFor += dt / (Easy ? 1.6f : 1f);
                     float f = Mathf.Clamp01(d.InsideFor / InsideSeconds);
                     p = f < 0.7f ? Vector3.Lerp(d.Start, d.Mid, f / 0.7f) : Vector3.Lerp(d.Mid, d.Cross, Mathf.SmoothStep(0f, 1f, (f - 0.7f) / 0.3f));
                     if (f < 0.7f && d.Kind != DiscordKind.Squeak) p.y += Mathf.Abs(Mathf.Sin(t * 7f)) * 0.025f;
@@ -1123,7 +1116,7 @@ namespace RoomOrchestra
                         d.Loose = true;
                         m_GreyPulse = 0.35f;
                         m_Audio.Play(StorySound.Escape, p);
-                        Banner("A Discord got into your room!", 1.5f);
+                        Banner(T("A Discord got into your room!"), 1.5f);
                         Emote(m_PalmFriend, RoomOrchestra.Expression.Scared);
                         Debug.Log($"[RoomOrchestra] Story: a {d.Kind} got into the room");
                     }
@@ -1133,7 +1126,7 @@ namespace RoomOrchestra
                     // loose in the room: drifting round the player, greying the room until it is beaten
                     float a = t * 0.35f;
                     var target = head + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 1.15f + Vector3.up * (Mathf.Sin(a * 1.7f) * 0.2f - 0.05f);
-                    p = Vector3.MoveTowards(p, target, 0.3f * (Easy ? 0.7f : 1f) * dt);
+                    p = Vector3.MoveTowards(p, target, 0.3f * (Easy ? 0.6f : 1f) * dt);
                 }
                 d.Root.position = p;
                 d.Root.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(p - head, Vector3.up).normalized + Vector3.up * 0.001f);
@@ -1196,7 +1189,7 @@ namespace RoomOrchestra
             }
             var bars = new System.Text.StringBuilder();
             for (int i = 0; i < Boss.HitsPerShell; i++) bars.Append(i < Boss.HitsLeft ? "|" : ".");
-            m_BossText.text = Boss.Defeated ? "" : $"Shell {Boss.ShellIndex + 1} of {Boss.Shells.Count}: needs {StoryRules.Beats(Boss.Shell)}  {bars}";
+            m_BossText.text = Boss.Defeated ? "" : F("Shell {0} of {1}: needs {2}  {3}", Boss.ShellIndex + 1, Boss.Shells.Count, FriendName(StoryRules.Beats(Boss.Shell)), bars);
         }
 
         void MoveGrumble(Vector3 head, float now)
@@ -1226,14 +1219,14 @@ namespace RoomOrchestra
                     Wrong++;
                     Harmony.Wrong();
                     m_Audio.Play(StorySound.Sour, at);
-                    Banner($"{friend} bounces off! It needs {StoryRules.Beats(Boss.Shell)}.", 2f);
+                    Banner(F("{0} bounces off! It needs {1}.", FriendName(friend), FriendName(StoryRules.Beats(Boss.Shell))), 2f);
                     break;
                 case BossHit.Damaged:
                     BossCount();
                     m_Audio.Play(StorySound.ClangCall, at, 0.6f);
                     m_Audio.MelodyNote(friend);
                     Burst(at, friend, 6);
-                    Banner("Crack!", 1f);
+                    Banner(T("Crack!"), 1f);
                     break;
                 case BossHit.ShellBroken:
                     m_Audio.Play(StorySound.Shell, at);
@@ -1241,7 +1234,7 @@ namespace RoomOrchestra
                     Puff(at, 1f);
                     Burst(at, friend, 14);
                     ShowShell();
-                    Banner($"Shell broken! Now it needs {StoryRules.Beats(Boss.Shell)}.", 2.5f);
+                    Banner(F("Shell broken! Now it needs {0}.", FriendName(StoryRules.Beats(Boss.Shell))), 2.5f);
                     break;
                 case BossHit.Defeated:
                     m_Audio.Play(StorySound.Shell, at);
@@ -1263,21 +1256,23 @@ namespace RoomOrchestra
             bool onBeat = m_Audio.OnBeat();
             if (Harmony.Spend()) { Chorus(from); return; }
             // the aim line's target first (the Discord this friend beats): a flick roughly its way goes to it
+            // Easy aim on vs off, clearly different (owner, headset 2026-11-26: "make the difference a little bit more
+            // drastic"): on, any flick roughly forward finds its target; off, the flick must be aimed.
             var lockOn = AimTarget(from);
-            if (lockOn.HasValue && Vector3.Angle(direction, lockOn.Value - from) < (Easy ? 55f : 40f))
-                direction = Vector3.Slerp(direction, (lockOn.Value - from).normalized, 0.85f).normalized;
+            if (lockOn.HasValue && Vector3.Angle(direction, lockOn.Value - from) < (Easy ? 75f : 35f))
+                direction = Vector3.Slerp(direction, (lockOn.Value - from).normalized, Easy ? 1f : 0.8f).normalized;
             else
             {
                 var targets = new List<Vector3>();
                 foreach (var d in m_Discords) targets.Add(d.Root.position);
                 if (m_Grumble != null) targets.Add(m_Grumble.Root.position);
-                direction = FlickDetector.Assist(from, direction, targets.ToArray(), Easy ? 40f : 25f, Easy ? 0.85f : 0.65f);
+                direction = FlickDetector.Assist(from, direction, targets.ToArray(), Easy ? 60f : 20f, Easy ? 0.95f : 0.6f);
             }
             var friend = Queue.Flick();
             FlickBurst(from, friend);
             var s = NewShot(friend, from, direction * (friend == OrbType.Flutter ? 5.5f : friend == OrbType.Bop ? 4.2f : 3.3f), onBeat);
             m_Audio.Play(StorySound.Launch, from);
-            if (onBeat) { Banner("On the beat!", 0.8f); Burst(from, friend, 4); }
+            if (onBeat) { Banner(T("On the beat!"), 0.8f); Burst(from, friend, 4); }
             Debug.Log($"[RoomOrchestra] Story: {friend} launched ({how}, finger {m_Flick.Speed:F1} m/s{(onBeat ? ", on the beat" : "")})");
             RefreshHand();
             if (!m_HoldTaught && WaveIndex >= 1 && Hands()) m_HoldTaught = true;
@@ -1444,7 +1439,7 @@ namespace RoomOrchestra
                 Harmony.Wrong();
                 m_WatchFlashUntil = Time.time + 0.5f; m_StreakLostUntil = Time.time + 1.2f;
                 m_Audio.Play(StorySound.Sour, at);
-                Banner("Sour note! Boom's shockwave only cracks Clangs.", 1.8f);
+                Banner(T("Sour note! Boom's shockwave only cracks Clangs."), 1.8f);
             }
             if (!cracked && m_Grumble == null) Debug.Log("[RoomOrchestra] Story: Boom's shockwave cracked no Clang");
         }
@@ -1508,7 +1503,7 @@ namespace RoomOrchestra
             Harmony.Matched(onBeat);
             Beaten++;
             if (m_PalmFriend != null && m_PalmFriend.TryGetComponent<CharacterFace>(out var face)) face.Beam();
-            if (Harmony.Streak >= 3 && Harmony.Streak != m_LastStreakShown && Harmony.Streak % 3 == 0) { m_LastStreakShown = Harmony.Streak; Banner($"{Harmony.Streak} in a row!", 1.2f); }
+            if (Harmony.Streak >= 3 && Harmony.Streak != m_LastStreakShown && Harmony.Streak % 3 == 0) { m_LastStreakShown = Harmony.Streak; Banner(F("{0} in a row!", Harmony.Streak), 1.2f); }
             Destroy(d.Root.gameObject);
             Debug.Log($"[RoomOrchestra] Story: {friend} beat a {d.Kind}{(onBeat ? " on the beat" : "")}");
         }
@@ -1520,7 +1515,7 @@ namespace RoomOrchestra
             m_WatchFlashUntil = Time.time + 0.5f; m_StreakLostUntil = Time.time + 1.2f;
             m_Audio.Play(StorySound.Sour, d.Root.position);
             if (d.Size < 1.6f) d.Size *= 1.15f; // the wrong friend: it grows
-            Banner($"Sour note! {StoryRules.Beats(d.Kind)} beats that one.", 1.8f);
+            Banner(F("Sour note! {0} beats that one.", FriendName(StoryRules.Beats(d.Kind))), 1.8f);
             Debug.Log($"[RoomOrchestra] Story: {friend} can't beat a {d.Kind}: it grows");
         }
 
@@ -1573,9 +1568,9 @@ namespace RoomOrchestra
             m_BloomTarget = 1f; // the meadow's song is back: full colour, the World Tree blazing
             m_Audio.Play(StorySound.Win, m_Portal.Root.position);
             Meter = new DiscordMeter(MeterAssist); // the room clears
-            m_Banner.text = $"Level {Level.Number} complete!";
+            m_Banner.text = F("Level {0} complete!", Level.Number);
             bool more = m_LevelIndex + 1 < StoryLevel.All.Length;
-            Say($"{Lore.Restored} The Grumble and {Beaten} Discords turned back into music. " + (more ? $"Level {m_LevelIndex + 2} is ready: press Next level when you've collected the card." : "You restored every instrument: the journey is complete! Thank you for playing."));
+            Say(F("{0} The Grumble and {1} Discords turned back into music.", T(Lore.Restored), Beaten) + " " + (more ? F("Level {0} is ready: press Next level when you've collected the card.", m_LevelIndex + 2) : T("You restored every instrument: the journey is complete! Thank you for playing.")));
             ShowCollectCard();
             m_EndStars = new GameObject("Stars");
             m_EndStars.transform.SetParent(m_Hud, false);
@@ -1591,8 +1586,8 @@ namespace RoomOrchestra
             m_BloomTarget = 0.05f; // the colour drains away
             m_Audio.Stop();
             m_Audio.Play(StorySound.Lose, Head().position);
-            m_Banner.text = "Oh no!";
-            Say(Easy ? "The Discord filled your room and drained the meadow grey. Try again?" : "The Discord filled your room and drained the meadow grey. Try again? Easy aim slows the Discords down.");
+            m_Banner.text = T("Oh no!");
+            Say(T(Easy ? "Too many Discords got into your room, and the meadow went grey. Try again?" : "Too many Discords got into your room, and the meadow went grey. Try again? Easy aim slows the Discords down and helps your aim."));
             Labels();
             Debug.Log($"[RoomOrchestra] Story: Level {Level.Number} lost at wave {WaveIndex + 1} (beaten {Beaten}, wrong {Wrong})");
         }
@@ -1606,16 +1601,15 @@ namespace RoomOrchestra
         }
     }
 
-    /// <summary>The "Play Story" sign above the leaf (until the title sign offers the three modes).</summary>
-    public class StoryStartSticker : MonoBehaviour, IPressable
+    /// <summary>Menu > Story (owner, 2026-11-26: "place an option there to play the story mode" on the menu's first row;
+    /// the floating Play Story sign is gone): closes the menu and opens story mode.</summary>
+    public class StoryMenuButton : MonoBehaviour, IPressable
     {
-        public void Press() => StoryDirector.Instance?.Begin();
-    }
-
-    /// <summary>The little gold card beside the Play Story sign: shows (and puts away) the instrument cards collected.</summary>
-    public class StoryCardIcon : MonoBehaviour, IPressable
-    {
-        public void Press() => StoryDirector.Instance?.ToggleSandboxCard();
+        public void Press()
+        {
+            MenuTray.Instance?.SetOpen(false);
+            StoryDirector.Instance?.Begin();
+        }
     }
 
     /// <summary>A button in story mode (pressed by pointing: eyes and pinch, or the controller's ray and trigger).</summary>
